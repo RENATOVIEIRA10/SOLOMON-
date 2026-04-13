@@ -205,51 +205,35 @@ async function main() {
 
     console.log(`[3/7] ${insurer.name}: ${parsed.products.length} products, ${parsed.totalCoverages} coverages (${parsed.skippedCoverages} skipped)`)
 
-    // Save products + coverages
+    // Save products + coverages — use insert (first run) with duplicate check
     for (const { product, coverages } of parsed.products) {
-      const { data: productRow, error: productError } = await db
-        .from('products')
-        .upsert(product, { onConflict: 'insurer_id,code' })
-        .select('id')
-        .single()
+      // Check if product already exists (by insurer_id + code, or insurer_id + name)
+      let productRow: { id: string } | null = null
 
-      if (productError || !productRow) {
-        // Try insert without onConflict if code is null
-        if (product.code === null) {
-          const { data: insertedRow, error: insertError } = await db
-            .from('products')
-            .insert(product)
-            .select('id')
-            .single()
+      if (product.code) {
+        const { data } = await db
+          .from('products')
+          .select('id')
+          .eq('insurer_id', product.insurer_id)
+          .eq('code', product.code)
+          .maybeSingle()
+        productRow = data
+      }
 
-          if (insertError || !insertedRow) {
-            const msg = `Failed to save product ${product.name}: ${insertError?.message ?? productError?.message}`
-            console.error(`[3/7] ${msg}`)
-            stats.errors.push(msg)
-            continue
-          }
+      if (!productRow) {
+        // Insert new product
+        const { data: insertedRow, error: insertError } = await db
+          .from('products')
+          .insert(product)
+          .select('id')
+          .single()
 
-          stats.productsSaved++
-          const key = `${insurer.cnpj}::${product.code ?? product.name}`
-          productDbMap.set(key, { id: insertedRow.id, name: product.name, insurerName: insurer.name })
-
-          // Save coverages for this product
-          if (coverages.length > 0) {
-            const coverageRows = coverages.map((c) => ({ ...c, product_id: insertedRow.id }))
-            const { error: covError } = await db.from('coverages').insert(coverageRows)
-            if (covError) {
-              console.error(`[3/7] Coverage error for ${product.name}: ${covError.message}`)
-            } else {
-              stats.coveragesSaved += coverages.length
-            }
-          }
+        if (insertError || !insertedRow) {
+          const msg = `Failed to save product ${product.name}: ${insertError?.message}`
+          stats.errors.push(msg)
           continue
         }
-
-        const msg = `Failed to save product ${product.name}: ${productError?.message}`
-        console.error(`[3/7] ${msg}`)
-        stats.errors.push(msg)
-        continue
+        productRow = insertedRow
       }
 
       stats.productsSaved++
