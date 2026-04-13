@@ -110,7 +110,7 @@ function parseProduct(
     // 'definition' field often contains the URL, or there may be a 'url' field
     const url = (first.url as string) ?? null
     const definition = (first.definition as string) ?? null
-    termsUrl = url || (definition && definition.startsWith('HTTP') ? definition : null)
+    termsUrl = url || (definition && definition.toLowerCase().startsWith('http') ? definition : null)
   } else if (terms && typeof terms === 'object' && !Array.isArray(terms)) {
     const t = terms as Record<string, unknown>
     susepProcess = (t.susepProcessNumber as string) ?? null
