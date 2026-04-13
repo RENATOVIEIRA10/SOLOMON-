@@ -19,6 +19,9 @@ import { pipeline } from 'node:stream/promises'
 import { Readable } from 'node:stream'
 import type { CrawlerConfig } from './crawler-config'
 
+// Note: This file uses fetch-based crawling (no JS rendering).
+// For sites that need Playwright, use playwright-crawler.ts instead.
+
 const FETCH_TIMEOUT_MS = 30_000
 const PDF_DOWNLOAD_TIMEOUT_MS = 120_000
 const PDF_DIR = join(process.cwd(), '.crawler-pdfs')
@@ -303,13 +306,18 @@ export async function crawlInsurer(
 
   result.pdfLinksFound = uniqueLinks.size
 
-  // Filter for relevant PDFs
-  const relevant = Array.from(uniqueLinks.entries()).filter(([url, text]) =>
-    isRelevantPdf(url, text, config.keywords)
-  )
+  // Filter for relevant PDFs (or accept all if site is life-insurance specific)
+  const allEntries = Array.from(uniqueLinks.entries())
+  const relevant = config.acceptAllPdfs
+    ? allEntries
+    : allEntries.filter(([url, text]) => isRelevantPdf(url, text, config.keywords))
 
   result.relevantLinks = relevant.length
-  console.log(`[crawler] ${relevant.length}/${uniqueLinks.size} links match life insurance keywords`)
+  console.log(
+    config.acceptAllPdfs
+      ? `[crawler] ${relevant.length} PDFs (acceptAllPdfs=true)`
+      : `[crawler] ${relevant.length}/${uniqueLinks.size} links match life insurance keywords`
+  )
 
   if (options.dryRun) {
     console.log(`[crawler] [DRY RUN] Would download ${relevant.length} PDFs`)
