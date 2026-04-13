@@ -140,21 +140,47 @@ async function fetchAllPages(baseUrl: string): Promise<OPINProduct[]> {
 
     console.log(`[fetcher]   Page ${page}: ${products.length} products (total so far: ${allProducts.length})`)
 
+    // Check if this is the only page (totalPages: 1 means no need to paginate)
+    const meta = body.meta as Record<string, unknown> | undefined
+    const totalPages = meta?.totalPages as number | undefined
+    if (totalPages !== undefined && page >= totalPages) {
+      break
+    }
+
     // Follow pagination via response body links
     const links = body.links as Record<string, string> | undefined
-    currentUrl = links?.next || undefined
+    let nextUrl = links?.next || undefined
 
     // Also check Link header as fallback
-    if (!currentUrl) {
+    if (!nextUrl) {
       const linkHeader = response.headers.get('Link')
       if (linkHeader) {
         const nextMatch = linkHeader.match(/<([^>]+)>;\s*rel="next"/)
         if (nextMatch) {
-          currentUrl = nextMatch[1]
+          nextUrl = nextMatch[1]
         }
       }
     }
 
+    // Skip pagination to unreachable URLs (internal IPs, different domains)
+    if (nextUrl) {
+      try {
+        const nextParsed = new URL(nextUrl)
+        const baseParsed = new URL(baseUrl)
+        // Skip if next URL points to internal IP or different host
+        if (nextParsed.hostname.match(/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/)) {
+          console.warn(`[fetcher] Skipping internal IP pagination: ${nextParsed.hostname}`)
+          nextUrl = undefined
+        } else if (nextParsed.hostname !== baseParsed.hostname) {
+          // Different host — try it but don't fail if unreachable
+          console.log(`[fetcher] Pagination redirects to ${nextParsed.hostname}`)
+        }
+      } catch {
+        nextUrl = undefined
+      }
+    }
+
+    currentUrl = nextUrl
     page++
 
     // Safety: cap at 50 pages to prevent infinite loops
