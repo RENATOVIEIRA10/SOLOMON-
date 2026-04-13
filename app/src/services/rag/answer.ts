@@ -52,10 +52,15 @@ export async function ask(
 ): Promise<AskResult> {
   const startTime = Date.now()
 
-  // 1. Semantic search
-  const searchResults = await semanticSearch(question, {
+  // 1. Semantic search (requires embeddings in documents table)
+  let searchResults = await semanticSearch(question, {
     insurerId: options?.insurerFilter,
   })
+
+  // 1b. Fallback: structured search on products/coverages if no embeddings found
+  if (searchResults.length === 0) {
+    searchResults = await structuredSearch(question, options?.insurerFilter)
+  }
 
   // 2. Enrich with insurer/product names
   const enrichment = await loadEnrichment(searchResults)
@@ -116,6 +121,55 @@ export async function ask(
     latencyMs: Date.now() - startTime,
     conversationId,
   }
+}
+
+/**
+ * Structured search fallback: uses search_products RPC to query
+ * products and coverages directly when no embeddings are available.
+ */
+async function structuredSearch(question: string, insurerFilter?: string): Promise<SearchResult[]> {
+  const supabase = createServiceClient()
+
+  // Extract the most meaningful search terms
+  const stopWords = ['qual', 'quais', 'como', 'onde', 'quando', 'para', 'pela', 'pelo', 'dos', 'das', 'nos', 'nas', 'que', 'uma', 'com', 'sem', 'por']
+  const keywords = question.toLowerCase().split(/\s+/).filter(w => w.length > 2 && !stopWords.includes(w))
+
+  // Try each keyword as search term (insurer names are most useful)
+  for (const keyword of keywords) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)('search_products', {
+      search_query: keyword,
+      max_results: 10,
+    })
+
+    if (error) {
+      console.error(`[rag/structured] RPC error for "${keyword}":`, error.message)
+      continue
+    }
+
+    if (data && data.length > 0) {
+      console.log(`[rag/structured] Found ${data.length} results for keyword "${keyword}"`)
+      return (data as Array<Record<string, unknown>>).map((row, idx) => ({
+        id: String(row.product_id),
+        content: [
+          `Produto: ${row.product_name}`,
+          `Seguradora: ${row.insurer_name}`,
+          `Modalidade: ${row.modality}`,
+          row.susep_process ? `Processo SUSEP: ${row.susep_process}` : '',
+          row.product_code ? `Codigo: ${row.product_code}` : '',
+          `Coberturas: ${row.coverage_summary}`,
+        ].filter(Boolean).join('\n'),
+        similarity: 0.85 - (idx * 0.03),
+        metadata: {},
+        source_url: row.terms_url as string | null,
+        source_type: 'structured',
+        product_id: String(row.product_id),
+        insurer_id: String(row.insurer_id),
+      }))
+    }
+  }
+
+  return []
 }
 
 /**

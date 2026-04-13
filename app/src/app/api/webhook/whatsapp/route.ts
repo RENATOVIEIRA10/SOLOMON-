@@ -49,6 +49,9 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
 
+    // Log raw payload for debugging
+    console.log('[webhook/whatsapp] RAW PAYLOAD:', JSON.stringify(body).slice(0, 1000))
+
     // Optional: validate webhook token from header
     const headerToken = request.headers.get('x-webhook-token') ?? request.headers.get('apikey')
     if (VERIFY_TOKEN && headerToken && headerToken !== VERIFY_TOKEN) {

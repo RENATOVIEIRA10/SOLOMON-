@@ -43,75 +43,89 @@ interface MetaWebhookPayload {
 }
 
 /**
- * Parse a Kapso/Meta Cloud API webhook into a normalized IncomingMessage.
- * Returns null if the payload is not a valid user message.
+ * Parse a Kapso webhook into a normalized IncomingMessage.
+ *
+ * Real Kapso format:
+ * {
+ *   "message": { "id": "wamid...", "from": "558192724824", "text": { "body": "Oiiiiii" }, "type": "text", "timestamp": "..." },
+ *   "conversation": { "phone_number": "558192724824", "contact_name": "..." },
+ *   "phone_number_id": "1076079088920772"
+ * }
  */
 export function parseKapsoWebhook(body: unknown): IncomingMessage | null {
   if (!body || typeof body !== 'object') return null
 
-  const payload = body as MetaWebhookPayload
+  const payload = body as Record<string, unknown>
 
-  // Meta Cloud API format
-  if (payload.object === 'whatsapp_business_account' && payload.entry) {
-    for (const entry of payload.entry) {
-      for (const change of entry.changes ?? []) {
-        const messages = change.value?.messages
-        if (!messages || messages.length === 0) continue
+  // Kapso native format: { message: { from, text, type, ... }, conversation: { ... } }
+  const message = payload.message as Record<string, unknown> | undefined
+  if (message && message.from) {
+    const from = String(message.from)
+    const phone = from.startsWith('+') ? from : `+${from}`
+    const msgType = String(message.type ?? 'text')
 
-        // Skip status updates
-        if (change.value?.statuses) continue
+    // Skip outbound messages
+    const kapsoMeta = message.kapso as Record<string, unknown> | undefined
+    if (kapsoMeta?.direction === 'outbound') return null
 
-        const msg = messages[0]
-        if (!msg.from) continue
+    let text = ''
+    let type: IncomingMessage['type'] = 'text'
 
-        const phone = msg.from.startsWith('+') ? msg.from : `+${msg.from}`
-        let text = ''
-        let type: IncomingMessage['type'] = 'text'
-
-        switch (msg.type) {
-          case 'text':
-            text = msg.text?.body ?? ''
-            type = 'text'
-            break
-          case 'image':
-            text = msg.image?.caption ?? ''
-            type = 'image'
-            break
-          case 'document':
-            text = msg.document?.caption ?? ''
-            type = 'document'
-            break
-          case 'audio':
-            type = 'audio'
-            break
-          default:
-            // Unsupported type, try to get text
-            text = (msg as Record<string, unknown>).text?.toString() ?? ''
-        }
-
-        if (type === 'text' && !text.trim()) return null
-
-        return {
-          from: phone,
-          body: text,
-          messageId: msg.id ?? `kapso-${Date.now()}`,
-          timestamp: msg.timestamp ? parseInt(msg.timestamp, 10) : Math.floor(Date.now() / 1000),
-          type,
-        }
+    switch (msgType) {
+      case 'text': {
+        const textObj = message.text as Record<string, unknown> | undefined
+        text = String(textObj?.body ?? kapsoMeta?.content ?? '')
+        type = 'text'
+        break
       }
+      case 'image': {
+        const imgObj = message.image as Record<string, unknown> | undefined
+        text = String(imgObj?.caption ?? '')
+        type = 'image'
+        break
+      }
+      case 'document': {
+        const docObj = message.document as Record<string, unknown> | undefined
+        text = String(docObj?.caption ?? '')
+        type = 'document'
+        break
+      }
+      case 'audio':
+        type = 'audio'
+        break
+      default:
+        text = String(kapsoMeta?.content ?? '')
+    }
+
+    if (type === 'text' && !text.trim()) return null
+
+    return {
+      from: phone,
+      body: text,
+      messageId: String(message.id ?? `kapso-${Date.now()}`),
+      timestamp: message.timestamp ? parseInt(String(message.timestamp), 10) : Math.floor(Date.now() / 1000),
+      type,
     }
   }
 
-  // Fallback: flat format (some Kapso configurations)
-  const flat = body as Record<string, unknown>
-  if (flat.from && flat.body) {
-    const from = String(flat.from)
-    return {
-      from: from.startsWith('+') ? from : `+${from}`,
-      body: String(flat.body),
-      messageId: String(flat.messageId ?? `kapso-${Date.now()}`),
-      timestamp: Number(flat.timestamp ?? Math.floor(Date.now() / 1000)),
-      type: 'text',
+  // Fallback: Meta Cloud API format (whatsapp_business_account)
+  const metaPayload = payload as MetaWebhookPayload
+  if (metaPayload.object === 'whatsapp_business_account' && metaPayload.entry) {
+    for (const entry of metaPayload.entry) {
+      for (const change of entry.changes ?? []) {
+        const messages = change.value?.messages
+        if (!messages || messages.length === 0) continue
+        const msg = messages[0]
+        if (!msg.from) continue
+
+        return {
+          from: msg.from.startsWith('+') ? msg.from : `+${msg.from}`,
+          body: msg.text?.body ?? '',
+          messageId: msg.id ?? `kapso-${Date.now()}`,
+          timestamp: msg.timestamp ? parseInt(msg.timestamp, 10) : Math.floor(Date.now() / 1000),
+          type: (msg.type as IncomingMessage['type']) ?? 'text',
+        }
+      }
     }
   }
 
