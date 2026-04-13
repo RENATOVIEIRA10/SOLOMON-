@@ -48,7 +48,7 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
   }
 
   // 3. Check daily query limit
-  const plan = PLANS[broker.plan as PlanKey] ?? PLANS.FREE
+  const plan = PLANS[broker.plan.toUpperCase() as PlanKey] ?? PLANS.FREE
   const todayCount = await getQueriesCount(broker)
 
   if (plan.queriesPerDay !== -1 && todayCount >= plan.queriesPerDay) {
@@ -205,7 +205,7 @@ function handleCommand(cmd: ParsedCommand, broker: BrokerRow): string[] {
       ]
 
     case '/plano': {
-      const plan = PLANS[broker.plan as PlanKey] ?? PLANS.FREE
+      const plan = PLANS[broker.plan.toUpperCase() as PlanKey] ?? PLANS.FREE
       const limit = plan.queriesPerDay === -1 ? 'ilimitadas' : `${plan.queriesPerDay}/dia`
       return [
         `*Seu plano: ${plan.name}*\n\n` +
