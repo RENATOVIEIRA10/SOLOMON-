@@ -1,8 +1,10 @@
 /**
  * LLM Client
  *
- * Primary: Google Gemini 2.0 Flash (REST API)
- * Fallback: OpenAI GPT-4o-mini (SDK)
+ * Priority chain:
+ *   1. OpenRouter (Claude Sonnet 4 — best for legal docs)
+ *   2. Gemini 2.0 Flash (cheap fallback)
+ *   3. OpenAI GPT-4o-mini (last resort)
  */
 
 import OpenAI from 'openai'
@@ -15,11 +17,15 @@ export interface LLMResponse {
   latencyMs: number
 }
 
+// OpenRouter uses OpenAI-compatible API
+const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
+const OPENROUTER_MODEL = 'anthropic/claude-sonnet-4'
+
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 
 /**
  * Calls the LLM with a system prompt and user message.
- * Tries Gemini Flash first, falls back to OpenAI on failure.
+ * Tries OpenRouter → Gemini → OpenAI in order.
  */
 export async function callLLM(
   systemPrompt: string,
@@ -27,21 +33,32 @@ export async function callLLM(
 ): Promise<LLMResponse> {
   const start = Date.now()
 
-  // Try Gemini first
+  // 1. Try OpenRouter (Claude Sonnet)
+  const openrouterKey = process.env.OPENROUTER_API_KEY
+  if (openrouterKey) {
+    try {
+      const result = await callOpenRouter(systemPrompt, userMessage, openrouterKey)
+      return { ...result, latencyMs: Date.now() - start }
+    } catch (error) {
+      console.warn('[rag/llm] OpenRouter failed, trying fallback:', (error as Error).message)
+    }
+  }
+
+  // 2. Try Gemini
   const geminiKey = process.env.GEMINI_API_KEY
   if (geminiKey) {
     try {
       const result = await callGemini(systemPrompt, userMessage, geminiKey)
       return { ...result, latencyMs: Date.now() - start }
     } catch (error) {
-      console.warn('[rag/llm] Gemini failed, falling back to OpenAI:', (error as Error).message)
+      console.warn('[rag/llm] Gemini failed, trying OpenAI:', (error as Error).message)
     }
   }
 
-  // Fallback to OpenAI
+  // 3. Fallback to OpenAI
   const openaiKey = process.env.OPENAI_API_KEY
   if (!openaiKey) {
-    throw new Error('[rag/llm] No LLM API key available (GEMINI_API_KEY and OPENAI_API_KEY both missing)')
+    throw new Error('[rag/llm] No LLM API key available (OPENROUTER_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY all missing)')
   }
 
   const result = await callOpenAI(systemPrompt, userMessage, openaiKey)
@@ -49,7 +66,46 @@ export async function callLLM(
 }
 
 /**
- * Calls Gemini 2.0 Flash via REST API (no SDK dependency).
+ * Calls Claude via OpenRouter (OpenAI-compatible API).
+ */
+async function callOpenRouter(
+  systemPrompt: string,
+  userMessage: string,
+  apiKey: string
+): Promise<Omit<LLMResponse, 'latencyMs'>> {
+  const client = new OpenAI({
+    apiKey,
+    baseURL: OPENROUTER_BASE_URL,
+    defaultHeaders: {
+      'HTTP-Referer': 'https://solomon.aurios.com.br',
+      'X-Title': 'SOLOMON - IA Seguros de Vida',
+    },
+  })
+
+  const completion = await client.chat.completions.create({
+    model: OPENROUTER_MODEL,
+    temperature: 0.3,
+    max_tokens: 2048,
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage },
+    ],
+  })
+
+  const text = completion.choices[0]?.message?.content
+  if (!text) {
+    throw new Error('OpenRouter returned empty response')
+  }
+
+  return {
+    text,
+    model: OPENROUTER_MODEL,
+    tokensUsed: completion.usage?.total_tokens ?? 0,
+  }
+}
+
+/**
+ * Calls Gemini 2.0 Flash via REST API.
  */
 async function callGemini(
   systemPrompt: string,
@@ -59,7 +115,6 @@ async function callGemini(
   const model = RAG.model
   const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`
 
-  // Gemini uses a combined prompt approach
   const combinedMessage = `${systemPrompt}\n\n---\n\nPergunta do corretor:\n${userMessage}`
 
   const body = {
@@ -105,7 +160,7 @@ async function callGemini(
 }
 
 /**
- * Calls OpenAI GPT-4o-mini as fallback.
+ * Calls OpenAI GPT-4o-mini as last resort.
  */
 async function callOpenAI(
   systemPrompt: string,

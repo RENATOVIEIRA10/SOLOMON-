@@ -22,13 +22,16 @@
  */
 
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { PLAYWRIGHT_CONFIGS, FETCH_CONFIGS, type CrawlerConfig } from '@/services/crawlers/crawler-config'
+import { PLAYWRIGHT_CONFIGS, FETCH_CONFIGS, DIRECT_PDF_URLS, type CrawlerConfig } from '@/services/crawlers/crawler-config'
 import { crawlAllInsurersWithPlaywright, type PlaywrightCrawlResult } from '@/services/crawlers/playwright-crawler'
 import { crawlInsurer, type CrawlResult } from '@/services/crawlers/site-crawler'
 import { chunkPdfs, type TextChunk } from '@/services/embeddings/chunker'
 import { embedChunks } from '@/services/embeddings/embedder'
 import { indexChunks, indexChunksWithoutEmbeddings } from '@/services/embeddings/indexer'
 import type { Json } from '@/types/database'
+import { createHash } from 'node:crypto'
+import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
+import { join, basename } from 'node:path'
 
 // ---------------------------------------------------------------------------
 // CLI
@@ -239,6 +242,89 @@ async function main() {
   }
 
   // -------------------------------------------------------------------------
+  // Step 2b: Download known direct PDF URLs (no Playwright needed)
+  // -------------------------------------------------------------------------
+  const directPdfDir = join(process.cwd(), '.crawler-pdfs')
+  if (!existsSync(directPdfDir)) mkdirSync(directPdfDir, { recursive: true })
+
+  let directPdfsToFilter = DIRECT_PDF_URLS
+  if (args.insurerFilter) {
+    const filter = args.insurerFilter.toLowerCase()
+    directPdfsToFilter = directPdfsToFilter.filter((p) => p.insurerName.toLowerCase().includes(filter))
+  }
+
+  interface DirectDownloadResult {
+    url: string
+    filePath: string
+    insurerName: string
+    insurerCnpj: string
+    productName: string
+    changed: boolean
+  }
+  const directDownloaded: DirectDownloadResult[] = []
+
+  if (directPdfsToFilter.length > 0) {
+    console.log(`\n[2b] Downloading ${directPdfsToFilter.length} known direct PDFs...`)
+
+    for (const pdf of directPdfsToFilter) {
+      try {
+        const urlHash = createHash('sha256').update(pdf.url).digest('hex').slice(0, 12)
+        const slug = pdf.insurerName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')
+        const urlPart = basename(new URL(pdf.url).pathname).replace(/\.pdf$/i, '').replace(/[^a-zA-Z0-9_-]/g, '_').slice(0, 40)
+        const filename = `${slug}_${urlPart || urlHash}.pdf`
+        const filePath = join(directPdfDir, filename)
+
+        if (args.dryRun) {
+          console.log(`  [DRY] ${pdf.insurerName}: ${pdf.productName} — ${pdf.url}`)
+          continue
+        }
+
+        const response = await fetch(pdf.url, {
+          headers: { Accept: 'application/pdf,*/*', 'User-Agent': 'Mozilla/5.0 SOLOMON-Crawler/1.0' },
+          signal: AbortSignal.timeout(60_000),
+        })
+
+        if (!response.ok) {
+          console.error(`  [FAIL] ${pdf.insurerName} ${pdf.productName}: HTTP ${response.status}`)
+          stats.pdfsFailed++
+          stats.errors.push(`Direct download ${response.status}: ${pdf.url}`)
+          continue
+        }
+
+        const buffer = Buffer.from(await response.arrayBuffer())
+
+        if (buffer.length < 5 || buffer.toString('utf-8', 0, 5) !== '%PDF-') {
+          console.warn(`  [SKIP] Not a valid PDF: ${pdf.productName} (${buffer.length} bytes)`)
+          stats.pdfsFailed++
+          continue
+        }
+
+        writeFileSync(filePath, buffer)
+        console.log(`  [OK] ${pdf.insurerName}: ${pdf.productName} (${(buffer.length / 1024).toFixed(0)} KB)`)
+
+        stats.pdfsDownloaded++
+        stats.pdfLinksFound++
+
+        directDownloaded.push({
+          url: pdf.url,
+          filePath,
+          insurerName: pdf.insurerName,
+          insurerCnpj: pdf.insurerCnpj,
+          productName: pdf.productName,
+          changed: true,
+        })
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        console.error(`  [FAIL] ${pdf.insurerName} ${pdf.productName}: ${msg}`)
+        stats.pdfsFailed++
+        stats.errors.push(`Direct download: ${pdf.insurerName} ${pdf.productName}: ${msg}`)
+      }
+    }
+
+    console.log(`[2b] Direct downloads: ${directDownloaded.length} OK, ${stats.pdfsFailed} failed`)
+  }
+
+  // -------------------------------------------------------------------------
   // Step 3: Crawl simple sites with fetch
   // -------------------------------------------------------------------------
   if (fetchConfigs.length > 0) {
@@ -269,14 +355,22 @@ async function main() {
     r.pdfs.filter((p) => p.changed)
   )
 
-  console.log(`[4/5] ${changedPdfs.length} new/changed PDFs to process`)
+  console.log(`[4/5] ${changedPdfs.length} Playwright + ${directDownloaded.length} direct PDFs to process`)
 
-  const filesToChunk = changedPdfs.map((pdf) => ({
-    filePath: pdf.filePath,
-    sourceUrl: pdf.url,
-    insurerName: pdf.insurerName,
-    productName: pdf.linkText || 'Conditions PDF',
-  }))
+  const filesToChunk = [
+    ...changedPdfs.map((pdf) => ({
+      filePath: pdf.filePath,
+      sourceUrl: pdf.url,
+      insurerName: pdf.insurerName,
+      productName: pdf.linkText || 'Conditions PDF',
+    })),
+    ...directDownloaded.map((pdf) => ({
+      filePath: pdf.filePath,
+      sourceUrl: pdf.url,
+      insurerName: pdf.insurerName,
+      productName: pdf.productName,
+    })),
+  ]
 
   let allChunks: TextChunk[] = []
 
@@ -296,6 +390,9 @@ async function main() {
     // Map PDF URL → CNPJ for DB linking
     const pdfByCnpj = new Map<string, string>()
     for (const pdf of changedPdfs) {
+      pdfByCnpj.set(pdf.url, pdf.insurerCnpj)
+    }
+    for (const pdf of directDownloaded) {
       pdfByCnpj.set(pdf.url, pdf.insurerCnpj)
     }
 
