@@ -291,6 +291,21 @@ export const DIRECT_PDF_URLS: Array<{
   { url: 'https://magportaisinststgprd.blob.core.windows.net/magseguros/2023/09/2694-e-2695-Condicoes-Gerais-Vida-Inteira-Mar23.pdf', insurerName: 'MAG Seguros', insurerCnpj: '06.036.540/0001-50', productName: 'Vida Inteira 2694/2695' },
   // Caixa Seguradora
   { url: 'https://www.caixaseguradora.com.br/paravoce/vida/Biblioteca%20de%20Documentos/Arquivos_Condicoes_Gerais/Condicoes_Gerais_Vida_da_Gente/CG_Vida_da_Gente_Mensal_109300002357_v201211_Arq.7.pdf', insurerName: 'Caixa Vida e Previdencia', insurerCnpj: '03.730.204/0001-76', productName: 'Vida da Gente' },
+  // Azos (files.azos.com.br — static CDN)
+  { url: 'https://files.azos.com.br/f/15414.604989-2023-35--CONDI%C3%87%C3%95ES-CONTRATUAIS---02.2026.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Condicoes Contratuais 2026' },
+  { url: 'https://files.azos.com.br/f/digital-marco-2025.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Digital Marco 2025' },
+  { url: 'https://files.azos.com.br/f/digital-fevereiro-2023.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Digital Fevereiro 2023' },
+  { url: 'https://files.azos.com.br/f/15414-604991-2023-12---Condi%C3%A7%C3%B5es-Gerais---Broker-(1).pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Condicoes Gerais Broker' },
+  { url: 'https://files.azos.com.br/f/especialista-outubro-2025.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Especialista Outubro 2025' },
+  { url: 'https://files.azos.com.br/f/especialista-junho-2025.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Especialista Junho 2025' },
+  { url: 'https://files.azos.com.br/f/especialista-marco-2025.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Especialista Marco 2025' },
+  { url: 'https://files.azos.com.br/f/especialista-fevereiro-2024.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Especialista Fevereiro 2024' },
+  { url: 'https://files.azos.com.br/f/especialista-fevereiro-2023.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Especialista Fevereiro 2023' },
+  { url: 'https://files.azos.com.br/f/15414.601568-2021-91--CONDI%C3%87%C3%95ES-CONTRATUAIS---02.2026.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Condicoes Contratuais 601568' },
+  { url: 'https://files.azos.com.br/f/individual-junho-2022.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Individual Junho 2022' },
+  { url: 'https://files.azos.com.br/f/individual-julho-2021.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Individual Julho 2021' },
+  { url: 'https://files.azos.com.br/f/individual-junho-2021.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Individual Junho 2021' },
+  { url: 'https://files.azos.com.br/f/individual-marco-2021.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Individual Marco 2021' },
 ]
 
 // ---------------------------------------------------------------------------

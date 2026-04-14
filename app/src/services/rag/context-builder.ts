@@ -46,9 +46,13 @@ export function buildContext(
   for (let i = 0; i < results.length; i++) {
     const result = results[i]
 
-    const insurerName = enrichment?.insurers.get(result.insurer_id ?? '') ?? 'Seguradora desconhecida'
+    const insurerName = enrichment?.insurers.get(result.insurer_id ?? '')
+      ?? (result.metadata?.insurer_name as string)
+      ?? 'Seguradora desconhecida'
     const productInfo = enrichment?.products.get(result.product_id ?? '')
-    const productName = productInfo?.name ?? 'Produto desconhecido'
+    const productName = productInfo?.name
+      ?? (result.metadata?.product_name as string)
+      ?? 'Produto desconhecido'
     const susepProcess = productInfo?.susep_process ?? null
 
     const block: ContextBlock = {

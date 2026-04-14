@@ -60,7 +60,7 @@ async function main() {
     for (const [, ins] of missingInsurers) {
       const { data, error } = await db
         .from('insurers')
-        .upsert({ name: ins.name, cnpj: ins.cnpj }, { onConflict: 'cnpj' })
+        .upsert({ name: ins.name, cnpj: ins.cnpj, source: 'crawler' }, { onConflict: 'cnpj' })
         .select('id')
         .single()
       if (data) {

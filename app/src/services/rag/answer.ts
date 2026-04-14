@@ -10,6 +10,7 @@ import { semanticSearch, type SearchResult } from './search'
 import { buildContext, type ContextBlock, type EnrichmentData } from './context-builder'
 import { callLLM, type LLMResponse } from './llm'
 import { extractCitations, type Citation } from './citation'
+import { RAG } from '@/config/constants'
 
 const SYSTEM_PROMPT_TEMPLATE = `Voce e SOLOMON, um especialista em seguros de vida no Brasil.
 Sua funcao e responder perguntas de corretores de seguros com precisao e citacao de fontes.
@@ -52,18 +53,56 @@ export async function ask(
 ): Promise<AskResult> {
   const startTime = Date.now()
 
-  // 1. Semantic search (requires embeddings in documents table)
-  let searchResults = await semanticSearch(question, {
-    insurerId: options?.insurerFilter,
-  })
+  // 0. Detect insurer names in the question for targeted search
+  const mentionedInsurers = detectInsurers(question)
+  console.log(`[rag/ask] Mentioned insurers: ${mentionedInsurers.length > 0 ? mentionedInsurers.join(', ') : 'none (global search)'}`)
+
+  // 1. Semantic search — strategy depends on whether insurers were mentioned
+  let searchResults: SearchResult[] = []
+
+  if (mentionedInsurers.length > 0) {
+    // Targeted search: query each mentioned insurer separately to guarantee results
+    const insurerIds = await resolveInsurerIds(mentionedInsurers)
+    const perInsurer = Math.ceil(RAG.topK / mentionedInsurers.length)
+
+    for (const [name, id] of insurerIds) {
+      const results = await semanticSearch(question, {
+        insurerId: id,
+        topK: perInsurer,
+      })
+      console.log(`[rag/ask] ${name}: ${results.length} results`)
+      searchResults.push(...results)
+    }
+
+    // If targeted search found nothing, fall back to global
+    if (searchResults.length === 0) {
+      searchResults = await semanticSearch(question, {
+        insurerId: options?.insurerFilter,
+        topK: RAG.fetchK,
+      })
+    }
+  } else {
+    // Global search with diversification
+    searchResults = await semanticSearch(question, {
+      insurerId: options?.insurerFilter,
+      topK: RAG.fetchK,
+    })
+  }
 
   // 1b. Fallback: structured search on products/coverages if no embeddings found
   if (searchResults.length === 0) {
     searchResults = await structuredSearch(question, options?.insurerFilter)
   }
 
-  // 2. Enrich with insurer/product names
+  // 2. Enrich with insurer/product names (need names before diversifying)
   const enrichment = await loadEnrichment(searchResults)
+
+  // 2b. Diversify results — ensure coverage across insurers (only for global search)
+  if (mentionedInsurers.length === 0) {
+    searchResults = diversifyResults(searchResults, enrichment, mentionedInsurers)
+  } else if (searchResults.length > RAG.topK) {
+    searchResults = searchResults.slice(0, RAG.topK)
+  }
 
   // 3. Build context with citations
   const { contextText, sources } = buildContext(searchResults, enrichment)
@@ -214,6 +253,28 @@ async function loadEnrichment(results: SearchResult[]): Promise<EnrichmentData> 
 }
 
 /**
+ * Resolves canonical insurer names to their database IDs.
+ * Returns Map<canonicalName, id>.
+ */
+async function resolveInsurerIds(canonicalNames: string[]): Promise<Map<string, string>> {
+  const supabase = createServiceClient()
+  const { data } = await supabase.from('insurers').select('id, name')
+  const result = new Map<string, string>()
+
+  if (!data) return result
+
+  for (const canonical of canonicalNames) {
+    const lower = canonical.toLowerCase()
+    const match = data.find((i) => i.name.toLowerCase().includes(lower))
+    if (match) {
+      result.set(canonical, match.id)
+    }
+  }
+
+  return result
+}
+
+/**
  * Builds the user message, optionally prepending conversation history.
  */
 function buildUserMessage(
@@ -247,6 +308,112 @@ function buildFallbackAnswer(sources: ContextBlock[]): string {
   }
 
   return lines.join('\n')
+}
+
+// ---------------------------------------------------------------------------
+// Insurer detection + result diversification
+// ---------------------------------------------------------------------------
+
+/** Known insurer name patterns (lowercase) mapped to canonical names */
+const INSURER_PATTERNS: Array<{ patterns: string[]; canonical: string }> = [
+  { patterns: ['prudential'], canonical: 'Prudential' },
+  { patterns: ['bradesco'], canonical: 'Bradesco' },
+  { patterns: ['porto seguro', 'porto'], canonical: 'Porto Seguro' },
+  { patterns: ['icatu'], canonical: 'Icatu' },
+  { patterns: ['mapfre'], canonical: 'MAPFRE' },
+  { patterns: ['tokio', 'tokio marine'], canonical: 'Tokio Marine' },
+  { patterns: ['sulamerica', 'sulamérica', 'sul america', 'sul américa'], canonical: 'SulAmerica' },
+  { patterns: ['zurich'], canonical: 'Zurich' },
+  { patterns: ['caixa vida', 'caixa seguradora'], canonical: 'Caixa' },
+  { patterns: ['santander'], canonical: 'Santander' },
+  { patterns: ['metlife', 'met life'], canonical: 'MetLife' },
+  { patterns: ['mag seguros', 'mag ', 'mongeral'], canonical: 'MAG' },
+  { patterns: ['azos'], canonical: 'Azos' },
+]
+
+/**
+ * Detects insurer names mentioned in the user's question.
+ * Returns canonical names.
+ */
+function detectInsurers(question: string): string[] {
+  const q = question.toLowerCase()
+  const found: string[] = []
+  for (const { patterns, canonical } of INSURER_PATTERNS) {
+    if (patterns.some((p) => q.includes(p))) {
+      found.push(canonical)
+    }
+  }
+  return found
+}
+
+/**
+ * Diversifies search results to ensure coverage across multiple insurers.
+ *
+ * Strategy:
+ * - If user mentioned specific insurers → prioritize those, fill rest with others
+ * - If no insurer mentioned → round-robin across insurers (max N per insurer)
+ * - Always respect similarity ordering within each insurer group
+ */
+function diversifyResults(
+  results: SearchResult[],
+  enrichment: EnrichmentData,
+  mentionedInsurers: string[]
+): SearchResult[] {
+  if (results.length <= RAG.topK) return results
+
+  // Group by insurer
+  const byInsurer = new Map<string, SearchResult[]>()
+  for (const r of results) {
+    const insurerName = enrichment.insurers.get(r.insurer_id ?? '') ?? 'unknown'
+    const group = byInsurer.get(insurerName) ?? []
+    group.push(r)
+    byInsurer.set(insurerName, group)
+  }
+
+  console.log(`[rag/diversify] ${results.length} results from ${byInsurer.size} insurers: ${[...byInsurer.entries()].map(([n, r]) => `${n}(${r.length})`).join(', ')}`)
+
+  const final: SearchResult[] = []
+
+  if (mentionedInsurers.length > 0) {
+    // User asked about specific insurers — give them priority
+    const mentionedLower = mentionedInsurers.map((n) => n.toLowerCase())
+
+    // First: results from mentioned insurers (up to topK - 3, leave room for context)
+    const mentionedLimit = RAG.topK - 3
+    for (const [name, group] of byInsurer) {
+      if (mentionedLower.some((m) => name.toLowerCase().includes(m))) {
+        for (const r of group.slice(0, mentionedLimit)) {
+          if (final.length < mentionedLimit) final.push(r)
+        }
+      }
+    }
+
+    // Then: fill remaining slots with other insurers for context
+    for (const [name, group] of byInsurer) {
+      if (!mentionedLower.some((m) => name.toLowerCase().includes(m))) {
+        for (const r of group.slice(0, 2)) {
+          if (final.length < RAG.topK) final.push(r)
+        }
+      }
+    }
+  } else {
+    // No specific insurer — round-robin for diversity
+    const insurerNames = [...byInsurer.keys()]
+    let round = 0
+
+    while (final.length < RAG.topK && round < RAG.maxPerInsurer) {
+      for (const name of insurerNames) {
+        const group = byInsurer.get(name)!
+        if (round < group.length && final.length < RAG.topK) {
+          final.push(group[round])
+        }
+      }
+      round++
+    }
+  }
+
+  console.log(`[rag/diversify] Final: ${final.length} results`)
+  return final
 }
 
 /**

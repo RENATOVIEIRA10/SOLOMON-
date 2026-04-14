@@ -26,8 +26,12 @@ export const PLANS = {
 export const RAG = {
   chunkSize: 500,
   chunkOverlap: 50,
-  topK: 5,
-  similarityThreshold: 0.75,
+  topK: 15,
+  /** Fetch more from pgvector, then rerank/diversify down to topK */
+  fetchK: 50,
+  similarityThreshold: 0.35,
+  /** Max chunks per insurer when no specific insurer is mentioned */
+  maxPerInsurer: 5,
   model: 'gemini-2.0-flash',
   embeddingModel: 'text-embedding-3-small',
   embeddingDimension: 1536,
