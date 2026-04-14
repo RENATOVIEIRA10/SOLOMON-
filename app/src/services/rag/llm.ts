@@ -19,7 +19,7 @@ export interface LLMResponse {
 
 // OpenRouter uses OpenAI-compatible API
 const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
-const OPENROUTER_MODEL = 'anthropic/claude-sonnet-4'
+const OPENROUTER_MODEL = 'anthropic/claude-haiku-4.5'
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 

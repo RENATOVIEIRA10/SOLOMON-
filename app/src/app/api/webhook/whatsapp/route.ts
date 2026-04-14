@@ -3,75 +3,88 @@
  *
  * GET:  Webhook verification (returns challenge token)
  * POST: Receives messages, parses via provider, calls handler, sends response
+ *
+ * Deduplication: each incoming messageId is claimed in idempotency_keys before
+ * any heavy work. A retried webhook (Kapso/Meta send the same event when our
+ * response is slow) finds the key already claimed and returns 200 "duplicate"
+ * without re-running the RAG pipeline or re-sending the answer.
  */
 
 import { NextRequest, NextResponse } from 'next/server'
 import { parseWebhook, sendMessage } from '@/services/whatsapp/providers'
 import { handleMessage } from '@/services/whatsapp/handler'
+import { createServiceClient } from '@/lib/supabase'
 
 const PROVIDER = process.env.WHATSAPP_PROVIDER ?? 'kapso'
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN ?? ''
+const DEDUP_TTL_HOURS = 24
 
-/**
- * GET /api/webhook/whatsapp
- *
- * Webhook verification endpoint. Providers send a GET with a challenge
- * token that must be echoed back to confirm ownership.
- */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams
-
-  // Meta/WhatsApp Cloud API format
   const mode = searchParams.get('hub.mode')
   const token = searchParams.get('hub.verify_token')
   const challenge = searchParams.get('hub.challenge')
-
   if (mode === 'subscribe' && token === VERIFY_TOKEN) {
     return new NextResponse(challenge, { status: 200 })
   }
-
-  // Generic format (Evolution/Kapso)
   const verifyToken = searchParams.get('token') ?? searchParams.get('verify_token')
-  if (verifyToken === VERIFY_TOKEN) {
-    return NextResponse.json({ status: 'ok' })
-  }
-
+  if (verifyToken === VERIFY_TOKEN) return NextResponse.json({ status: 'ok' })
   return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 }
 
 /**
- * POST /api/webhook/whatsapp
- *
- * Receives incoming messages from the WhatsApp provider webhook.
- * Processes the message and sends the response back via the provider API.
+ * Returns true if this messageId is new (claim succeeded), false if duplicate.
  */
+async function claimMessage(messageId: string): Promise<boolean> {
+  try {
+    const supabase = createServiceClient()
+    const expires = new Date(Date.now() + DEDUP_TTL_HOURS * 3600_000).toISOString()
+    const { error } = await supabase
+      .from('idempotency_keys')
+      .insert({
+        key: messageId,
+        endpoint: 'whatsapp-webhook',
+        response: { claimed_at: new Date().toISOString() },
+        expires_at: expires,
+      } as any)
+    if (error) {
+      // Unique violation → duplicate
+      if (error.code === '23505' || /duplicate/i.test(error.message)) return false
+      // Other DB error → fail open (allow processing) but log
+      console.error('[webhook/whatsapp] claim error (fail-open):', error.message)
+      return true
+    }
+    return true
+  } catch (e) {
+    console.error('[webhook/whatsapp] claim exception (fail-open):', e)
+    return true
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-
-    // Log raw payload for debugging
     console.log('[webhook/whatsapp] RAW PAYLOAD:', JSON.stringify(body).slice(0, 1000))
 
-    // Optional: validate webhook token from header
     const headerToken = request.headers.get('x-webhook-token') ?? request.headers.get('apikey')
     if (VERIFY_TOKEN && headerToken && headerToken !== VERIFY_TOKEN) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Parse incoming message using the configured provider
     const message = parseWebhook(PROVIDER, body)
+    if (!message) return NextResponse.json({ status: 'ignored' })
 
-    if (!message) {
-      // Not a processable message (status update, group msg, etc.) — acknowledge
-      return NextResponse.json({ status: 'ignored' })
+    // DEDUP: claim messageId — if another request already processed it, skip.
+    const isNew = await claimMessage(message.messageId)
+    if (!isNew) {
+      console.log(`[webhook/whatsapp] DUPLICATE messageId=${message.messageId} from=${message.from} — ignoring`)
+      return NextResponse.json({ status: 'duplicate' })
     }
 
     console.log(`[webhook/whatsapp] Message from ${message.from}: ${message.body.slice(0, 100)}`)
 
-    // Process message and get response(s)
     const responses = await handleMessage(message)
 
-    // Send each response chunk back via the provider
     for (const text of responses) {
       try {
         await sendMessage(PROVIDER, { to: message.from, body: text })
@@ -83,7 +96,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ status: 'ok', messages: responses.length })
   } catch (error) {
     console.error('[webhook/whatsapp] Error processing webhook:', error)
-    // Always return 200 to prevent provider retries on our errors
     return NextResponse.json({ status: 'error' }, { status: 200 })
   }
 }
