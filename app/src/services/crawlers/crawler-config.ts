@@ -291,6 +291,16 @@ export const DIRECT_PDF_URLS: Array<{
   { url: 'https://magportaisinststgprd.blob.core.windows.net/magseguros/2023/09/2694-e-2695-Condicoes-Gerais-Vida-Inteira-Mar23.pdf', insurerName: 'MAG Seguros', insurerCnpj: '06.036.540/0001-50', productName: 'Vida Inteira 2694/2695' },
   // Caixa Seguradora
   { url: 'https://www.caixaseguradora.com.br/paravoce/vida/Biblioteca%20de%20Documentos/Arquivos_Condicoes_Gerais/Condicoes_Gerais_Vida_da_Gente/CG_Vida_da_Gente_Mensal_109300002357_v201211_Arq.7.pdf', insurerName: 'Caixa Vida e Previdencia', insurerCnpj: '03.730.204/0001-76', productName: 'Vida da Gente' },
+  // MetLife (2025 updates)
+  { url: 'https://www.metlife.com.br/content/dam/metlifecom/br/homepage/pdfs/suporte/condicoes-gerais/cliente-individual/seguro-de-vida/cg-vida-total-singular-legado-14_11_2025.pdf', insurerName: 'MetLife', insurerCnpj: '02.102.498/0001-29', productName: 'Vida Total Singular Legado Nov/2025' },
+  { url: 'https://www.metlife.com.br/content/dam/metlifecom/br/PDFs/forms-library/cg-general/seguro-de-vida-individual/CG_Vida-Segura.pdf', insurerName: 'MetLife', insurerCnpj: '02.102.498/0001-29', productName: 'Vida Segura (atualizado)' },
+  // SulAmerica (2025 update)
+  { url: 'https://portal.sulamericaseguros.com.br/data/files/C5/31/19/16/3B2B791044E3EA79DD08D4A8/CG%20VIDA%20FLEX.%2006.2025.pdf', insurerName: 'SulAmerica', insurerCnpj: '33.041.062/0001-09', productName: 'Vida Flex Junho/2025' },
+  // Santander (2024 updates)
+  { url: 'https://cms.santander.com.br/sites/WPS/documentos/condicoes-gerais-seguro-vida/24-10-28_193826_cg_cartao_beneficio+seguro+vida_vf.pdf', insurerName: 'Santander Auto/RE', insurerCnpj: '61.383.493/0001-80', productName: 'Vida Cartao Beneficio Out/2024' },
+  { url: 'https://cms.santander.com.br/sites/WPS/documentos/arq-CG-Vida-Socio_v8_revisado/24-10-14_132001_cg-vida-socio_v8_revisado.pdf', insurerName: 'Santander Auto/RE', insurerCnpj: '61.383.493/0001-80', productName: 'Vida Socio v8 Out/2024' },
+  // Bradesco (adicional)
+  { url: 'https://www.bradescoseguros.com.br/wcm/connect/4301792c-c6ce-4d30-8755-f7edd34dba89/Vida_Segura_Bradesco.pdf?MOD=AJPERES', insurerName: 'Bradesco Seguros', insurerCnpj: '51.014.223/0001-49', productName: 'Vida Segura Bradesco' },
   // Azos (files.azos.com.br — static CDN)
   { url: 'https://files.azos.com.br/f/15414.604989-2023-35--CONDI%C3%87%C3%95ES-CONTRATUAIS---02.2026.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Condicoes Contratuais 2026' },
   { url: 'https://files.azos.com.br/f/digital-marco-2025.pdf', insurerName: 'Azos', insurerCnpj: '39.781.553/0001-65', productName: 'Digital Marco 2025' },
