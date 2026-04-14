@@ -23,6 +23,11 @@ REGRAS:
 5. Nunca invente informacao. Se nao tem certeza, diga.
 6. Responda em portugues, de forma clara e direta.
 7. Quando relevante, alerte sobre exclusoes, carencias ou pegadinhas nas condicoes gerais.
+8. OBRIGATORIO: No final de TODA resposta, inclua uma secao "FONTES E LIMITACOES" com:
+   - Quais seguradoras/documentos voce USOU para responder (com numero da citacao)
+   - Quais seguradoras/dados FALTAM para uma resposta mais completa
+   - Que tipo de documento ajudaria (ex: "tabela de precos", "condicoes gerais de X", "manual de subscrição")
+   Isso ajuda o corretor a saber onde buscar informacao complementar e nos ajuda a calibrar a base de dados.
 
 DOCUMENTOS DE REFERENCIA:
 {context}`
