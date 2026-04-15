@@ -105,13 +105,14 @@ export async function ask(
     const insurerIds = await resolveInsurerIds(mentionedInsurers)
     const perInsurer = Math.ceil(RAG.topK / mentionedInsurers.length)
 
-    for (const [name, id] of insurerIds) {
-      const results = await semanticSearch(question, {
-        insurerId: id,
-        topK: perInsurer,
-      })
-      console.log(`[rag/ask] ${name}: ${results.length} results`)
-      searchResults.push(...results)
+    for (const [name, ids] of insurerIds) {
+      let nameResults: SearchResult[] = []
+      for (const id of ids) {
+        const r = await semanticSearch(question, { insurerId: id, topK: perInsurer })
+        nameResults.push(...r)
+      }
+      console.log(`[rag/ask] ${name}: ${nameResults.length} results (across ${ids.length} insurer row(s))`)
+      searchResults.push(...nameResults)
     }
 
     // If targeted search found nothing, fall back to global
@@ -296,18 +297,21 @@ async function loadEnrichment(results: SearchResult[]): Promise<EnrichmentData> 
  * Resolves canonical insurer names to their database IDs.
  * Returns Map<canonicalName, id>.
  */
-async function resolveInsurerIds(canonicalNames: string[]): Promise<Map<string, string>> {
+async function resolveInsurerIds(canonicalNames: string[]): Promise<Map<string, string[]>> {
   const supabase = createServiceClient()
   const { data } = await supabase.from('insurers').select('id, name')
-  const result = new Map<string, string>()
+  const result = new Map<string, string[]>()
 
   if (!data) return result
 
   for (const canonical of canonicalNames) {
     const lower = canonical.toLowerCase()
-    const match = data.find((i) => i.name.toLowerCase().includes(lower))
-    if (match) {
-      result.set(canonical, match.id)
+    // Duplicates in the insurers table (e.g. two "MAG Seguros" rows where one holds
+    // the docs and another is empty) mean we must keep ALL matching ids, otherwise
+    // the targeted search can hit the empty row and return zero results.
+    const matches = data.filter((i) => i.name.toLowerCase().includes(lower))
+    if (matches.length > 0) {
+      result.set(canonical, matches.map((m) => m.id))
     }
   }
 
