@@ -271,16 +271,21 @@ interface CitationInfo {
   insurerName: string
   productName: string
   susepProcess?: string | null
+  sourceUrl?: string | null
 }
 
 function formatRagResponse(answer: string, citations: CitationInfo[]): string {
-  let text = answer
+  // Strip markdown links the LLM embeds inline (WhatsApp renders them literal)
+  let text = answer.replace(/\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g, '$1 ($2)')
 
   if (citations.length > 0) {
     text += '\n\n*Fontes:*'
     for (const cite of citations) {
       const susep = cite.susepProcess ? ` (SUSEP ${cite.susepProcess})` : ''
       text += `\n[${cite.index}] ${cite.insurerName} — ${cite.productName}${susep}`
+      if (cite.sourceUrl) {
+        text += `\n${cite.sourceUrl}`
+      }
     }
   }
 
