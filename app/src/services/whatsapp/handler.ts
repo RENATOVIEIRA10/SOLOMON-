@@ -65,8 +65,15 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
       conversationHistory: session.messages.slice(-6), // last 3 exchanges
     })
 
-    // 5. Format response with citations
-    const formatted = formatRagResponse(result.answer, result.citations)
+    // 5. Format response with citations + optional low-confidence warning
+    let formatted = formatRagResponse(result.answer, result.citations)
+    if (result.lowConfidence) {
+      formatted +=
+        `\n\n⚠️ *Confiança baixa* (${Math.round(result.confidenceScore * 100)}%` +
+        ` · ${result.sourceCount} fonte${result.sourceCount === 1 ? '' : 's'}).` +
+        `\nValide no PDF oficial antes de usar com cliente.` +
+        `\nResponda */feedback* com nota 1-5 para ajudar a melhorar.`
+    }
     addMessage(msg.from, 'assistant', result.answer)
 
     // 6. Increment query counter
@@ -211,13 +218,13 @@ function parseCommand(text: string): ParsedCommand | null {
   const name = parts[0].toLowerCase()
   const args = parts.slice(1).join(' ')
 
-  const validCommands = ['/ajuda', '/help', '/comparar', '/sinistro', '/plano']
+  const validCommands = ['/ajuda', '/help', '/comparar', '/sinistro', '/plano', '/feedback']
   if (!validCommands.includes(name)) return null
 
   return { name, args }
 }
 
-function handleCommand(cmd: ParsedCommand, broker: BrokerRow): string[] {
+async function handleCommand(cmd: ParsedCommand, broker: BrokerRow): Promise<string[]> {
   switch (cmd.name) {
     case '/ajuda':
     case '/help':
@@ -238,6 +245,9 @@ function handleCommand(cmd: ParsedCommand, broker: BrokerRow): string[] {
           SIGNATURE,
       ]
 
+    case '/feedback':
+      return [await handleFeedbackCommand(cmd.args, broker)]
+
     case '/plano': {
       const plan = PLANS[broker.plan.toUpperCase() as PlanKey] ?? PLANS.FREE
       const limit = plan.queriesPerDay === -1 ? 'ilimitadas' : `${plan.queriesPerDay}/dia`
@@ -255,6 +265,87 @@ function handleCommand(cmd: ParsedCommand, broker: BrokerRow): string[] {
   }
 }
 
+/**
+ * Handle the /feedback command.
+ *
+ * Syntax:
+ *   /feedback <1-5>
+ *   /feedback <1-5> <issue>
+ *   /feedback <1-5> <issue> <comentário livre>
+ *
+ * Issues aceitos: hallucination | wrong_insurer | outdated | incomplete | other
+ * Anexa o feedback à ÚLTIMA conversa do broker.
+ */
+async function handleFeedbackCommand(args: string, broker: BrokerRow): Promise<string> {
+  const helpText =
+    `*Como usar /feedback:*\n` +
+    `\`/feedback 5\` — só a nota\n` +
+    `\`/feedback 2 hallucination\` — nota + problema\n` +
+    `\`/feedback 3 outdated PDF da Prudential foi atualizado\` — nota + problema + comentário\n\n` +
+    `*Problemas aceitos:* hallucination, wrong_insurer, outdated, incomplete, other` +
+    SIGNATURE
+
+  const parts = args.trim().split(/\s+/).filter(Boolean)
+  if (parts.length === 0) return helpText
+
+  const rating = parseInt(parts[0], 10)
+  if (isNaN(rating) || rating < 1 || rating > 5) {
+    return `Nota precisa ser um número de 1 a 5.\n\n${helpText}`
+  }
+
+  const VALID_ISSUES = ['hallucination', 'wrong_insurer', 'outdated', 'incomplete', 'other']
+  let flaggedIssue: string | null = null
+  let comment: string | null = null
+
+  if (parts.length >= 2 && VALID_ISSUES.includes(parts[1].toLowerCase())) {
+    flaggedIssue = parts[1].toLowerCase()
+    if (parts.length > 2) comment = parts.slice(2).join(' ')
+  } else if (parts.length >= 2) {
+    // No issue provided, rest is just a free comment
+    comment = parts.slice(1).join(' ')
+  }
+
+  // Find latest conversation for this broker
+  const supabase = createServiceClient()
+  const { data: lastConv } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('broker_id', broker.id)
+    .order('created_at', { ascending: false })
+    .limit(1)
+    .single()
+
+  if (!lastConv) {
+    return `Não achei uma conversa sua recente para avaliar. Faça uma pergunta primeiro e depois envie /feedback.${SIGNATURE}`
+  }
+
+  const { error } = await supabase
+    .from('conversation_feedback')
+    .insert({
+      conversation_id: lastConv.id,
+      broker_id: broker.id,
+      rating,
+      flagged_issue: flaggedIssue,
+      comment,
+      channel: 'whatsapp',
+    } as never)
+
+  if (error) {
+    console.error('[whatsapp/feedback] insert failed:', error.message)
+    return `Não consegui registrar o feedback agora. Tente de novo em instantes.${SIGNATURE}`
+  }
+
+  const stars = '⭐'.repeat(rating) + '☆'.repeat(5 - rating)
+  const issueText = flaggedIssue ? `\nProblema: *${flaggedIssue}*` : ''
+  const commentText = comment ? `\nComentário: _${comment}_` : ''
+
+  return (
+    `*Feedback registrado* ${stars}${issueText}${commentText}\n\n` +
+    `Obrigado — isso ajuda o SOLOMON a melhorar.` +
+    SIGNATURE
+  )
+}
+
 // ---------------------------------------------------------------------------
 // Response formatting
 // ---------------------------------------------------------------------------
@@ -270,6 +361,7 @@ function formatHelp(brokerName: string): string {
     `*Comandos:*\n` +
     `/ajuda — Este menu\n` +
     `/plano — Ver seu plano atual\n` +
+    `/feedback 1-5 — Avaliar a última resposta\n` +
     `/comparar — Comparar seguradoras (em breve)\n` +
     `/sinistro — Analise pre-sinistro (em breve)` +
     SIGNATURE

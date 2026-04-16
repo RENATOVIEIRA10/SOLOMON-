@@ -7,6 +7,8 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
@@ -262,6 +264,54 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      conversation_feedback: {
+        Row: {
+          broker_id: string
+          channel: string
+          comment: string | null
+          conversation_id: string
+          created_at: string
+          flagged_issue: string | null
+          id: string
+          rating: number
+        }
+        Insert: {
+          broker_id: string
+          channel?: string
+          comment?: string | null
+          conversation_id: string
+          created_at?: string
+          flagged_issue?: string | null
+          id?: string
+          rating: number
+        }
+        Update: {
+          broker_id?: string
+          channel?: string
+          comment?: string | null
+          conversation_id?: string
+          created_at?: string
+          flagged_issue?: string | null
+          id?: string
+          rating?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conversation_feedback_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conversation_feedback_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "conversations"
             referencedColumns: ["id"]
           },
         ]
@@ -888,6 +938,40 @@ export type Database = {
     }
     Functions: {
       get_broker_id: { Args: never; Returns: string }
+      match_documents: {
+        Args: {
+          filter_insurer_id?: string
+          filter_product_id?: string
+          filter_source_type?: string
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          id: string
+          insurer_id: string
+          metadata: Json
+          product_id: string
+          similarity: number
+          source_type: string
+          source_url: string
+        }[]
+      }
+      search_products: {
+        Args: { max_results?: number; search_query: string }
+        Returns: {
+          coverage_summary: string
+          insurer_id: string
+          insurer_name: string
+          modality: string
+          product_code: string
+          product_id: string
+          product_name: string
+          susep_process: string
+          terms_url: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
@@ -980,3 +1064,43 @@ export type TablesUpdate<
       ? U
       : never
     : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

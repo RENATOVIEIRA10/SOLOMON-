@@ -83,7 +83,23 @@ export interface AskResult {
   tokensUsed: number
   latencyMs: number
   conversationId?: string
+  /**
+   * Heurística 0-1 de quão confiável é a resposta.
+   * Combina avgSimilarity (qualidade do match) e sourceCount (quantidade de
+   * fontes corroborando). 0 quando não há match; 1 quando há >=5 fontes
+   * todas com similaridade >= threshold.
+   */
+  confidenceScore: number
+  /** Média de cosine similarity dos chunks usados na resposta */
+  avgSimilarity: number
+  /** Número de chunks usados como contexto */
+  sourceCount: number
+  /** True se confidenceScore < LOW_CONFIDENCE_THRESHOLD — consumer pode exibir aviso */
+  lowConfidence: boolean
 }
+
+/** Abaixo desse valor, resposta deve exibir aviso ao corretor */
+const LOW_CONFIDENCE_THRESHOLD = 0.55
 
 /**
  * Main RAG pipeline: question in, structured answer out.
@@ -156,6 +172,17 @@ export async function ask(
   // 3. Build context with citations
   const { contextText, sources } = buildContext(searchResults, enrichment)
 
+  // 3b. Compute confidence heuristic from search results
+  const avgSimilarity = searchResults.length > 0
+    ? searchResults.reduce((sum, r) => sum + (r.similarity ?? 0), 0) / searchResults.length
+    : 0
+  const sourceCount = searchResults.length
+  // Confidence mixes match quality (avgSimilarity) and corroboration (sourceCount).
+  // >=5 fontes com similaridade alta → 1.0; nenhum match → 0.
+  const sourceFactor = Math.min(1, sourceCount / 5)
+  const confidenceScore = Math.round((avgSimilarity * 0.6 + sourceFactor * 0.4) * 100) / 100
+  const lowConfidence = confidenceScore < LOW_CONFIDENCE_THRESHOLD
+
   // 4. Build system prompt
   const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace('{context}', contextText || 'Nenhum documento encontrado.')
 
@@ -177,6 +204,10 @@ export async function ask(
         model: 'fallback',
         tokensUsed: 0,
         latencyMs: Date.now() - startTime,
+        confidenceScore,
+        avgSimilarity,
+        sourceCount,
+        lowConfidence,
       }
     }
     throw error
@@ -208,6 +239,10 @@ export async function ask(
     tokensUsed: llmResponse.tokensUsed,
     latencyMs: Date.now() - startTime,
     conversationId,
+    confidenceScore,
+    avgSimilarity,
+    sourceCount,
+    lowConfidence,
   }
 }
 
