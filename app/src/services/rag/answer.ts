@@ -11,6 +11,7 @@ import { buildContext, type ContextBlock, type EnrichmentData } from './context-
 import { callLLM, type LLMResponse } from './llm'
 import { extractCitations, type Citation } from './citation'
 import { RAG } from '@/config/constants'
+import { expandQueryWithJargon } from '@/config/jargon'
 
 const SYSTEM_PROMPT_TEMPLATE = `Voce e SOLOMON, o consultor privado de seguros de vida mais inteligente do Brasil.
 Voce NAO e um buscador de texto. Voce e um ESPECIALISTA que LE, INTERPRETA e RACIOCINA sobre condicoes gerais como um corretor senior com 20 anos de experiencia faria.
@@ -97,6 +98,13 @@ export async function ask(
   const mentionedInsurers = detectInsurers(question)
   console.log(`[rag/ask] Mentioned insurers: ${mentionedInsurers.length > 0 ? mentionedInsurers.join(', ') : 'none (global search)'}`)
 
+  // 0b. Expand query with jargon → technical terms so embedding captures both
+  // the corretor's shorthand and the exact phrasing used in insurer PDFs.
+  const expandedQuery = expandQueryWithJargon(question)
+  if (expandedQuery !== question) {
+    console.log(`[rag/ask] Jargon expansion: "${question}" → "${expandedQuery}"`)
+  }
+
   // 1. Semantic search — strategy depends on whether insurers were mentioned
   let searchResults: SearchResult[] = []
 
@@ -108,7 +116,7 @@ export async function ask(
     for (const [name, ids] of insurerIds) {
       let nameResults: SearchResult[] = []
       for (const id of ids) {
-        const r = await semanticSearch(question, { insurerId: id, topK: perInsurer })
+        const r = await semanticSearch(expandedQuery, { insurerId: id, topK: perInsurer })
         nameResults.push(...r)
       }
       console.log(`[rag/ask] ${name}: ${nameResults.length} results (across ${ids.length} insurer row(s))`)
@@ -117,14 +125,14 @@ export async function ask(
 
     // If targeted search found nothing, fall back to global
     if (searchResults.length === 0) {
-      searchResults = await semanticSearch(question, {
+      searchResults = await semanticSearch(expandedQuery, {
         insurerId: options?.insurerFilter,
         topK: RAG.fetchK,
       })
     }
   } else {
     // Global search with diversification
-    searchResults = await semanticSearch(question, {
+    searchResults = await semanticSearch(expandedQuery, {
       insurerId: options?.insurerFilter,
       topK: RAG.fetchK,
     })
