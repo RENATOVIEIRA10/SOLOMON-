@@ -94,11 +94,45 @@ interface BrokerRow {
   active: boolean
 }
 
+/**
+ * Generate phone-number variants for a lookup.
+ *
+ * Brazilian carriers / WhatsApp sometimes deliver mobile numbers with or
+ * without the leading 9 added in 2012. Kapso has been observed sending both
+ * "5581991010313" (with 9) and "558191010313" (without 9) for the same user.
+ * We must match a broker regardless of that noise.
+ *
+ * Returns raw + '+' prefixed, and for BR mobile numbers both the 9-added and
+ * 9-stripped versions.
+ */
+function phoneLookupVariants(phone: string): string[] {
+  const digits = phone.replace(/\D/g, '')
+  const out = new Set<string>([phone, `+${digits}`, digits])
+
+  if (digits.startsWith('55')) {
+    const rest = digits.slice(2)
+    if (rest.length === 10) {
+      // DDD (2) + 8 digits → add the 9 after DDD
+      const ddd = rest.slice(0, 2)
+      const num = rest.slice(2)
+      out.add(`+55${ddd}9${num}`)
+      out.add(`55${ddd}9${num}`)
+    } else if (rest.length === 11 && rest[2] === '9') {
+      // DDD (2) + 9 + 8 digits → also variant without the 9
+      const ddd = rest.slice(0, 2)
+      const num = rest.slice(3)
+      out.add(`+55${ddd}${num}`)
+      out.add(`55${ddd}${num}`)
+    }
+  }
+
+  return Array.from(out)
+}
+
 async function findBrokerByPhone(phone: string): Promise<BrokerRow | null> {
   const supabase = createServiceClient()
 
-  // Try exact match first, then without '+'
-  const phoneVariants = [phone, phone.replace('+', '')]
+  const phoneVariants = phoneLookupVariants(phone)
 
   const { data, error } = await supabase
     .from('brokers')
