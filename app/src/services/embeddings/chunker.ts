@@ -29,6 +29,14 @@ export interface TextChunk {
   metadata: ChunkMetadata
 }
 
+/** Result of chunking a PDF. `pdfHash` is the SHA256 of the raw PDF bytes,
+ *  used to detect when a seguradora republished the document so the indexer
+ *  can supersede prior versions cleanly. */
+export interface ChunkPdfResult {
+  chunks: TextChunk[]
+  pdfHash: string
+}
+
 /**
  * Extracts raw text from a PDF file.
  */

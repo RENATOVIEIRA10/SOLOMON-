@@ -423,10 +423,14 @@ export type Database = {
           id: string
           insurer_id: string | null
           metadata: Json | null
+          pdf_hash: string | null
           product_id: string | null
           source_type: string
           source_url: string | null
+          superseded_by: string | null
           updated_at: string
+          valid_from: string
+          valid_until: string | null
         }
         Insert: {
           chunk_index?: number
@@ -437,10 +441,14 @@ export type Database = {
           id?: string
           insurer_id?: string | null
           metadata?: Json | null
+          pdf_hash?: string | null
           product_id?: string | null
           source_type: string
           source_url?: string | null
+          superseded_by?: string | null
           updated_at?: string
+          valid_from?: string
+          valid_until?: string | null
         }
         Update: {
           chunk_index?: number
@@ -451,10 +459,14 @@ export type Database = {
           id?: string
           insurer_id?: string | null
           metadata?: Json | null
+          pdf_hash?: string | null
           product_id?: string | null
           source_type?: string
           source_url?: string | null
+          superseded_by?: string | null
           updated_at?: string
+          valid_from?: string
+          valid_until?: string | null
         }
         Relationships: [
           {
@@ -469,6 +481,13 @@ export type Database = {
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "documents_superseded_by_fkey"
+            columns: ["superseded_by"]
+            isOneToOne: false
+            referencedRelation: "documents"
             referencedColumns: ["id"]
           },
         ]
@@ -971,6 +990,10 @@ export type Database = {
           susep_process: string
           terms_url: string
         }[]
+      }
+      supersede_document_versions: {
+        Args: { p_insurer_id: string; p_source_url: string }
+        Returns: number
       }
     }
     Enums: {
