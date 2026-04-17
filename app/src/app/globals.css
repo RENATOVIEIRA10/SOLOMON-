@@ -1,35 +1,152 @@
 @import "tailwindcss";
 
-:root {
-  --background: #0A0A0A;
-  --foreground: #F5EFE0;
+/* ============================================================
+   SOLOMON — Design System
+   Luxury dark tema: preto + ouro, tipografia editorial.
+   ============================================================ */
 
-  /* SOLOMON Brand Colors */
+:root {
+  /* Brand core */
   --solomon-black: #0A0A0A;
-  --solomon-gold: #B8933A;
-  --solomon-cream: #F5EFE0;
   --solomon-graphite: #1A1A1A;
-  --solomon-gold-light: #D4AF37;
+  --solomon-charcoal: #2A2A2A;
+  --solomon-gold: #B8933A;
+  --solomon-gold-light: #D4B563;
   --solomon-gold-dark: #8B6914;
+  --solomon-cream: #F5EFE0;
+  --solomon-cream-muted: #D9D3C5;
+
+  /* Semantic tokens (dark por padrão — luxury) */
+  --background: var(--solomon-black);
+  --foreground: var(--solomon-cream);
+  --card: var(--solomon-graphite);
+  --card-foreground: var(--solomon-cream);
+  --popover: var(--solomon-graphite);
+  --popover-foreground: var(--solomon-cream);
+  --primary: var(--solomon-gold);
+  --primary-foreground: var(--solomon-black);
+  --secondary: var(--solomon-charcoal);
+  --secondary-foreground: var(--solomon-cream);
+  --muted: var(--solomon-graphite);
+  --muted-foreground: var(--solomon-cream-muted);
+  --accent: var(--solomon-gold-light);
+  --accent-foreground: var(--solomon-black);
+  --destructive: #C94F4F;
+  --destructive-foreground: var(--solomon-cream);
+  --border: rgba(184, 147, 58, 0.15);
+  --input: rgba(245, 239, 224, 0.08);
+  --ring: var(--solomon-gold);
+
+  --radius: 0.5rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-
-  /* SOLOMON Brand */
+  /* Brand colors */
   --color-solomon-black: var(--solomon-black);
-  --color-solomon-gold: var(--solomon-gold);
-  --color-solomon-cream: var(--solomon-cream);
   --color-solomon-graphite: var(--solomon-graphite);
+  --color-solomon-charcoal: var(--solomon-charcoal);
+  --color-solomon-gold: var(--solomon-gold);
   --color-solomon-gold-light: var(--solomon-gold-light);
   --color-solomon-gold-dark: var(--solomon-gold-dark);
+  --color-solomon-cream: var(--solomon-cream);
+  --color-solomon-cream-muted: var(--solomon-cream-muted);
+
+  /* Semantic */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* Tipografia */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-cormorant), ui-serif, Georgia, serif;
+  --font-mono: var(--font-mono-jetbrains), ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+* {
+  border-color: var(--border);
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* Seletor de texto luxury */
+::selection {
+  background: var(--solomon-gold);
+  color: var(--solomon-black);
+}
+
+/* Scrollbar discreta */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(184, 147, 58, 0.3);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(184, 147, 58, 0.5);
+}
+
+/* Safe-area helper */
+.safe-top {
+  padding-top: calc(env(safe-area-inset-top, 0px) + 0.875rem);
+}
+.safe-bottom {
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 0.875rem);
+}
+
+/* Utilitário de tipografia editorial */
+.font-display {
+  font-family: var(--font-display);
+  font-feature-settings: "liga", "dlig", "kern";
+  letter-spacing: -0.015em;
+}
+
+/* Divider dourado estilo luxury */
+.divider-gold {
+  height: 1px;
+  background: linear-gradient(
+    to right,
+    transparent,
+    var(--solomon-gold) 50%,
+    transparent
+  );
+  opacity: 0.6;
 }
