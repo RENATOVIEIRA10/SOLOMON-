@@ -18,18 +18,15 @@ export default function AuthLayout({
       />
 
       <header className="relative z-10 safe-top px-6 flex items-center justify-center">
-        <Link href="/" className="flex items-center gap-3">
+        <Link href="/" className="inline-flex items-center">
           <Image
-            src="/solomon-logo.png"
+            src="/solomon-wordmark.png"
             alt="SOLOMON"
-            width={44}
-            height={44}
+            width={1160}
+            height={424}
             priority
-            className="rounded-sm"
+            className="h-12 w-auto"
           />
-          <span className="font-display text-2xl tracking-wide text-solomon-cream">
-            SOLOMON
-          </span>
         </Link>
       </header>
 
