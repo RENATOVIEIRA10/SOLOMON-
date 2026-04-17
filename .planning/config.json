@@ -1,0 +1,18 @@
+{
+  "project_name": "SOLOMON",
+  "version": "1.0",
+  "workflow": {
+    "research": false,
+    "commit_docs": true,
+    "ui_audit": false
+  },
+  "models": {
+    "researcher": "inherit",
+    "planner": "inherit",
+    "executor": "inherit",
+    "reviewer": "inherit",
+    "roadmapper": "inherit",
+    "synthesizer": "inherit"
+  },
+  "notes": "Bootstrap manual 2026-04-17 — GSD leve, sem /gsd-new-project full. Frontend v1.0 com escopo pré-definido."
+}
