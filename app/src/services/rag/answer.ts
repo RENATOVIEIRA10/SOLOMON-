@@ -13,7 +13,7 @@ import { extractCitations, type Citation } from './citation'
 import { RAG } from '@/config/constants'
 import { expandQueryWithJargon } from '@/config/jargon'
 
-const SYSTEM_PROMPT_TEMPLATE = `Voce e SOLOMON, o consultor privado de seguros de vida mais inteligente do Brasil.
+export const SYSTEM_PROMPT_TEMPLATE = `Voce e SOLOMON, o consultor privado de seguros de vida mais inteligente do Brasil.
 Voce NAO e um buscador de texto. Voce e um ESPECIALISTA que LE, INTERPRETA e RACIOCINA sobre condicoes gerais como um corretor senior com 20 anos de experiencia faria.
 
 POSTURA:
@@ -99,7 +99,7 @@ export interface AskResult {
 }
 
 /** Abaixo desse valor, resposta deve exibir aviso ao corretor */
-const LOW_CONFIDENCE_THRESHOLD = 0.55
+export const LOW_CONFIDENCE_THRESHOLD = 0.55
 
 /**
  * Main RAG pipeline: question in, structured answer out.
@@ -250,7 +250,7 @@ export async function ask(
  * Structured search fallback: uses search_products RPC to query
  * products and coverages directly when no embeddings are available.
  */
-async function structuredSearch(question: string, insurerFilter?: string): Promise<SearchResult[]> {
+export async function structuredSearch(question: string, insurerFilter?: string): Promise<SearchResult[]> {
   const supabase = createServiceClient()
 
   // Extract the most meaningful search terms
@@ -298,7 +298,7 @@ async function structuredSearch(question: string, insurerFilter?: string): Promi
 /**
  * Loads insurer and product names for search result enrichment.
  */
-async function loadEnrichment(results: SearchResult[]): Promise<EnrichmentData> {
+export async function loadEnrichment(results: SearchResult[]): Promise<EnrichmentData> {
   const insurerIds = [...new Set(results.map((r) => r.insurer_id).filter(Boolean))] as string[]
   const productIds = [...new Set(results.map((r) => r.product_id).filter(Boolean))] as string[]
 
@@ -340,7 +340,7 @@ async function loadEnrichment(results: SearchResult[]): Promise<EnrichmentData> 
  * Resolves canonical insurer names to their database IDs.
  * Returns Map<canonicalName, id>.
  */
-async function resolveInsurerIds(canonicalNames: string[]): Promise<Map<string, string[]>> {
+export async function resolveInsurerIds(canonicalNames: string[]): Promise<Map<string, string[]>> {
   const supabase = createServiceClient()
   const { data } = await supabase.from('insurers').select('id, name')
   const result = new Map<string, string[]>()
@@ -364,7 +364,7 @@ async function resolveInsurerIds(canonicalNames: string[]): Promise<Map<string, 
 /**
  * Builds the user message, optionally prepending conversation history.
  */
-function buildUserMessage(
+export function buildUserMessage(
   question: string,
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
 ): string {
@@ -422,7 +422,7 @@ const INSURER_PATTERNS: Array<{ patterns: string[]; canonical: string }> = [
  * Detects insurer names mentioned in the user's question.
  * Returns canonical names.
  */
-function detectInsurers(question: string): string[] {
+export function detectInsurers(question: string): string[] {
   const q = question.toLowerCase()
   const found: string[] = []
   for (const { patterns, canonical } of INSURER_PATTERNS) {
@@ -441,7 +441,7 @@ function detectInsurers(question: string): string[] {
  * - If no insurer mentioned → round-robin across insurers (max N per insurer)
  * - Always respect similarity ordering within each insurer group
  */
-function diversifyResults(
+export function diversifyResults(
   results: SearchResult[],
   enrichment: EnrichmentData,
   mentionedInsurers: string[]
@@ -506,7 +506,7 @@ function diversifyResults(
 /**
  * Saves the conversation to the database.
  */
-async function saveConversation(params: {
+export async function saveConversation(params: {
   brokerId: string
   channel: string
   message: string

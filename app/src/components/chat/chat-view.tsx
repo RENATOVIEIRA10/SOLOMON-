@@ -63,7 +63,7 @@ export function ChatView() {
           role: m.role,
           content: m.content,
         }));
-        const res = await fetch("/api/ask", {
+        const res = await fetch("/api/ask/stream", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -75,24 +75,92 @@ export function ChatView() {
           }),
         });
 
-        const data: AskResponse | { error: string } = await res.json();
-        if (!res.ok || "error" in data) {
-          throw new Error(("error" in data && data.error) || `HTTP ${res.status}`);
+        if (!res.ok || !res.body) {
+          let errText = `HTTP ${res.status}`;
+          try {
+            const body = await res.json();
+            if (body?.error) errText = body.error;
+          } catch {
+            // ignore
+          }
+          throw new Error(errText);
         }
 
-        setMessages((m) =>
-          m.map((msg) =>
-            msg.id === loadingMsg.id
-              ? {
-                  ...msg,
-                  loading: false,
-                  content: data.answer,
-                  citations: data.citations,
-                  conversationId: data.conversationId,
-                }
-              : msg
-          )
-        );
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let fullText = "";
+        let started = false;
+
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const events = buffer.split("\n\n");
+          buffer = events.pop() ?? "";
+
+          for (const raw of events) {
+            if (!raw.trim()) continue;
+            let eventName = "";
+            let dataLine = "";
+            for (const line of raw.split("\n")) {
+              if (line.startsWith("event: ")) eventName = line.slice(7).trim();
+              else if (line.startsWith("data: "))
+                dataLine = line.slice(6).trim();
+            }
+            if (!eventName || !dataLine) continue;
+            let payload: unknown;
+            try {
+              payload = JSON.parse(dataLine);
+            } catch {
+              continue;
+            }
+
+            if (eventName === "token") {
+              const delta = (payload as { delta: string }).delta ?? "";
+              fullText += delta;
+              if (!started) {
+                started = true;
+                setMessages((m) =>
+                  m.map((msg) =>
+                    msg.id === loadingMsg.id
+                      ? { ...msg, loading: false, content: fullText }
+                      : msg
+                  )
+                );
+              } else {
+                setMessages((m) =>
+                  m.map((msg) =>
+                    msg.id === loadingMsg.id ? { ...msg, content: fullText } : msg
+                  )
+                );
+              }
+            } else if (eventName === "meta") {
+              const meta = payload as {
+                citations: Citation[];
+                conversationId?: string;
+              };
+              setMessages((m) =>
+                m.map((msg) =>
+                  msg.id === loadingMsg.id
+                    ? {
+                        ...msg,
+                        loading: false,
+                        citations: meta.citations,
+                        conversationId: meta.conversationId,
+                      }
+                    : msg
+                )
+              );
+            } else if (eventName === "error") {
+              const errMsg =
+                (payload as { message: string }).message ?? "Erro no stream.";
+              throw new Error(errMsg);
+            }
+          }
+        }
       } catch (err) {
         const errorText =
           err instanceof Error

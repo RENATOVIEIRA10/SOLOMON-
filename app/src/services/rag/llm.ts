@@ -159,6 +159,109 @@ async function callGemini(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Streaming variant — OpenRouter only (non-stream fallback for Gemini/OpenAI)
+// ---------------------------------------------------------------------------
+
+export interface LLMStreamStart {
+  type: 'start'
+  model: string
+}
+export interface LLMStreamDelta {
+  type: 'delta'
+  text: string
+}
+export interface LLMStreamEnd {
+  type: 'end'
+  model: string
+  tokensUsed: number
+  latencyMs: number
+  fullText: string
+}
+
+export type LLMStreamChunk = LLMStreamStart | LLMStreamDelta | LLMStreamEnd
+
+/**
+ * Streams tokens as they arrive from the LLM.
+ *
+ * Tries OpenRouter streaming first (preferred). If OpenRouter fails or is not
+ * configured, falls back to non-streaming (Gemini or OpenAI) and emits a
+ * single 'delta' with the full text — keeps the consumer interface uniform.
+ */
+export async function* callLLMStream(
+  systemPrompt: string,
+  userMessage: string
+): AsyncGenerator<LLMStreamChunk> {
+  const start = Date.now()
+
+  const openrouterKey = process.env.OPENROUTER_API_KEY
+  if (openrouterKey) {
+    try {
+      let fullText = ''
+      let tokensUsed = 0
+      yield { type: 'start', model: OPENROUTER_MODEL }
+
+      const client = new OpenAI({
+        apiKey: openrouterKey,
+        baseURL: OPENROUTER_BASE_URL,
+        defaultHeaders: {
+          'HTTP-Referer': 'https://solomon.aurios.com.br',
+          'X-Title': 'SOLOMON - IA Seguros de Vida',
+        },
+      })
+
+      const stream = await client.chat.completions.create({
+        model: OPENROUTER_MODEL,
+        temperature: 0.3,
+        max_tokens: 2048,
+        stream: true,
+        stream_options: { include_usage: true },
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+      })
+
+      for await (const chunk of stream) {
+        const delta = chunk.choices?.[0]?.delta?.content
+        if (delta) {
+          fullText += delta
+          yield { type: 'delta', text: delta }
+        }
+        if (chunk.usage?.total_tokens) {
+          tokensUsed = chunk.usage.total_tokens
+        }
+      }
+
+      yield {
+        type: 'end',
+        model: OPENROUTER_MODEL,
+        tokensUsed,
+        latencyMs: Date.now() - start,
+        fullText,
+      }
+      return
+    } catch (error) {
+      console.warn(
+        '[rag/llm-stream] OpenRouter stream failed, falling back to non-streaming:',
+        (error as Error).message
+      )
+    }
+  }
+
+  // Fallback: non-streaming (Gemini or OpenAI) — emit as single delta
+  const result = await callLLM(systemPrompt, userMessage)
+  yield { type: 'start', model: result.model }
+  yield { type: 'delta', text: result.text }
+  yield {
+    type: 'end',
+    model: result.model,
+    tokensUsed: result.tokensUsed,
+    latencyMs: result.latencyMs,
+    fullText: result.text,
+  }
+}
+
 /**
  * Calls OpenAI GPT-4o-mini as last resort.
  */
