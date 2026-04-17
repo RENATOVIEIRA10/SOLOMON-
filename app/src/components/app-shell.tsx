@@ -11,6 +11,8 @@ import {
   ShieldCheck,
   Users,
   User,
+  BookOpen,
+  Bell,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -37,6 +39,8 @@ const NAV_ITEMS: NavItem[] = [
     icon: Scale,
   },
   { label: "Clientes", shortLabel: "Clientes", href: "/clientes", icon: Users },
+  { label: "Base", shortLabel: "Base", href: "/base", icon: BookOpen },
+  { label: "Alertas", shortLabel: "Alertas", href: "/alertas", icon: Bell },
   { label: "Perfil", shortLabel: "Perfil", href: "/perfil", icon: User },
 ];
 
