@@ -1,0 +1,57 @@
+/* Print styles shared by Pre-Sinistro and Comparador */
+@media print {
+  @page {
+    size: A4;
+    margin: 16mm 14mm;
+  }
+
+  body {
+    background: #ffffff !important;
+    color: #111111 !important;
+  }
+
+  aside,
+  nav,
+  .print\:hidden,
+  .print-hidden {
+    display: none !important;
+  }
+
+  main {
+    padding-left: 0 !important;
+    padding-bottom: 0 !important;
+  }
+
+  .bg-background,
+  .bg-solomon-black,
+  .bg-solomon-graphite,
+  .bg-solomon-graphite\/60,
+  .bg-solomon-graphite\/80,
+  .bg-solomon-graphite\/30,
+  .bg-solomon-graphite\/40,
+  .bg-solomon-charcoal,
+  .bg-solomon-charcoal\/60,
+  .bg-solomon-charcoal\/40,
+  .bg-solomon-charcoal\/30 {
+    background: #ffffff !important;
+  }
+
+  .text-solomon-cream,
+  .text-solomon-cream-muted,
+  .text-foreground {
+    color: #111111 !important;
+  }
+
+  .text-solomon-gold,
+  .text-solomon-gold-light {
+    color: #8b6914 !important;
+  }
+
+  .border-solomon-gold\/15,
+  .border-solomon-gold\/20,
+  .border-solomon-gold\/30,
+  .border-solomon-gold\/40,
+  .border-solomon-gold\/50 {
+    border-color: #d4b563 !important;
+  }
+}
