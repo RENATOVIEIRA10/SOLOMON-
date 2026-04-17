@@ -23,7 +23,7 @@ type NavItem = {
 
 const NAV_ITEMS: NavItem[] = [
   { label: "Início", shortLabel: "Início", href: "/app", icon: LayoutDashboard },
-  { label: "Oráculo", shortLabel: "Chat", href: "/chat", icon: MessageSquare },
+  { label: "SOLOMON", shortLabel: "SOLOMON", href: "/chat", icon: MessageSquare },
   {
     label: "Pré-Sinistro",
     shortLabel: "Sinistro",

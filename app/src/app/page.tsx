@@ -90,7 +90,7 @@ export default function LandingPage() {
         <div className="mt-24 md:mt-32 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
           <FeatureCard
             icon={<FileSearch className="h-5 w-5" />}
-            title="Oráculo"
+            title="SOLOMON"
             description="Pergunta livre sobre qualquer seguradora. Resposta em segundos com citação da cláusula exata."
           />
           <FeatureCard

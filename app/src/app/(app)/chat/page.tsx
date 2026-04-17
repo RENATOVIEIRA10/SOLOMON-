@@ -1,5 +1,5 @@
 export const metadata = {
-  title: "Oráculo",
+  title: "SOLOMON",
 };
 
 export default function ChatPage() {
@@ -10,7 +10,7 @@ export default function ChatPage() {
           Fase 2 — em construção
         </p>
         <h1 className="mt-4 font-display text-4xl text-solomon-cream">
-          Oráculo
+          SOLOMON
         </h1>
         <p className="mt-3 text-solomon-cream-muted">
           Em breve: chat com streaming, histórico, citações e filtro por

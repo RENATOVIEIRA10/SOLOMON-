@@ -16,7 +16,7 @@ const QUICK_ACCESS = [
   {
     href: "/chat",
     icon: MessageSquare,
-    title: "Oráculo",
+    title: "SOLOMON",
     description: "Pergunte qualquer coisa sobre seguros de vida.",
   },
   {
