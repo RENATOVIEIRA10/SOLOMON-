@@ -68,11 +68,14 @@ const AGE_RE = /\b(\d{1,2})\s*anos?\b/i
 /** Regex: idade sem sufixo quando precedida por "idade"/"com" */
 const AGE_CTX_RE = /(?:idade\s*(?:de\s*)?|com\s+|de\s+)(\d{2})\b/i
 
-/** Regex: capital segurado. Captura 100k, 500mil, 1M, R$ 250.000, 250000. */
-const CAPITAL_RE = /(?:r\$\s*)?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(mil|k|m|mm|milhao|milhão|milhoes|milhões)?/gi
+/** Regex: capital segurado. Captura 100k, 500mil, 1M, R$ 250.000, 250000.
+ *  Alternation ordem: primeiro formato BR com separador obrigatorio (1.234 / 1,234)
+ *  para evitar que "\d{1,3}" corte numeros puros em 3 digitos. */
+const CAPITAL_RE = /(?:r\$\s*)?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\s*(mil|k|m|mm|milhao|milhão|milhoes|milhões)?/gi
 
-/** Regex: renda mensal. "renda 3 mil" / "renda mensal de R$ 3.000" / "renda 3000" */
-const RENDA_RE = /renda\s*(?:mensal\s*)?(?:de\s*)?(?:r\$\s*)?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(mil|k|m)?/i
+/** Regex: renda mensal. "renda 3 mil" / "renda mensal de R$ 3.000" / "renda 3000".
+ *  Mesma logica do CAPITAL_RE para ordem de alternation. */
+const RENDA_RE = /renda\s*(?:mensal\s*)?(?:de\s*)?(?:r\$\s*)?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\s*(mil|k|m)?/i
 
 /** Regex: franquia DIT. "franquia 7 dias" / "franquia de 10" / "f7" / "f10". */
 const FRANQUIA_RE = /\b(?:franquia(?:\s*de)?\s*|f)(7|10)(?:\s*dias?)?\b/i
