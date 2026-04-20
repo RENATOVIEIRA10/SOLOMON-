@@ -328,17 +328,16 @@ export async function queryRateTable(params: {
 
   // Filtro de period para matrizes DIT/DITA (fixed_brl_monthly).
   // Period format: "F{7|10}_R{renda}_C{capital}". Usar ilike para matching parcial.
-  const periodParts: string[] = []
-  if (params.franquia) periodParts.push(`F${params.franquia}`)
-  else periodParts.push('F%')
-  if (params.rendaMensal) periodParts.push(`R${params.rendaMensal}`)
-  else periodParts.push('R%')
-  if (params.capital) periodParts.push(`C${params.capital}`)
-  else periodParts.push('C%')
-  const periodPattern = periodParts.join('_')
-  // So aplica filtro se usuario forneceu ao menos uma dimensao especifica
-  if (params.franquia || params.rendaMensal || params.capital) {
-    q = q.ilike('period', periodPattern)
+  // IMPORTANTE: so aplica o filtro de period quando o usuario forneceu franquia
+  // ou renda (dimensoes exclusivas de DIT/DITA). Capital sozinho NAO dispara
+  // o filtro, senao elimina produtos com period=null (Prudential, MAG outros).
+  // Para per_1000_annual, capital entra no calculo do premio em formatRateAnswer.
+  if (params.franquia || params.rendaMensal) {
+    const periodParts: string[] = []
+    periodParts.push(params.franquia ? `F${params.franquia}` : 'F%')
+    periodParts.push(params.rendaMensal ? `R${params.rendaMensal}` : 'R%')
+    periodParts.push(params.capital ? `C${params.capital}` : 'C%')
+    q = q.ilike('period', periodParts.join('_'))
   }
 
   const { data, error } = await q.limit(params.limit ?? 30).order('product_name').order('product_code').order('age')
