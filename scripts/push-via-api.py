@@ -145,14 +145,15 @@ def main() -> None:
     print(f"atualizando {args.branch} -> {last_sha[:10]}")
     gh.call("PATCH", f"/git/refs/heads/{args.branch}", {"sha": last_sha, "force": False})
 
-    print(f"alinhando local {args.branch} com {remote_ref}")
-    subprocess.check_call(["git", "fetch", args.remote, args.branch])
-    # Se estamos na branch alvo, reseta; senao soh avisa.
+    # Atualiza o ref remoto local direto (evita git fetch concorrente).
+    subprocess.check_call(["git", "update-ref", f"refs/remotes/{args.remote}/{args.branch}", last_sha])
+
     current = git("rev-parse", "--abbrev-ref", "HEAD")
     if current == args.branch:
-        subprocess.check_call(["git", "reset", "--hard", remote_ref])
+        print(f"alinhando local {args.branch} -> {last_sha[:10]}")
+        subprocess.check_call(["git", "reset", "--hard", last_sha])
     else:
-        print(f"(branch atual e '{current}' — pula reset; corra `git reset --hard {remote_ref}` se quiser)")
+        print(f"(branch atual e '{current}' — corra `git reset --hard {last_sha[:10]}` se quiser)")
 
     print("OK")
 
