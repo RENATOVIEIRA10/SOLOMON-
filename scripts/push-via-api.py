@@ -145,15 +145,27 @@ def main() -> None:
     print(f"atualizando {args.branch} -> {last_sha[:10]}")
     gh.call("PATCH", f"/git/refs/heads/{args.branch}", {"sha": last_sha, "force": False})
 
-    # Atualiza o ref remoto local direto (evita git fetch concorrente).
-    subprocess.check_call(["git", "update-ref", f"refs/remotes/{args.remote}/{args.branch}", last_sha])
+    # Precisamos baixar o commit novo localmente antes de reset.
+    # Retry porque git lock pode estar em uso por outra sessao.
+    import time
+    fetched = False
+    for attempt in range(3):
+        r = subprocess.run(["git", "fetch", args.remote, args.branch])
+        if r.returncode == 0:
+            fetched = True
+            break
+        print(f"(fetch retry {attempt + 1}/3 em 2s)")
+        time.sleep(2)
+    if not fetched:
+        print(f"AVISO: fetch falhou. Remote em {last_sha}. Corra: git fetch {args.remote} {args.branch} && git reset --hard {args.remote}/{args.branch}")
+        return
 
     current = git("rev-parse", "--abbrev-ref", "HEAD")
     if current == args.branch:
         print(f"alinhando local {args.branch} -> {last_sha[:10]}")
-        subprocess.check_call(["git", "reset", "--hard", last_sha])
+        subprocess.check_call(["git", "reset", "--hard", f"{args.remote}/{args.branch}"])
     else:
-        print(f"(branch atual e '{current}' — corra `git reset --hard {last_sha[:10]}` se quiser)")
+        print(f"(branch atual e '{current}' — corra `git reset --hard {args.remote}/{args.branch}` se quiser)")
 
     print("OK")
 
