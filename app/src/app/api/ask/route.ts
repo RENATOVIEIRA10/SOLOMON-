@@ -17,6 +17,13 @@ interface AskRequestBody {
   channel?: 'whatsapp' | 'dashboard' | 'api'
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
   debug?: boolean
+  /**
+   * Eval mode: roda pipeline normal mas devolve tambem os chunks recuperados
+   * (sources com content). Usado pelo harness Ragas em app/eval/ragas.
+   * Nao altera comportamento do ask() — so expoe o que ja esta na resposta
+   * interna. Nao e usado pelo webhook WhatsApp nem pelo dashboard.
+   */
+  evalMode?: boolean
 }
 
 // deploy-marker: rebuild-rev-2
@@ -108,14 +115,24 @@ export async function POST(request: NextRequest) {
       conversationHistory: body.history,
     })
 
-    return NextResponse.json({
+    const response: Record<string, unknown> = {
       answer: result.answer,
       citations: result.citations,
       model: result.model,
       tokensUsed: result.tokensUsed,
       latencyMs: result.latencyMs,
       conversationId: result.conversationId,
-    })
+    }
+
+    if (body.evalMode) {
+      response.sources = result.sources
+      response.confidenceScore = result.confidenceScore
+      response.avgSimilarity = result.avgSimilarity
+      response.sourceCount = result.sourceCount
+      response.lowConfidence = result.lowConfidence
+    }
+
+    return NextResponse.json(response)
   } catch (error) {
     console.error('[api/ask] Error:', error)
 
