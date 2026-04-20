@@ -46,6 +46,7 @@ Na primeira resposta de TODA sessao nesta pasta, ANTES de qualquer outra coisa:
 ## Fechamento de sessao (OBRIGATORIO)
 
 1. `git commit` + `git push origin master` (branch e `master`, nao `main`).
+   - **Neste notebook Windows de trabalho**, `git push` HTTPS retorna 403 persistente (cred-manager corporativo). Usar `python scripts/push-via-api.py` — replica commit(s) via GitHub REST API (blob+tree+commit+ref). Token lido de `~/.git-credentials`. Nos outros ambientes (VPS, code-server), `git push` normal funciona.
 2. Vercel redeploya automatico a partir do push (monitorar via dashboard ou `vercel logs`).
 3. Edge functions Supabase (se houver): `npx supabase functions deploy <nome> --project-ref ohmoyfbtfuznhlpjcbbk`.
 4. Migrations SQL em `app/supabase/migrations/`: aplicar via `apply_migration` E commitar o arquivo.
