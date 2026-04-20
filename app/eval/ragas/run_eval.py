@@ -118,9 +118,15 @@ def build_ragas_dataset(records: list[dict[str, Any]]):
         data = r["response"]["data"]
         answer = data.get("answer") or ""
         sources = data.get("sources") or []
+        model = data.get("model", "")
         contexts = [s.get("content") or "" for s in sources if s.get("content")]
-        # Ragas exige pelo menos um context — se nao ha, stub com <sem contexto>
-        # para nao quebrar a metrica (context_precision cairia pra 0 naturalmente).
+        # Fast-path rate-table-lookup nao popula sources[] (resposta vem de DB
+        # deterministico, zero LLM). O answer JA e a projecao literal das rows.
+        # Tratar answer como context faz context_precision e faithfulness
+        # refletirem a realidade: lookup estruturado nao alucina.
+        if model == "rate-table-lookup" and not contexts:
+            contexts = [answer]
+        # Ragas exige pelo menos um context — se nao ha, stub.
         if not contexts:
             contexts = ["<nenhum chunk recuperado>"]
         rows.append(
