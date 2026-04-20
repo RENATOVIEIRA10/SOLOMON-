@@ -136,6 +136,8 @@ export async function ask(
         gender: intent.gender,
         product: intent.productHint,
         capital: intent.capital,
+        rendaMensal: intent.rendaMensal,
+        franquia: intent.franquia,
       })
       const insurerIds = await resolveInsurerIds(mentionedInsurers)
       const ids = insurerIds.values().next().value
@@ -145,6 +147,9 @@ export async function ask(
           productHint: intent.productHint,
           age: intent.age,
           gender: intent.gender,
+          rendaMensal: intent.rendaMensal,
+          capital: intent.capital,
+          franquia: intent.franquia,
           limit: 40,
         })
         if (rateRows.length > 0) {
