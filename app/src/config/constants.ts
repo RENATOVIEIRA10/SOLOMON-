@@ -27,8 +27,13 @@ export const RAG = {
   chunkSize: 500,
   chunkOverlap: 50,
   topK: 15,
-  /** Fetch more from pgvector, then rerank/diversify down to topK */
+  /** Fetch more from pgvector, then rerank/diversify down to topK.
+   *  Usado apenas quando ha seguradora(s) detectada(s) — busca por insurer
+   *  nao contamina contexto, entao vale puxar mais candidatos. */
   fetchK: 50,
+  /** Busca global (nenhuma seguradora mencionada): fetchK estreito para
+   *  evitar contaminacao cross-insurer no contexto do LLM. */
+  globalTopK: 15,
   similarityThreshold: 0.35,
   /** Max chunks per insurer when no specific insurer is mentioned */
   maxPerInsurer: 5,

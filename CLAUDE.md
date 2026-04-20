@@ -68,7 +68,9 @@ Na primeira resposta de TODA sessao nesta pasta, ANTES de qualquer outra coisa:
 ## Regras de codigo deste repo
 
 - Branch principal e `master`. NAO criar `main`.
-- LLM principal: **Claude Sonnet 4** via OpenRouter. `app/.env.local` tem chave (gitignored). Nao trocar por OpenAI direto sem combinar com o user.
+- LLM default (chat/oraculo/stream): **Claude Haiku 4.5** via OpenRouter (`anthropic/claude-haiku-4.5`). Motivo: custo ~3x menor que Sonnet e latencia em respostas conversacionais. Config em `app/src/services/rag/llm.ts`. Fallback chain: Gemini 2.0 Flash -> OpenAI GPT-4o-mini.
+- LLM para pre-sinistro: **Claude Sonnet 4.6** (`anthropic/claude-sonnet-4.6`). Motivo: veredicto COBERTO/NAO_COBERTO/RISCO e decisao juridica de alta consequencia — custo extra (~R$0,02/analise) negligivel perto de erro em sinistro. Config em `app/src/services/rag/pre-sinistro.ts`.
+- Chave OpenRouter em `app/.env.local` (gitignored). Nao trocar por OpenAI direto sem combinar com o user.
 - pgvector + pdf-parse + react-pdf: atualizacoes de deps sao sensiveis (quebrou build no passado). Sempre testar `next build` local antes de push.
 - Webhook Vercel (nao VPS): latencia aceitavel, cold start OK, escala sozinho. NAO migrar para VPS.
 - Cliente Julio e stakeholder ancora — pendencias criticas em `shared/facts.md` do aurios-agents-workspace precisam ser fechadas antes de declarar SOLOMON "pronto".

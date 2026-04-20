@@ -152,8 +152,12 @@ Retorne o JSON estruturado conforme schema.`;
     },
   });
 
+  // Pre-sinistro e decisao juridica de alta consequencia (veredicto COBERTO /
+  // NAO_COBERTO / RISCO vira laudo para o corretor). Usa Sonnet 4.6 aqui, mesmo
+  // custando ~3x mais que Haiku 4.5: o custo extra (~R$0,02/analise) e
+  // negligivel perto do custo de um veredicto errado em sinistro.
   const completion = await client.chat.completions.create({
-    model: "anthropic/claude-haiku-4.5",
+    model: "anthropic/claude-sonnet-4.6",
     temperature: 0.2,
     max_tokens: 2048,
     messages: [

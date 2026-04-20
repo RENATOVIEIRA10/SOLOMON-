@@ -16,10 +16,18 @@ import { expandQueryWithJargon } from '@/config/jargon'
 export const SYSTEM_PROMPT_TEMPLATE = `Voce e SOLOMON, o consultor privado de seguros de vida mais inteligente do Brasil.
 Voce NAO e um buscador de texto. Voce e um ESPECIALISTA que LE, INTERPRETA e RACIOCINA sobre condicoes gerais como um corretor senior com 20 anos de experiencia faria.
 
+PROTOCOLO DE VALIDACAO (EXECUTE MENTALMENTE ANTES DE RESPONDER):
+Passo 1: Identifique qual(is) seguradora(s) o corretor mencionou na pergunta.
+Passo 2: Para cada chunk [N] em DOCUMENTOS DE REFERENCIA, leia o cabecalho e identifique a qual seguradora ele pertence.
+Passo 3: Se o corretor perguntou sobre a seguradora X e existem chunks de Y ou Z no contexto: IGNORE Y e Z. Use APENAS chunks de X para fundamentar a resposta.
+Passo 4: Se NENHUM chunk da seguradora X aparece no contexto: responda literalmente "Nao encontrei condicoes gerais da [X] na base para responder isso com seguranca. Posso procurar em outras seguradoras que temos indexadas." — NAO invente, NAO use chunks de outra seguradora como proxy.
+Passo 5: NUNCA combine clausulas de seguradoras diferentes em uma mesma afirmacao.
+Passo 6: Se o corretor NAO mencionou seguradora e o contexto tem chunks de varias, responda comparativamente ("Na Zurich... | Na Bradesco... | Na Porto..."), separando por seguradora e citando cada uma individualmente — nunca fundindo numa unica clausula generica.
+
 POSTURA:
 - Voce INTERPRETA os documentos, nao apenas copia trechos. Quando um corretor pergunta algo, voce le a condicao geral e EXPLICA o que ela significa na pratica.
 - Quando o corretor usa jargao do mercado, voce entende e traduz para o que a condicao geral diz. Exemplo: "majorada" = paga 100% do capital mesmo em invalidez parcial.
-- Voce cruza informacoes entre clausulas diferentes do mesmo documento para chegar a conclusoes.
+- Voce cruza informacoes entre clausulas diferentes do MESMO documento para chegar a conclusoes (jamais entre documentos de seguradoras distintas).
 - Voce alerta sobre nuances que um corretor menos experiente poderia perder.
 
 GLOSSARIO DO MERCADO (use para interpretar perguntas dos corretores):
@@ -147,16 +155,29 @@ export async function ask(
       })
     }
   } else {
-    // Global search with diversification
+    // Global search: pulling 50 chunks cross-insurer contaminates the LLM context
+    // (causa raiz das alucinacoes 2/6 reportadas) — a regra "nao misturar" no
+    // system prompt nao salva se ja entraram chunks de outras seguradoras na
+    // entrada. Quando nao ha seguradora detectada, busca estreita (topK=15)
+    // para forcar chunks do mesmo cluster semantico.
     searchResults = await semanticSearch(expandedQuery, {
       insurerId: options?.insurerFilter,
-      topK: RAG.fetchK,
+      topK: RAG.globalTopK,
     })
   }
 
-  // 1b. Fallback: structured search on products/coverages if no embeddings found
+  // 1b. Fallback: structured search on products/coverages — so roda quando
+  // temos contexto de seguradora explicito. Sem filtro de insurer, o RPC
+  // search_products pode retornar produto de outra seguradora (landmine de
+  // atribuicao errada) ja que a RPC atual nao aceita insurer filter.
   if (searchResults.length === 0) {
-    searchResults = await structuredSearch(question, options?.insurerFilter)
+    const fallbackInsurerId = options?.insurerFilter
+      ?? (mentionedInsurers.length > 0
+        ? (await resolveInsurerIds(mentionedInsurers)).values().next().value?.[0]
+        : undefined)
+    if (fallbackInsurerId) {
+      searchResults = await structuredSearch(question, fallbackInsurerId)
+    }
   }
 
   // 2. Enrich with insurer/product names (need names before diversifying)
@@ -271,8 +292,16 @@ export async function structuredSearch(question: string, insurerFilter?: string)
     }
 
     if (data && data.length > 0) {
-      console.log(`[rag/structured] Found ${data.length} results for keyword "${keyword}"`)
-      return (data as Array<Record<string, unknown>>).map((row, idx) => ({
+      // Se temos contexto de seguradora, filtra client-side (RPC search_products
+      // nao aceita filtro de insurer).
+      const filtered = insurerFilter
+        ? (data as Array<Record<string, unknown>>).filter((row) => String(row.insurer_id) === insurerFilter)
+        : (data as Array<Record<string, unknown>>)
+
+      if (filtered.length === 0) continue
+
+      console.log(`[rag/structured] Found ${filtered.length}/${data.length} results for keyword "${keyword}" (insurer filter ${insurerFilter ? 'ON' : 'OFF'})`)
+      return filtered.map((row, idx) => ({
         id: String(row.product_id),
         content: [
           `Produto: ${row.product_name}`,
