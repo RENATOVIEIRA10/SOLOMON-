@@ -12,6 +12,7 @@ import { callLLM, type LLMResponse } from './llm'
 import { extractCitations, type Citation } from './citation'
 import { RAG } from '@/config/constants'
 import { expandQueryWithJargon } from '@/config/jargon'
+import { detectRateIntent, queryRateTable, formatRateAnswer } from './rate-lookup'
 
 export const SYSTEM_PROMPT_TEMPLATE = `Voce e SOLOMON, o consultor privado de seguros de vida mais inteligente do Brasil.
 Voce NAO e um buscador de texto. Voce e um ESPECIALISTA que LE, INTERPRETA e RACIOCINA sobre condicoes gerais como um corretor senior com 20 anos de experiencia faria.
@@ -121,6 +122,55 @@ export async function ask(
   // 0. Detect insurer names in the question for targeted search
   const mentionedInsurers = detectInsurers(question)
   console.log(`[rag/ask] Mentioned insurers: ${mentionedInsurers.length > 0 ? mentionedInsurers.join(', ') : 'none (global search)'}`)
+
+  // 0a. Rate lookup fast-path: se a pergunta e sobre TAXA/PREMIO e temos
+  // seguradora detectada, consulta insurer_rate_tables direto — bypass LLM.
+  // Zero alucinacao em numeros: resposta vem de tabela estruturada com
+  // citacao da pagina do PDF oficial. Fall-through para RAG normal se nao
+  // encontrar linhas ou se faltam parametros criticos.
+  if (mentionedInsurers.length === 1) {
+    const intent = detectRateIntent(question)
+    if (intent.hasIntent) {
+      console.log(`[rag/ask] Rate intent detected — attempting fast-path. Intent:`, {
+        age: intent.age,
+        gender: intent.gender,
+        product: intent.productHint,
+        capital: intent.capital,
+      })
+      const insurerIds = await resolveInsurerIds(mentionedInsurers)
+      const ids = insurerIds.values().next().value
+      if (ids && ids.length > 0) {
+        const rateRows = await queryRateTable({
+          insurerId: ids[0],
+          productHint: intent.productHint,
+          age: intent.age,
+          gender: intent.gender,
+          limit: 40,
+        })
+        if (rateRows.length > 0) {
+          const answer = formatRateAnswer({
+            insurerName: mentionedInsurers[0],
+            intent,
+            rows: rateRows,
+          })
+          console.log(`[rag/ask] Rate fast-path HIT — ${rateRows.length} rows. Bypassing LLM.`)
+          return {
+            answer,
+            citations: [],
+            sources: [],
+            model: 'rate-table-lookup',
+            tokensUsed: 0,
+            latencyMs: Date.now() - startTime,
+            confidenceScore: 1.0,
+            avgSimilarity: 1.0,
+            sourceCount: rateRows.length,
+            lowConfidence: false,
+          }
+        }
+        console.log(`[rag/ask] Rate fast-path MISS — no rows, falling through to RAG.`)
+      }
+    }
+  }
 
   // 0b. Expand query with jargon → technical terms so embedding captures both
   // the corretor's shorthand and the exact phrasing used in insurer PDFs.
