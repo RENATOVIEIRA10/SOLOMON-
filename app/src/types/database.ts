@@ -492,6 +492,45 @@ export type Database = {
           },
         ]
       }
+      documents_deleted_non_life: {
+        Row: {
+          chunk_index: number | null
+          content: string | null
+          content_hash: string | null
+          delete_reason: string | null
+          deleted_at: string | null
+          id: string
+          insurer_id: string | null
+          metadata: Json | null
+          source_type: string | null
+          source_url: string | null
+        }
+        Insert: {
+          chunk_index?: number | null
+          content?: string | null
+          content_hash?: string | null
+          delete_reason?: string | null
+          deleted_at?: string | null
+          id: string
+          insurer_id?: string | null
+          metadata?: Json | null
+          source_type?: string | null
+          source_url?: string | null
+        }
+        Update: {
+          chunk_index?: number | null
+          content?: string | null
+          content_hash?: string | null
+          delete_reason?: string | null
+          deleted_at?: string | null
+          id?: string
+          insurer_id?: string | null
+          metadata?: Json | null
+          source_type?: string | null
+          source_url?: string | null
+        }
+        Relationships: []
+      }
       idempotency_keys: {
         Row: {
           created_at: string
@@ -561,6 +600,68 @@ export type Database = {
         }
         Relationships: []
       }
+      insurer_rate_tables: {
+        Row: {
+          age: number
+          coverage_type: string
+          gender: string
+          id: number
+          imported_at: string
+          insurer_id: string
+          period: string | null
+          portfolio: string | null
+          product_code: string
+          product_name: string
+          rate: number
+          rate_unit: string
+          source_doc_name: string
+          source_page: number | null
+          version_label: string | null
+        }
+        Insert: {
+          age: number
+          coverage_type?: string
+          gender: string
+          id?: number
+          imported_at?: string
+          insurer_id: string
+          period?: string | null
+          portfolio?: string | null
+          product_code: string
+          product_name: string
+          rate: number
+          rate_unit?: string
+          source_doc_name: string
+          source_page?: number | null
+          version_label?: string | null
+        }
+        Update: {
+          age?: number
+          coverage_type?: string
+          gender?: string
+          id?: number
+          imported_at?: string
+          insurer_id?: string
+          period?: string | null
+          portfolio?: string | null
+          product_code?: string
+          product_name?: string
+          rate?: number
+          rate_unit?: string
+          source_doc_name?: string
+          source_page?: number | null
+          version_label?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "insurer_rate_tables_insurer_id_fkey"
+            columns: ["insurer_id"]
+            isOneToOne: false
+            referencedRelation: "insurers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       insurers: {
         Row: {
           active: boolean
@@ -594,6 +695,75 @@ export type Database = {
           opin_endpoint?: string | null
           source?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      pdf_version_detected: {
+        Row: {
+          detected_at: string | null
+          detected_date: string | null
+          detected_yyyymm: number | null
+          extraction_method: string | null
+          insurer_name: string | null
+          raw_hints: string | null
+          source_url: string
+        }
+        Insert: {
+          detected_at?: string | null
+          detected_date?: string | null
+          detected_yyyymm?: number | null
+          extraction_method?: string | null
+          insurer_name?: string | null
+          raw_hints?: string | null
+          source_url: string
+        }
+        Update: {
+          detected_at?: string | null
+          detected_date?: string | null
+          detected_yyyymm?: number | null
+          extraction_method?: string | null
+          insurer_name?: string | null
+          raw_hints?: string | null
+          source_url?: string
+        }
+        Relationships: []
+      }
+      pending_crawl_queue: {
+        Row: {
+          added_at: string | null
+          detected_date: string | null
+          id: string
+          insurer_name: string | null
+          notes: string | null
+          priority: string | null
+          processed_at: string | null
+          product_hint: string | null
+          source_url: string
+          status: string | null
+        }
+        Insert: {
+          added_at?: string | null
+          detected_date?: string | null
+          id?: string
+          insurer_name?: string | null
+          notes?: string | null
+          priority?: string | null
+          processed_at?: string | null
+          product_hint?: string | null
+          source_url: string
+          status?: string | null
+        }
+        Update: {
+          added_at?: string | null
+          detected_date?: string | null
+          id?: string
+          insurer_name?: string | null
+          notes?: string | null
+          priority?: string | null
+          processed_at?: string | null
+          product_hint?: string | null
+          source_url?: string
+          status?: string | null
         }
         Relationships: []
       }
@@ -866,6 +1036,95 @@ export type Database = {
           },
         ]
       }
+      rag_cleaner_runs: {
+        Row: {
+          batch_size: number
+          documents_processed: number | null
+          errors: number | null
+          finished_at: string | null
+          id: string
+          notes: string | null
+          started_at: string | null
+          suggestions_created: number | null
+        }
+        Insert: {
+          batch_size: number
+          documents_processed?: number | null
+          errors?: number | null
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          started_at?: string | null
+          suggestions_created?: number | null
+        }
+        Update: {
+          batch_size?: number
+          documents_processed?: number | null
+          errors?: number | null
+          finished_at?: string | null
+          id?: string
+          notes?: string | null
+          started_at?: string | null
+          suggestions_created?: number | null
+        }
+        Relationships: []
+      }
+      rag_cleaner_suggestions: {
+        Row: {
+          content_hash: string | null
+          created_at: string | null
+          description: string | null
+          document_id: string | null
+          id: string
+          issue_type: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          run_id: string
+          severity: string | null
+          status: string | null
+          suggested_action: string | null
+          suggested_metadata: Json | null
+        }
+        Insert: {
+          content_hash?: string | null
+          created_at?: string | null
+          description?: string | null
+          document_id?: string | null
+          id?: string
+          issue_type: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_id: string
+          severity?: string | null
+          status?: string | null
+          suggested_action?: string | null
+          suggested_metadata?: Json | null
+        }
+        Update: {
+          content_hash?: string | null
+          created_at?: string | null
+          description?: string | null
+          document_id?: string | null
+          id?: string
+          issue_type?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          run_id?: string
+          severity?: string | null
+          status?: string | null
+          suggested_action?: string | null
+          suggested_metadata?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rag_cleaner_suggestions_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       simulations: {
         Row: {
           broker_id: string
@@ -956,12 +1215,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_broker_activity_summary: { Args: never; Returns: Json }
       get_broker_id: { Args: never; Returns: string }
+      get_pdfs_sem_data_detectada: {
+        Args: { p_limit?: number }
+        Returns: {
+          source_url: string
+        }[]
+      }
       match_documents: {
         Args: {
+          filter_exclude_non_life?: boolean
           filter_insurer_id?: string
           filter_product_id?: string
           filter_source_type?: string
+          filter_tipo_produto?: string
           match_count?: number
           match_threshold?: number
           query_embedding: string
