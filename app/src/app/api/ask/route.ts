@@ -7,7 +7,8 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { ask } from '@/services/rag/answer'
+import { ask, detectInsurers, resolveInsurerIds } from '@/services/rag/answer'
+import { detectRateIntent, queryRateTable } from '@/services/rag/rate-lookup'
 
 interface AskRequestBody {
   question: string
@@ -15,6 +16,7 @@ interface AskRequestBody {
   brokerId?: string
   channel?: 'whatsapp' | 'dashboard' | 'api'
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
+  debug?: boolean
 }
 
 export async function POST(request: NextRequest) {
@@ -60,6 +62,42 @@ export async function POST(request: NextRequest) {
           )
         }
       }
+    }
+
+    if (body.debug) {
+      const q = body.question.trim()
+      const mentioned = detectInsurers(q)
+      const intent = mentioned.length === 1 ? detectRateIntent(q, mentioned[0]) : { hasIntent: false }
+      let resolvedIds: Record<string, string[]> = {}
+      let rateRowCount = 0
+      let firstRow: unknown = null
+      if (mentioned.length === 1 && intent.hasIntent) {
+        const m = await resolveInsurerIds(mentioned)
+        for (const [k, v] of m) resolvedIds[k] = v
+        const ids = Object.values(resolvedIds)[0]
+        if (ids && ids.length > 0) {
+          const rows = await queryRateTable({
+            insurerId: ids[0],
+            productHint: (intent as any).productHint,
+            age: (intent as any).age,
+            gender: (intent as any).gender,
+            rendaMensal: (intent as any).rendaMensal,
+            capital: (intent as any).capital,
+            franquia: (intent as any).franquia,
+            limit: 5,
+          })
+          rateRowCount = rows.length
+          firstRow = rows[0] ?? null
+        }
+      }
+      return NextResponse.json({
+        debug: true,
+        mentionedInsurers: mentioned,
+        rateIntent: intent,
+        resolvedInsurerIds: resolvedIds,
+        rateRowCount,
+        firstRow,
+      })
     }
 
     const result = await ask(body.question.trim(), {
