@@ -68,8 +68,10 @@ const CAPITAL_RE = /(?:r\$\s*)?(\d{1,3}(?:[.,]\d{3})*(?:[.,]\d+)?|\d+)\s*(mil|k|
 
 /**
  * Classifica se a pergunta e sobre premio/taxa e extrai age/gender/product.
+ * @param insurer canonical insurer name ('Prudential' | 'MAG' | ...). Quando
+ *   informado, restringe a busca de productHint as familias daquela seguradora.
  */
-export function detectRateIntent(question: string): RateIntent {
+export function detectRateIntent(question: string, insurer?: string): RateIntent {
   const q = question.toLowerCase()
   const qNoAccent = stripAccents(q)
 
@@ -92,8 +94,8 @@ export function detectRateIntent(question: string): RateIntent {
   if (/\b(homem|masculino|masc)\b/i.test(q)) gender = 'M'
   else if (/\b(mulher|feminino|fem)\b/i.test(q)) gender = 'F'
 
-  // 4. Product hint — match against known Prudential product families
-  const productHint = detectProductHint(qNoAccent)
+  // 4. Product hint — filtrado por seguradora quando disponivel
+  const productHint = detectProductHint(qNoAccent, insurer)
 
   // 5. Capital
   const capital = extractCapital(q)
@@ -111,36 +113,83 @@ function stripAccents(s: string): string {
   return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
-/** Mapeia menus de produtos → string canonica usada em `product_name` */
-const PRODUCT_FAMILIES: Array<{ patterns: string[]; canonical: string }> = [
-  { patterns: ['vida inteira unico', 'vida inteira único', 'wlupf'], canonical: 'SEGURO VIDA INTEIRA UNICO' },
-  { patterns: ['vida inteira mais'], canonical: 'SEGURO VIDA INTEIRA MAIS' },
-  { patterns: ['vida inteira modificado', 'modificado'], canonical: 'SEGURO VIDA INTEIRA MODIFICADO' },
-  { patterns: ['idades especiais'], canonical: 'SEGURO VIDA INTEIRA IDADES ESPECIAIS' },
-  { patterns: ['vida inteira'], canonical: 'SEGURO VIDA INTEIRA' },
-  { patterns: ['vida e saude 10', 'vida e saúde 10', 'vs10'], canonical: 'SEGURO VIDA E SAUDE 10' },
-  { patterns: ['vida e saude 20', 'vida e saúde 20', 'vs20'], canonical: 'SEGURO VIDA E SAUDE 20' },
-  { patterns: ['vida e saude 30', 'vida e saúde 30', 'vs30'], canonical: 'SEGURO VIDA E SAUDE 30' },
-  { patterns: ['temporario decrescente', 'temporário decrescente'], canonical: 'SEGURO TEMPORARIO DECRESCENTE' },
-  { patterns: ['temporario preferencial', 'temporário preferencial'], canonical: 'SEGURO TEMPORARIO PREFERENCIAL' },
-  { patterns: ['temporario', 'temporário'], canonical: 'SEGURO TEMPORARIO' },
-  { patterns: ['renda familiar'], canonical: 'SEGURO RENDA FAMILIAR' },
-  { patterns: ['renda hospitalar'], canonical: 'SEGURO RENDA HOSPITALAR' },
-  { patterns: ['doencas graves basico', 'doenças graves básico'], canonical: 'SEGURO DOENCAS GRAVES BASICO' },
-  { patterns: ['doencas graves plus', 'doenças graves plus'], canonical: 'SEGURO DOENCAS GRAVES PLUS' },
-  { patterns: ['doencas graves modular', 'doenças graves modular'], canonical: 'SEGURO DOENCAS GRAVES MODULAR' },
-  { patterns: ['doencas ampliadas', 'doenças ampliadas'], canonical: 'SEGURO DOENCAS AMPLIADAS' },
-  { patterns: ['morte acidental'], canonical: 'SEGURO POR MORTE ACIDENTAL' },
-  { patterns: ['invalidez acidental'], canonical: 'SEGURO INVALIDEZ ACIDENTAL' },
-  { patterns: ['assistencia funeral', 'assistência funeral', 'funeral'], canonical: 'SEGURO ASSISTENCIA FUNERAL' },
-  { patterns: ['perda autonomia', 'perda da autonomia'], canonical: 'SEGURO PERDA DA AUTONOMIA PESSOAL' },
-  { patterns: ['cirurgia ampliada'], canonical: 'SEGURO CIRURGIA AMPLIADA' },
-  { patterns: ['cirurgia'], canonical: 'SEGURO CIRURGIA' },
-  { patterns: ['quebra de ossos', 'quebra ossos'], canonical: 'SEGURO QUEBRA DE OSSOS' },
+/**
+ * Mapeia menus de produtos → substring usada em `product_name` para ilike.
+ * `insurer` e o nome canonico da seguradora (ver INSURER_PATTERNS em answer.ts).
+ * Quando `insurer` esta undefined, a familia aplica a qualquer seguradora.
+ */
+const PRODUCT_FAMILIES: Array<{ patterns: string[]; canonical: string; insurer?: string }> = [
+  // Prudential
+  { insurer: 'Prudential', patterns: ['vida inteira unico', 'vida inteira único', 'wlupf'], canonical: 'SEGURO VIDA INTEIRA UNICO' },
+  { insurer: 'Prudential', patterns: ['vida inteira mais'], canonical: 'SEGURO VIDA INTEIRA MAIS' },
+  { insurer: 'Prudential', patterns: ['vida inteira modificado', 'modificado'], canonical: 'SEGURO VIDA INTEIRA MODIFICADO' },
+  { insurer: 'Prudential', patterns: ['idades especiais'], canonical: 'SEGURO VIDA INTEIRA IDADES ESPECIAIS' },
+  { insurer: 'Prudential', patterns: ['vida inteira'], canonical: 'SEGURO VIDA INTEIRA' },
+  { insurer: 'Prudential', patterns: ['vida e saude 10', 'vida e saúde 10', 'vs10'], canonical: 'SEGURO VIDA E SAUDE 10' },
+  { insurer: 'Prudential', patterns: ['vida e saude 20', 'vida e saúde 20', 'vs20'], canonical: 'SEGURO VIDA E SAUDE 20' },
+  { insurer: 'Prudential', patterns: ['vida e saude 30', 'vida e saúde 30', 'vs30'], canonical: 'SEGURO VIDA E SAUDE 30' },
+  { insurer: 'Prudential', patterns: ['temporario decrescente', 'temporário decrescente'], canonical: 'SEGURO TEMPORARIO DECRESCENTE' },
+  { insurer: 'Prudential', patterns: ['temporario preferencial', 'temporário preferencial'], canonical: 'SEGURO TEMPORARIO PREFERENCIAL' },
+  { insurer: 'Prudential', patterns: ['temporario', 'temporário'], canonical: 'SEGURO TEMPORARIO' },
+  { insurer: 'Prudential', patterns: ['renda familiar'], canonical: 'SEGURO RENDA FAMILIAR' },
+  { insurer: 'Prudential', patterns: ['renda hospitalar'], canonical: 'SEGURO RENDA HOSPITALAR' },
+  { insurer: 'Prudential', patterns: ['doencas graves basico', 'doenças graves básico'], canonical: 'SEGURO DOENCAS GRAVES BASICO' },
+  { insurer: 'Prudential', patterns: ['doencas graves plus', 'doenças graves plus'], canonical: 'SEGURO DOENCAS GRAVES PLUS' },
+  { insurer: 'Prudential', patterns: ['doencas graves modular', 'doenças graves modular'], canonical: 'SEGURO DOENCAS GRAVES MODULAR' },
+  { insurer: 'Prudential', patterns: ['doencas ampliadas', 'doenças ampliadas'], canonical: 'SEGURO DOENCAS AMPLIADAS' },
+  { insurer: 'Prudential', patterns: ['morte acidental'], canonical: 'SEGURO POR MORTE ACIDENTAL' },
+  { insurer: 'Prudential', patterns: ['invalidez acidental'], canonical: 'SEGURO INVALIDEZ ACIDENTAL' },
+  { insurer: 'Prudential', patterns: ['assistencia funeral', 'assistência funeral', 'funeral'], canonical: 'SEGURO ASSISTENCIA FUNERAL' },
+  { insurer: 'Prudential', patterns: ['perda autonomia', 'perda da autonomia'], canonical: 'SEGURO PERDA DA AUTONOMIA PESSOAL' },
+  { insurer: 'Prudential', patterns: ['cirurgia ampliada'], canonical: 'SEGURO CIRURGIA AMPLIADA' },
+  { insurer: 'Prudential', patterns: ['cirurgia'], canonical: 'SEGURO CIRURGIA' },
+  { insurer: 'Prudential', patterns: ['quebra de ossos', 'quebra ossos'], canonical: 'SEGURO QUEBRA DE OSSOS' },
+
+  // MAG — product_name na base esta sem prefixo "SEGURO". Codigos SUSEP informativos:
+  //  3082 Vida Inteira, 3083 V.I. Conjuge, 3085 Prazo Certo, 1501 Morte Acidente,
+  //  3084 Pensao por Morte, 2278/2279 Invalidez Majorada, 1548 Invalidez Total,
+  //  2009 Renda por Invalidez, 2229/2598/2230/2599/2231/2345 Doencas Graves,
+  //  2114/2115/2116/2117 DIH/UTI, 2301 Cirurgias, 3057-3069 SAF.
+  { insurer: 'MAG', patterns: ['vida inteira conjuge', 'vida inteira cônjuge', 'conjuge'], canonical: 'VIDA INTEIRA CONJUGE' },
+  { insurer: 'MAG', patterns: ['vida inteira'], canonical: 'VIDA INTEIRA' },
+  { insurer: 'MAG', patterns: ['prazo certo'], canonical: 'PRAZO CERTO' },
+  { insurer: 'MAG', patterns: ['morte por acidente', 'morte acidente', 'morte acidental'], canonical: 'MORTE POR ACIDENTE' },
+  { insurer: 'MAG', patterns: ['pensao por morte', 'pensão por morte', 'pensao morte'], canonical: 'PENSAO POR MORTE' },
+  { insurer: 'MAG', patterns: ['invalidez majorada ou doenca', 'invalidez majorada ou doença', 'invalidez por acidente majorada ou doenca'], canonical: 'INVALIDEZ POR ACIDENTE MAJORADA OU DOENCA' },
+  { insurer: 'MAG', patterns: ['invalidez majorada', 'invalidez por acidente majorada'], canonical: 'INVALIDEZ POR ACIDENTE MAJORADA' },
+  { insurer: 'MAG', patterns: ['invalidez total por acidente', 'invalidez total'], canonical: 'INVALIDEZ TOTAL POR ACIDENTE' },
+  { insurer: 'MAG', patterns: ['renda por invalidez', 'renda invalidez'], canonical: 'RENDA POR INVALIDEZ' },
+  { insurer: 'MAG', patterns: ['doencas graves essencial', 'doenças graves essencial', 'dg essencial'], canonical: 'DOENCAS GRAVES ESSENCIAL' },
+  { insurer: 'MAG', patterns: ['doencas graves plus', 'doenças graves plus', 'dg plus'], canonical: 'DOENCAS GRAVES PLUS' },
+  { insurer: 'MAG', patterns: ['doencas graves premium', 'doenças graves premium', 'dg premium'], canonical: 'DOENCAS GRAVES PREMIUM' },
+  { insurer: 'MAG', patterns: ['doencas graves master', 'doenças graves master', 'dg master'], canonical: 'DOENCAS GRAVES MASTER' },
+  { insurer: 'MAG', patterns: ['uti', 'diaria uti', 'diaria hospitalar uti'], canonical: 'DIARIA INTERNACAO HOSPITALAR UTI' },
+  { insurer: 'MAG', patterns: ['250 diarias', 'dih 250'], canonical: 'DIARIA INTERNACAO HOSPITALAR 250' },
+  { insurer: 'MAG', patterns: ['200 diarias', 'dih 200'], canonical: 'DIARIA INTERNACAO HOSPITALAR 200' },
+  { insurer: 'MAG', patterns: ['150 diarias', 'dih 150'], canonical: 'DIARIA INTERNACAO HOSPITALAR 150' },
+  { insurer: 'MAG', patterns: ['diaria internacao', 'diária internação', 'diaria hospitalar', 'diária hospitalar', 'dih'], canonical: 'DIARIA INTERNACAO HOSPITALAR' },
+  { insurer: 'MAG', patterns: ['cirurgia', 'cirurgias'], canonical: 'CIRURGIAS' },
+  { insurer: 'MAG', patterns: ['saf essencial familiar+pais+sogros', 'saf essencial familiar pais sogros'], canonical: 'SAF ESSENCIAL FAMILIAR+PAIS+SOGROS' },
+  { insurer: 'MAG', patterns: ['saf essencial familiar+pais', 'saf essencial familiar pais'], canonical: 'SAF ESSENCIAL FAMILIAR+PAIS' },
+  { insurer: 'MAG', patterns: ['saf essencial individual'], canonical: 'SAF ESSENCIAL INDIVIDUAL' },
+  { insurer: 'MAG', patterns: ['saf essencial familiar'], canonical: 'SAF ESSENCIAL FAMILIAR' },
+  { insurer: 'MAG', patterns: ['saf essencial'], canonical: 'SAF ESSENCIAL' },
+  { insurer: 'MAG', patterns: ['saf plus familiar+pais+sogros', 'saf plus familiar pais sogros'], canonical: 'SAF PLUS FAMILIAR+PAIS+SOGROS' },
+  { insurer: 'MAG', patterns: ['saf plus familiar+pais', 'saf plus familiar pais'], canonical: 'SAF PLUS FAMILIAR+PAIS' },
+  { insurer: 'MAG', patterns: ['saf plus individual'], canonical: 'SAF PLUS INDIVIDUAL' },
+  { insurer: 'MAG', patterns: ['saf plus familiar'], canonical: 'SAF PLUS FAMILIAR' },
+  { insurer: 'MAG', patterns: ['saf plus'], canonical: 'SAF PLUS' },
+  { insurer: 'MAG', patterns: ['saf premium familiar+pais+sogros', 'saf premium familiar pais sogros'], canonical: 'SAF PREMIUM FAMILIAR+PAIS+SOGROS' },
+  { insurer: 'MAG', patterns: ['saf premium familiar+pais', 'saf premium familiar pais'], canonical: 'SAF PREMIUM FAMILIAR+PAIS' },
+  { insurer: 'MAG', patterns: ['saf premium individual'], canonical: 'SAF PREMIUM INDIVIDUAL' },
+  { insurer: 'MAG', patterns: ['saf premium familiar'], canonical: 'SAF PREMIUM FAMILIAR' },
+  { insurer: 'MAG', patterns: ['saf premium'], canonical: 'SAF PREMIUM' },
+  { insurer: 'MAG', patterns: ['saf'], canonical: 'SAF' },
 ]
 
-function detectProductHint(q: string): string | undefined {
+function detectProductHint(q: string, insurer?: string): string | undefined {
   for (const fam of PRODUCT_FAMILIES) {
+    if (fam.insurer && insurer && fam.insurer !== insurer) continue
     if (fam.patterns.some((p) => q.includes(stripAccents(p)))) {
       return fam.canonical
     }

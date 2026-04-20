@@ -129,7 +129,7 @@ export async function ask(
   // citacao da pagina do PDF oficial. Fall-through para RAG normal se nao
   // encontrar linhas ou se faltam parametros criticos.
   if (mentionedInsurers.length === 1) {
-    const intent = detectRateIntent(question)
+    const intent = detectRateIntent(question, mentionedInsurers[0])
     if (intent.hasIntent) {
       console.log(`[rag/ask] Rate intent detected — attempting fast-path. Intent:`, {
         age: intent.age,
