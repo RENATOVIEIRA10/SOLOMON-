@@ -19,6 +19,7 @@ interface AskRequestBody {
   debug?: boolean
 }
 
+// deploy-marker: rebuild-rev-2
 export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as AskRequestBody
