@@ -33,14 +33,17 @@ def normalize_model(m: str | None) -> str:
     s = m.lower().strip()
     if "rate-table" in s or "lookup" in s:
         return "rate-table-lookup"
-    # 'claude-haiku-4.5' / 'anthropic/claude-sonnet-4.6'
-    match = re.search(r"(haiku|sonnet|opus)[-\s]*(\d+(?:\.\d+)?)", s)
-    if match:
-        return f"{match.group(1)}-{match.group(2)}"
-    # 'claude-4.6-sonnet-20260217'
-    match = re.search(r"(\d+(?:\.\d+)?)[-\s]*(haiku|sonnet|opus)", s)
+    # Versao exigida com ponto (\d+\.\d+) pra evitar casar datestamps tipo 20260217.
+    # 'claude-4.6-sonnet-20260217' — versao-familia (checar PRIMEIRO, antes do padrao
+    # familia-versao, porque este formato tem SUFIXO de datestamp que ia casar
+    # errado o outro regex se versao aceitasse ausencia de ponto).
+    match = re.search(r"(\d+\.\d+)[-\s]*(haiku|sonnet|opus)", s)
     if match:
         return f"{match.group(2)}-{match.group(1)}"
+    # 'claude-haiku-4.5' / 'anthropic/claude-sonnet-4.6' — familia-versao
+    match = re.search(r"(haiku|sonnet|opus)[-\s]*(\d+\.\d+)", s)
+    if match:
+        return f"{match.group(1)}-{match.group(2)}"
     return s
 
 
