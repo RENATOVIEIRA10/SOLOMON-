@@ -158,11 +158,23 @@ export function detectRateIntent(question: string, insurer?: string): RateIntent
   const fMatch = q.match(FRANQUIA_RE)
   if (fMatch) franquia = fMatch[1] as '7' | '10'
 
-  // Intent gating: keyword explicita OU (produto + age + capital|renda) — cotacao implicita
+  // Intent gating: keyword explicita OU (produto + age + capital|renda) — cotacao implicita.
   const hasImplicitIntent = Boolean(
     (productHint || productCode) && age !== undefined && (capital !== undefined || rendaMensal !== undefined)
   )
+  // Alem disso, keyword sozinha nao basta: se nenhum qualifier foi extraido
+  // (age, capital, renda, produto), nao e cotacao — e pergunta generica tipo
+  // "qual a taxa do seguro pet?". Deixar cair no RAG pra responder via PDF.
+  const hasAnyQualifier =
+    age !== undefined ||
+    capital !== undefined ||
+    rendaMensal !== undefined ||
+    productCode !== undefined ||
+    productHint !== undefined
   if (!hasRateKeyword && !hasImplicitIntent) {
+    return { hasIntent: false }
+  }
+  if (hasRateKeyword && !hasImplicitIntent && !hasAnyQualifier) {
     return { hasIntent: false }
   }
 

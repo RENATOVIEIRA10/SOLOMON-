@@ -31,6 +31,14 @@ export interface PreSinistroResult {
   riskFlags: string[];
   model: string;
   latencyMs: number;
+  // Chunks RAG usados como contexto do LLM. Expostos pro harness Ragas
+  // avaliar faithfulness contra os chunks reais (nao so o excerpt da citacao).
+  chunks: Array<{
+    content: string;
+    similarity: number;
+    source_url: string | null;
+    insurer_id: string | null;
+  }>;
 }
 
 export interface PreSinistroInput {
@@ -189,6 +197,12 @@ Retorne o JSON estruturado conforme schema.`;
     riskFlags: Array.isArray(parsed.riskFlags) ? parsed.riskFlags : [],
     model: completion.model,
     latencyMs: Date.now() - start,
+    chunks: results.map((r) => ({
+      content: r.content,
+      similarity: r.similarity,
+      source_url: r.source_url,
+      insurer_id: r.insurer_id,
+    })),
   };
 }
 

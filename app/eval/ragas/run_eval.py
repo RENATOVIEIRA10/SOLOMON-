@@ -105,8 +105,24 @@ def call_pre_sinistro(ask_endpoint: str, pre_body: dict[str, Any], timeout: int 
         parts.append("Documentos necessarios: " + "; ".join(ps["documentsChecklist"]))
     answer = "\n\n".join(parts)
 
-    sources = []
-    if cit.get("excerpt"):
+    # Fonte primaria de context: chunks RAG que o analyzePreSinistro usou.
+    # Ragas avalia faithfulness comparando a answer contra contexts — se so
+    # passarmos o excerpt da citacao, o judge acha que tudo que nao esta no
+    # excerpt e "alucinacao" (rationale + documentos + riscos saem do contexto
+    # inteiro, nao so da clausula citada).
+    sources: list[dict[str, Any]] = []
+    for ch in ps.get("chunks") or []:
+        content = ch.get("content") or ""
+        if content:
+            sources.append({
+                "content": content,
+                "similarity": ch.get("similarity"),
+                "source_url": ch.get("source_url"),
+                "insurer_id": ch.get("insurer_id"),
+            })
+    # Fallback: se por algum motivo chunks vier vazio, usa o excerpt da citation
+    # para nao quebrar o eval.
+    if not sources and cit.get("excerpt"):
         sources.append({
             "content": cit["excerpt"],
             "insurer": cit.get("insurer"),
@@ -183,7 +199,22 @@ def build_ragas_dataset(records: list[dict[str, Any]]):
         answer = data.get("answer") or ""
         sources = data.get("sources") or []
         model = data.get("model", "")
-        contexts = [s.get("content") or "" for s in sources if s.get("content")]
+        # Prefixa [insurer — product] no content quando disponivel. Sem isso,
+        # em comparisons multi-insurer o judge Ragas recebe chunks anonimos e
+        # nao consegue ligar "chunk fala de cobertura AP" -> "responde a query
+        # Zurich vs Bradesco", dai context_precision cai para 0. Com prefixo, o
+        # judge reconhece cada chunk como contribuicao a um lado da comparacao.
+        contexts = []
+        for s in sources:
+            content = s.get("content") or ""
+            if not content:
+                continue
+            insurer = s.get("insurerName") or s.get("insurer")
+            product = s.get("productName")
+            prefix_parts = [p for p in (insurer, product) if p]
+            if prefix_parts:
+                content = f"[{' — '.join(prefix_parts)}]\n{content}"
+            contexts.append(content)
         # Fast-path rate-table-lookup nao popula sources[] (resposta vem de DB
         # deterministico, zero LLM). O answer JA e a projecao literal das rows.
         # Tratar answer como context faz context_precision e faithfulness

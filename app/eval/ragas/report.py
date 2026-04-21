@@ -7,6 +7,7 @@ Uso:
 from __future__ import annotations
 
 import json
+import re
 import statistics
 import sys
 from collections import defaultdict
@@ -17,6 +18,30 @@ def fmt(v, digits=3):
     if v is None or (isinstance(v, float) and v != v):
         return "—"
     return f"{v:.{digits}f}"
+
+
+def normalize_model(m: str | None) -> str:
+    """Normaliza aliases de modelo para comparacao.
+
+    OpenRouter resolve 'anthropic/claude-sonnet-4.6' para nomes versionados
+    como 'claude-4.6-sonnet-20260217'. Reduz qualquer variant a 'family-version'
+    (ex: 'sonnet-4.6', 'haiku-4.5'), preservando tags deterministicas
+    ('rate-table-lookup').
+    """
+    if not m:
+        return ""
+    s = m.lower().strip()
+    if "rate-table" in s or "lookup" in s:
+        return "rate-table-lookup"
+    # 'claude-haiku-4.5' / 'anthropic/claude-sonnet-4.6'
+    match = re.search(r"(haiku|sonnet|opus)[-\s]*(\d+(?:\.\d+)?)", s)
+    if match:
+        return f"{match.group(1)}-{match.group(2)}"
+    # 'claude-4.6-sonnet-20260217'
+    match = re.search(r"(\d+(?:\.\d+)?)[-\s]*(haiku|sonnet|opus)", s)
+    if match:
+        return f"{match.group(2)}-{match.group(1)}"
+    return s
 
 
 def load(run_dir: Path):
@@ -122,8 +147,9 @@ def build_report(run_dir: Path) -> str:
     for r in ok:
         expected = r.get("expected_model") or "?"
         actual = r["response"]["data"].get("model", "?")
-        match = "✓" if expected == actual else "✗"
-        if expected != actual:
+        is_match = normalize_model(expected) == normalize_model(actual)
+        match = "✓" if is_match else "✗"
+        if not is_match:
             mismatches.append((r["id"], expected, actual))
         lines.append(f"| {r['id']} | {r['category']} | {expected} | {actual} | {match} |")
 
