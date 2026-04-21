@@ -135,6 +135,7 @@ export async function ask(
         age: intent.age,
         gender: intent.gender,
         product: intent.productHint,
+        productCode: intent.productCode,
         capital: intent.capital,
         rendaMensal: intent.rendaMensal,
         franquia: intent.franquia,
@@ -145,6 +146,7 @@ export async function ask(
         const rateRows = await queryRateTable({
           insurerId: ids[0],
           productHint: intent.productHint,
+          productCode: intent.productCode,
           age: intent.age,
           gender: intent.gender,
           rendaMensal: intent.rendaMensal,

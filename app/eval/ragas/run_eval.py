@@ -40,12 +40,11 @@ def load_questions(path: Path) -> list[dict[str, Any]]:
         return [json.loads(line) for line in f if line.strip()]
 
 
-def call_ask(endpoint: str, question: str, timeout: int = REQUEST_TIMEOUT) -> dict[str, Any]:
-    """POST /api/ask com evalMode=true. Retorna dict com answer, sources, model, latencyMs."""
-    body = json.dumps({"question": question, "evalMode": True, "channel": "api"}).encode()
+def _http_post(url: str, body: dict[str, Any], timeout: int = REQUEST_TIMEOUT) -> dict[str, Any]:
+    data = json.dumps(body).encode()
     req = urllib.request.Request(
-        endpoint,
-        data=body,
+        url,
+        data=data,
         method="POST",
         headers={"Content-Type": "application/json", "User-Agent": "solomon-ragas-eval/1.0"},
     )
@@ -66,6 +65,66 @@ def call_ask(endpoint: str, question: str, timeout: int = REQUEST_TIMEOUT) -> di
         return {"ok": False, "status": 0, "error": f"{type(e).__name__}: {e}", "elapsed": time.time() - start}
 
 
+def call_ask(endpoint: str, question: str, timeout: int = REQUEST_TIMEOUT) -> dict[str, Any]:
+    """POST /api/ask com evalMode=true. Retorna dict com answer, sources, model, latencyMs."""
+    return _http_post(endpoint, {"question": question, "evalMode": True, "channel": "api"}, timeout)
+
+
+def _pre_sinistro_endpoint(ask_endpoint: str) -> str:
+    """Deriva URL de /api/pre-sinistro a partir da URL de /api/ask."""
+    if ask_endpoint.rstrip("/").endswith("/api/ask"):
+        return ask_endpoint.rstrip("/")[: -len("/api/ask")] + "/api/pre-sinistro"
+    # Fallback: substituir ultimo segmento
+    return ask_endpoint.rsplit("/", 1)[0] + "/pre-sinistro"
+
+
+def call_pre_sinistro(ask_endpoint: str, pre_body: dict[str, Any], timeout: int = REQUEST_TIMEOUT) -> dict[str, Any]:
+    """POST /api/pre-sinistro. Mapeia resposta para estrutura {answer, sources, model, latencyMs}
+    compativel com o pipeline Ragas.
+    """
+    url = _pre_sinistro_endpoint(ask_endpoint)
+    result = _http_post(url, pre_body, timeout)
+    if not result["ok"]:
+        return result
+    ps = result["data"]
+    # Compoe answer textual a partir do veredicto estruturado
+    parts: list[str] = []
+    if ps.get("verdict"):
+        parts.append(f"VEREDICTO: {ps['verdict']}")
+    if ps.get("confidence") is not None:
+        parts.append(f"Confianca: {ps['confidence']:.2f}")
+    if ps.get("rationale"):
+        parts.append(ps["rationale"])
+    cit = ps.get("citation") or {}
+    if cit.get("excerpt"):
+        clause = cit.get("clause") or ""
+        parts.append(f"Clausula {clause}: {cit['excerpt']}")
+    if ps.get("riskFlags"):
+        parts.append("Riscos: " + "; ".join(ps["riskFlags"]))
+    if ps.get("documentsChecklist"):
+        parts.append("Documentos necessarios: " + "; ".join(ps["documentsChecklist"]))
+    answer = "\n\n".join(parts)
+
+    sources = []
+    if cit.get("excerpt"):
+        sources.append({
+            "content": cit["excerpt"],
+            "insurer": cit.get("insurer"),
+            "clause": cit.get("clause"),
+            "source_url": cit.get("source_url"),
+        })
+
+    # Reembrulha no formato esperado por collect_responses/build_ragas_dataset
+    result["data"] = {
+        "answer": answer,
+        "sources": sources,
+        "sourceCount": len(sources),
+        "model": ps.get("model", "claude-sonnet-4.6"),
+        "latencyMs": ps.get("latencyMs"),
+    }
+    return result
+
+
 def collect_responses(
     questions: list[dict[str, Any]],
     endpoint: str,
@@ -79,7 +138,12 @@ def collect_responses(
         for i, q in enumerate(questions, start=1):
             qid = q["id"]
             print(f"[{i:02d}/{len(questions)}] {qid} | {q['category']:<15} | {q['question'][:70]}")
-            result = call_ask(endpoint, q["question"])
+            # Pre-sinistro: rota dedicada /api/pre-sinistro com body estruturado.
+            pre_body = q.get("pre_sinistro")
+            if pre_body:
+                result = call_pre_sinistro(endpoint, pre_body)
+            else:
+                result = call_ask(endpoint, q["question"])
             record = {
                 "id": qid,
                 "category": q["category"],

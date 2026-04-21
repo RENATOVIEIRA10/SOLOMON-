@@ -43,8 +43,12 @@ def build_report(run_dir: Path) -> str:
     ok = [r for r in raw if r["response"]["ok"]]
     failed = [r for r in raw if not r["response"]["ok"]]
 
-    # Index ragas por id
-    per_q_by_id = {row["id"]: row for row in per_q}
+    # Ragas CSV so tem user_input/retrieved_contexts/response/reference + metricas.
+    # Match por question text (dropamos id/category ao montar o Dataset).
+    per_q_by_question = {row.get("user_input", ""): row for row in per_q}
+
+    def ragas_for(record):
+        return per_q_by_question.get(record["question"])
 
     # Agrupa por categoria
     by_cat: dict[str, list[dict]] = defaultdict(list)
@@ -85,7 +89,7 @@ def build_report(run_dir: Path) -> str:
         ok_items = [r for r in items if r["response"]["ok"]]
         f_scores, c_scores, p_scores = [], [], []
         for r in ok_items:
-            row = per_q_by_id.get(r["id"])
+            row = ragas_for(r)
             if not row:
                 continue
             try:
@@ -128,15 +132,18 @@ def build_report(run_dir: Path) -> str:
         lines.append("\n## Piores respostas (faithfulness < 0.6 OU answer_correctness < 0.5)\n")
         lines.append("| ID | Category | Faithfulness | Correctness | Question |")
         lines.append("|---|---|---:|---:|---|")
-        for row in per_q:
+        for r in ok:
+            row = ragas_for(r)
+            if not row:
+                continue
             try:
                 f = float(row.get("faithfulness") or 1)
                 c = float(row.get("answer_correctness") or 1)
             except ValueError:
                 continue
             if f < 0.6 or c < 0.5:
-                qtext = (row.get("question") or "")[:90].replace("|", "\\|")
-                lines.append(f"| {row.get('id')} | {row.get('category')} | {fmt(f)} | {fmt(c)} | {qtext} |")
+                qtext = (r["question"] or "")[:90].replace("|", "\\|")
+                lines.append(f"| {r['id']} | {r['category']} | {fmt(f)} | {fmt(c)} | {qtext} |")
 
     # Falhas HTTP
     if failed:

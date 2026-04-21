@@ -20,6 +20,8 @@ export interface RateIntent {
   gender?: 'M' | 'F'
   /** Nome do produto mencionado (normalizado, maiusculo, sem acento). */
   productHint?: string
+  /** Codigo SUSEP/comercial do produto (MAG: "2330", Prudential: "DDR5G"). */
+  productCode?: string
   /** Capital segurado em reais, se explicitado. */
   capital?: number
   /** Renda mensal (DIT/DITA) em reais — ex "renda 3 mil" → 3000. */
@@ -56,6 +58,13 @@ const RATE_KEYWORDS = [
   'preço',
   'valor',
   'quanto custa',
+  'quanto fica',
+  'quanto sai',
+  'quanto paga',
+  'quanto da',
+  'quanto dá',
+  'quanto é',
+  'quanto e',
   'cotacao',
   'cotação',
   'cotar',
@@ -67,11 +76,38 @@ const RATE_KEYWORDS = [
 const AGE_RE = /\b(\d{1,2})\s*anos?\b/i
 /** Regex: idade sem sufixo quando precedida por "idade"/"com" */
 const AGE_CTX_RE = /(?:idade\s*(?:de\s*)?|com\s+|de\s+)(\d{2})\b/i
+/** Regex: idade apos gender ("homem 40", "mulher 35"). Corretor frequente omite "anos". */
+const AGE_GENDER_RE = /\b(?:homem|mulher|masculino|feminino|masc|fem)\s+(\d{2})\b/i
 
 /** Regex: capital segurado. Captura 100k, 500mil, 1M, R$ 250.000, 250000.
- *  Alternation ordem: primeiro formato BR com separador obrigatorio (1.234 / 1,234)
- *  para evitar que "\d{1,3}" corte numeros puros em 3 digitos. */
-const CAPITAL_RE = /(?:r\$\s*)?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?)\s*(mil|k|m|mm|milhao|milhão|milhoes|milhões)?/gi
+ *  Alternation ordem:
+ *    - No grupo 1 (valor): primeiro formato BR com separador obrigatorio (1.234/1,234)
+ *      para evitar que "\d{1,3}" corte numeros puros em 3 digitos.
+ *    - No grupo 2 (sufixo): patterns mais longos ANTES dos mais curtos, senao
+ *      "milhao" bateria em "mil" e perderia 3 ordens de magnitude.
+ *  WORD BOUNDARY OBRIGATORIO no sufixo: "m" colide com "masculino"/"morte"/etc
+ *  se nao exigirmos `\b` apos a magnitude. */
+const MAGNITUDE_ALT = 'milhoes|milhões|milhao|milhão|mil|mm|k|m'
+const CAPITAL_RE = new RegExp(
+  `(?:r\\$\\s*)?(\\d{1,3}(?:[.,]\\d{3})+(?:[.,]\\d+)?|\\d+(?:[.,]\\d+)?)\\s*(?:(${MAGNITUDE_ALT})\\b)?`,
+  'gi'
+)
+
+/** Regex: capital LABELED — "capital 500 mil", "cap 1M", "capital segurado R$ 200.000".
+ *  Tem prioridade sobre CAPITAL_RE generico; evita confusao com "renda X" quando
+ *  renda >= 10k (ex: "renda 10k cap 1M" nao pode retornar 10k como capital). */
+const CAPITAL_LABELED_RE = new RegExp(
+  `\\bcap(?:ital)?\\s*(?:segurado\\s*)?(?:de\\s*)?(?:r\\$\\s*)?(\\d{1,3}(?:[.,]\\d{3})+(?:[.,]\\d+)?|\\d+(?:[.,]\\d+)?)\\s*(?:(${MAGNITUDE_ALT})\\b)?`,
+  'i'
+)
+
+/** Regex: codigo SUSEP/comercial do produto.
+ *  - MAG: "codigo 2330", "cod 2396", "cód. 2398" (4-5 digitos).
+ *  - Prudential: letras+digitos como DDR5G, WL10G, CIB5G, TM10, HC05G (2-4 letras, 1-3 digitos, 0-1 letra final).
+ *  Detectados separadamente para nao capturar "F7" (franquia) ou "G2" (grupo).
+ */
+const PRODUCT_CODE_NUMERIC_RE = /\b(?:c[óo]digo|cod(?:\.|igo)?)\s*(?:susep\s*)?(\d{4,5})\b/i
+const PRODUCT_CODE_ALPHA_RE = /\b([A-Z]{2,4}\d{1,3}[A-Z]?)\b/
 
 /** Regex: renda mensal. "renda 3 mil" / "renda mensal de R$ 3.000" / "renda 3000".
  *  Mesma logica do CAPITAL_RE para ordem de alternation. */
@@ -89,15 +125,12 @@ export function detectRateIntent(question: string, insurer?: string): RateIntent
   const q = question.toLowerCase()
   const qNoAccent = stripAccents(q)
 
-  // 1. Intent detection: pelo menos 1 keyword de taxa/preco
+  // 1. Intent detection: keyword de taxa/preco OU sinais implicitos (produto + age + capital/renda)
   const hasRateKeyword = RATE_KEYWORDS.some((kw) => qNoAccent.includes(stripAccents(kw)))
-  if (!hasRateKeyword) {
-    return { hasIntent: false }
-  }
 
-  // 2. Age extraction
+  // 2. Age extraction — prioriza "NN anos", depois "idade NN"/"com NN", por ultimo "homem/mulher NN"
   let age: number | undefined
-  const ageMatch = q.match(AGE_RE) ?? q.match(AGE_CTX_RE)
+  const ageMatch = q.match(AGE_RE) ?? q.match(AGE_CTX_RE) ?? q.match(AGE_GENDER_RE)
   if (ageMatch) {
     const parsed = parseInt(ageMatch[1], 10)
     if (parsed >= 1 && parsed <= 99) age = parsed
@@ -111,22 +144,34 @@ export function detectRateIntent(question: string, insurer?: string): RateIntent
   // 4. Product hint — filtrado por seguradora quando disponivel
   const productHint = detectProductHint(qNoAccent, insurer)
 
-  // 5. Capital
+  // 5. Product code — MAG numerico "codigo NNNN" ou Prudential alfanumerico (DDR5G, WL10G)
+  const productCode = detectProductCode(question)
+
+  // 6. Capital
   const capital = extractCapital(q)
 
-  // 6. Renda mensal (DITA/DIT)
+  // 7. Renda mensal (DITA/DIT)
   const rendaMensal = extractRendaMensal(q)
 
-  // 7. Franquia (DIT)
+  // 8. Franquia (DIT)
   let franquia: '7' | '10' | undefined
   const fMatch = q.match(FRANQUIA_RE)
   if (fMatch) franquia = fMatch[1] as '7' | '10'
+
+  // Intent gating: keyword explicita OU (produto + age + capital|renda) — cotacao implicita
+  const hasImplicitIntent = Boolean(
+    (productHint || productCode) && age !== undefined && (capital !== undefined || rendaMensal !== undefined)
+  )
+  if (!hasRateKeyword && !hasImplicitIntent) {
+    return { hasIntent: false }
+  }
 
   return {
     hasIntent: true,
     age,
     gender,
     productHint,
+    productCode,
     capital,
     rendaMensal,
     franquia,
@@ -250,29 +295,65 @@ function extractRendaMensal(q: string): number | undefined {
   const m = q.match(RENDA_RE)
   if (!m) return undefined
   const raw = m[1]
-  const suffix = (m[2] ?? '').toLowerCase()
   let n = parseBrazilianNumber(raw)
   if (isNaN(n)) return undefined
-  if (suffix.startsWith('mil') || suffix === 'k') n *= 1_000
-  else if (suffix.startsWith('m')) n *= 1_000_000
+  n *= applyMagnitude(m[2] ?? '')
   // Sanity filter: renda mensal DIT/DITA tipicamente R$ 500 - R$ 100k
   if (n >= 500 && n <= 100_000) return n
   return undefined
 }
 
 function extractCapital(q: string): number | undefined {
-  // Try common patterns. Priority: "500 mil" > "500000" > "R$ 500.000,00"
-  // Brazilian number: 1.234,56 → 1234.56; English: 1,234.56 → 1234.56
+  // 1. Preferir LABELED: "capital X" / "cap X". Evita pegar renda quando
+  //    "renda 10k cap 1M" — o numero da renda (10_000) estaria no range
+  //    sanity e vazaria.
+  const labeled = q.match(CAPITAL_LABELED_RE)
+  if (labeled) {
+    const n = parseCapitalAmount(labeled[1], labeled[2] ?? '')
+    if (n !== undefined && n >= 10_000 && n <= 50_000_000) return n
+  }
+
+  // 2. Fallback: generico, mas ignorando matches adjacentes a "renda" (N chars antes).
   const matches = [...q.matchAll(CAPITAL_RE)]
   for (const m of matches) {
-    const raw = m[1]
-    const suffix = (m[2] ?? '').toLowerCase()
-    let n = parseBrazilianNumber(raw)
-    if (isNaN(n)) continue
-    if (suffix.startsWith('mil') || suffix === 'k') n *= 1_000
-    else if (suffix.startsWith('m') || suffix.startsWith('milh')) n *= 1_000_000
-    // Sanity filter: capital segurado tipicamente R$ 10k - R$ 10M
-    if (n >= 10_000 && n <= 50_000_000) return n
+    const start = m.index ?? 0
+    const before = q.slice(Math.max(0, start - 30), start).toLowerCase()
+    if (/renda\s*(?:mensal\s*)?(?:de\s*)?(?:r\$\s*)?$/.test(before)) continue
+    const n = parseCapitalAmount(m[1], m[2] ?? '')
+    if (n !== undefined && n >= 10_000 && n <= 50_000_000) return n
+  }
+  return undefined
+}
+
+function parseCapitalAmount(raw: string, suffix: string): number | undefined {
+  let n = parseBrazilianNumber(raw)
+  if (isNaN(n)) return undefined
+  n *= applyMagnitude(suffix)
+  return n
+}
+
+/** Converte sufixo de magnitude em multiplicador. "milhao" tem prioridade sobre "mil". */
+function applyMagnitude(suffix: string): number {
+  const s = suffix.toLowerCase()
+  if (s.startsWith('milh') || s === 'mm') return 1_000_000
+  if (s.startsWith('mil') || s === 'k') return 1_000
+  if (s === 'm') return 1_000_000 // "1M" = 1 milhao (nao 1 mil)
+  return 1
+}
+
+function detectProductCode(raw: string): string | undefined {
+  // MAG: "codigo 2330" / "cod 2396" / "cód. 2398" — 4-5 digitos
+  const numMatch = raw.match(PRODUCT_CODE_NUMERIC_RE)
+  if (numMatch) return numMatch[1]
+
+  // Prudential-style: DDR5G, WL10G, CIB5G, TM10, HC05G.
+  // Evitar falsos positivos: F7 (franquia), G2 (grupo). Exigir pelo menos 2 letras iniciais.
+  const alphaMatch = raw.match(PRODUCT_CODE_ALPHA_RE)
+  if (alphaMatch) {
+    const code = alphaMatch[1]
+    // Descartar se for padrao franquia (F + 1-2 digitos) ou grupo (G + 1 digito)
+    if (/^[FG]\d{1,2}$/i.test(code)) return undefined
+    return code.toUpperCase()
   }
   return undefined
 }
@@ -281,13 +362,21 @@ function parseBrazilianNumber(s: string): number {
   const hasComma = s.includes(',')
   const hasDot = s.includes('.')
   if (hasComma && hasDot) {
-    // BR format: 1.234,56
+    // BR full: 1.234,56 — pontos=milhares, virgula=decimal
     return parseFloat(s.replace(/\./g, '').replace(',', '.'))
   }
   if (hasComma && !hasDot) {
     return parseFloat(s.replace(',', '.'))
   }
-  return parseFloat(s.replace(/\./g, ''))
+  if (hasDot && !hasComma) {
+    // So pontos: ambiguo. Se TODOS os grupos apos pontos tem exatamente 3 digitos,
+    // tratar como separador de milhar ("1.000", "1.100.000"). Senao, decimal ("1.1", "1.5").
+    const parts = s.split('.')
+    const allThousandGroups = parts.length > 1 && parts.slice(1).every((p) => p.length === 3)
+    if (allThousandGroups) return parseFloat(s.replace(/\./g, ''))
+    return parseFloat(s)
+  }
+  return parseFloat(s)
 }
 
 /**

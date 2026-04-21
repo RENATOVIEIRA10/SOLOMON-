@@ -22,12 +22,15 @@ def build_evaluator_llm():
     if not api_key:
         raise RuntimeError("OPENROUTER_API_KEY nao definido — exporta antes de rodar.")
 
+    # max_tokens=8192: Haiku 4.5 pode responder JSON grande em context_precision
+    # quando ha muitos chunks. Rodada anterior bateu LLMDidNotFinishException em
+    # varias perguntas concept/comparison com max_tokens=2048.
     chat = ChatOpenAI(
         model="anthropic/claude-haiku-4.5",
         openai_api_base="https://openrouter.ai/api/v1",
         openai_api_key=api_key,
         temperature=0.0,
-        max_tokens=2048,
+        max_tokens=8192,
         default_headers={
             "HTTP-Referer": "https://app-atalaia.vercel.app",
             "X-Title": "SOLOMON Ragas Eval",
