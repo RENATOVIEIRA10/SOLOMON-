@@ -26,8 +26,8 @@ export function ChatInput({
   useEffect(() => {
     const ta = textareaRef.current;
     if (!ta) return;
-    ta.style.height = "auto";
-    ta.style.height = Math.min(ta.scrollHeight, 180) + "px";
+    (ta as HTMLElement).style.height = "auto";
+    (ta as HTMLElement).style.height = Math.min(ta.scrollHeight, 180) + "px";
   }, [value]);
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {

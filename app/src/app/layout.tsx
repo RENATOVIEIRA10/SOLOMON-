@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Cormorant_Garamond } from "next/font/google";
+import { SerwistProvider } from "./serwist";
 import "./globals.css";
 
 const inter = Inter({
@@ -83,7 +84,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-dvh bg-background text-foreground font-sans">
-        {children}
+        <SerwistProvider swUrl="/sw.js">{children}</SerwistProvider>
       </body>
     </html>
   );
