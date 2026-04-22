@@ -3,7 +3,7 @@
  *
  * Priority chain:
  *   1. OpenRouter (Claude Haiku 4.5 — best for legal docs)
- *   2. Gemini 2.0 Flash (cheap fallback)
+ *   2. Gemini 2.5 Flash (cheap fallback)
  *   3. OpenAI GPT-4o-mini (last resort)
  *
  * Instrumented with Langfuse (2026-04-22): each callLLM/callLLMStream creates
@@ -13,7 +13,6 @@
 
 import OpenAI from 'openai'
 import { Langfuse } from 'langfuse'
-import { RAG } from '@/config/constants'
 
 export interface LLMResponse {
   text: string
@@ -27,6 +26,7 @@ const OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 const OPENROUTER_MODEL = 'anthropic/claude-haiku-4.5'
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
+const GEMINI_MODEL = 'gemini-2.5-flash'
 
 // ---------------------------------------------------------------------------
 // Langfuse singleton (instantiated only if keys are present)
@@ -98,7 +98,7 @@ export async function callLLM(
   if (geminiKey) {
     const gen = trace?.generation({
       name: 'gemini.flash',
-      model: RAG.model,
+      model: GEMINI_MODEL,
       input: { systemPrompt: systemPrompt.slice(0, 500), userMessage },
     })
     try {
@@ -190,14 +190,14 @@ async function callOpenRouter(
 }
 
 /**
- * Calls Gemini 2.0 Flash via REST API.
+ * Calls Gemini 2.5 Flash via REST API.
  */
 async function callGemini(
   systemPrompt: string,
   userMessage: string,
   apiKey: string
 ): Promise<Omit<LLMResponse, 'latencyMs'>> {
-  const model = RAG.model
+  const model = GEMINI_MODEL
   const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`
 
   const combinedMessage = `${systemPrompt}\n\n---\n\nPergunta do corretor:\n${userMessage}`
