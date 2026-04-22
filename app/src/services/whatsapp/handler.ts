@@ -7,14 +7,14 @@
 
 import { createServiceClient } from '@/lib/supabase'
 import { ask } from '@/services/rag/answer'
-import { compareInsurers } from '@/services/rag/compare'
-import { analyzePreSinistro } from '@/services/rag/pre-sinistro'
-import { BRAND, PLANS, type BrokerPlan } from '@/config/constants'
+import { BRAND, PLANS } from '@/config/constants'
 import { getSession, addMessage, setBrokerId } from './session'
 import type { IncomingMessage } from './types'
 
 const MAX_WHATSAPP_LENGTH = 4096
 const SIGNATURE = `\n\n_${BRAND.tagline}_`
+
+type PlanKey = keyof typeof PLANS
 
 /**
  * Handle an incoming WhatsApp message.
@@ -48,7 +48,7 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
   }
 
   // 3. Check daily query limit
-  const plan = PLANS[broker.plan as BrokerPlan] ?? PLANS.free
+  const plan = PLANS[broker.plan.toUpperCase() as PlanKey] ?? PLANS.FREE
   const todayCount = await getQueriesCount(broker)
 
   if (plan.queriesPerDay !== -1 && todayCount >= plan.queriesPerDay) {
@@ -231,16 +231,25 @@ async function handleCommand(cmd: ParsedCommand, broker: BrokerRow): Promise<str
       return [formatHelp(broker.name)]
 
     case '/comparar':
-      return handleCompareCommand(cmd.args, broker)
+      return [
+        '*Comparador de seguradoras* esta em desenvolvimento.\n\n' +
+          'Em breve voce podera comparar produtos lado a lado.\n' +
+          'Ex: /comparar Prudential vs Bradesco' +
+          SIGNATURE,
+      ]
 
     case '/sinistro':
-      return handleSinistroCommand(cmd.args, broker)
+      return [
+        '*Analise pre-sinistro* esta em desenvolvimento.\n\n' +
+          'Em breve voce podera verificar cobertura e documentacao necessaria antes de abrir um sinistro.' +
+          SIGNATURE,
+      ]
 
     case '/feedback':
       return [await handleFeedbackCommand(cmd.args, broker)]
 
     case '/plano': {
-      const plan = PLANS[broker.plan as BrokerPlan] ?? PLANS.free
+      const plan = PLANS[broker.plan.toUpperCase() as PlanKey] ?? PLANS.FREE
       const limit = plan.queriesPerDay === -1 ? 'ilimitadas' : `${plan.queriesPerDay}/dia`
       return [
         `*Seu plano: ${plan.name}*\n\n` +
@@ -255,203 +264,6 @@ async function handleCommand(cmd: ParsedCommand, broker: BrokerRow): Promise<str
       return [formatHelp(broker.name)]
   }
 }
-
-// ---------------------------------------------------------------------------
-// /comparar
-// ---------------------------------------------------------------------------
-
-async function handleCompareCommand(
-  args: string,
-  broker: BrokerRow
-): Promise<string[]> {
-  if (!args.trim()) {
-    return [
-      `*Comparador de seguradoras*\n\n` +
-        `Use: \`/comparar SeguradoraA vs SeguradoraB\`\n` +
-        `Ou: \`/comparar SeguradoraA, SeguradoraB, SeguradoraC\`\n\n` +
-        `Exemplo: \`/comparar Prudential vs Bradesco\`` +
-        SIGNATURE,
-    ]
-  }
-
-  // Parse insurer names (support "vs" or comma separators)
-  const rawNames = args
-    .split(/\s+(?:vs|x)\s+|\s*,\s*/i)
-    .map((s) => s.trim())
-    .filter(Boolean)
-
-  const insurerNames = rawNames.slice(0, 3)
-
-  if (insurerNames.length < 2) {
-    return [
-      `Preciso de pelo menos 2 seguradoras para comparar.\n\n` +
-        `Use: \`/comparar Prudential vs Bradesco\`` +
-        SIGNATURE,
-    ]
-  }
-
-  try {
-    const result = await compareInsurers({
-      insurerNames,
-      productType: 'vida_individual',
-    })
-
-    let text = `*Comparativo: ${result.insurerNames.join(' x ')}*\n\n`
-
-    for (const dim of result.dimensions) {
-      text += `*${dim.dimension}*\n`
-      for (const row of dim.rows) {
-        const flag =
-          row.advantage === 'win' ? ' ✅' : row.advantage === 'lose' ? ' ❌' : ''
-        text += `• ${row.insurerName}: ${row.value}${flag}\n`
-      }
-      text += '\n'
-    }
-
-    if (result.summary) {
-      text += `*Resumo:* ${result.summary}\n\n`
-    }
-
-    text += `_Analise gerada em ${result.latencyMs}ms_`
-    text += SIGNATURE
-
-    await incrementQueries(broker.id)
-    return splitMessage(text)
-  } catch (err: any) {
-    console.error('[whatsapp/compare] error:', err)
-    return [
-      `Não consegui gerar a comparação agora.\n\n` +
-        `Erro: ${err.message ?? 'desconhecido'}\n` +
-        `Tente reformular os nomes das seguradoras.` +
-        SIGNATURE,
-    ]
-  }
-}
-
-// ---------------------------------------------------------------------------
-// /sinistro
-// ---------------------------------------------------------------------------
-
-const VALID_CLAIM_TYPES = [
-  'morte_natural',
-  'morte_acidental',
-  'invalidez',
-  'doenca_grave',
-  'diaria',
-  'internacao',
-]
-
-async function handleSinistroCommand(
-  args: string,
-  broker: BrokerRow
-): Promise<string[]> {
-  if (!args.trim()) {
-    return [
-      `*Análise pré-sinistro*\n\n` +
-        `Use: \`/sinistro <seguradora> <tipo> <descricao>\`\n\n` +
-        `Tipos aceitos: ${VALID_CLAIM_TYPES.map((t) => '`' + t + '`').join(', ')}\n\n` +
-        `Exemplo:\n` +
-        `\`/sinistro Prudential morte_natural infarto agudo do miocardio em casa\`` +
-        SIGNATURE,
-    ]
-  }
-
-  const parts = args.trim().split(/\s+/)
-  if (parts.length < 3) {
-    return [
-      `Argumentos insuficientes.\n\n` +
-        `Use: \`/sinistro <seguradora> <tipo> <descricao>\`\n` +
-        `Ex: \`/sinistro Prudential morte_natural infarto agudo do miocardio\`` +
-        SIGNATURE,
-    ]
-  }
-
-  const insurerName = parts[0]
-  const claimType = parts[1].toLowerCase()
-  const description = parts.slice(2).join(' ')
-
-  if (!VALID_CLAIM_TYPES.includes(claimType)) {
-    return [
-      `Tipo de sinistro não reconhecido: *${claimType}*\n\n` +
-        `Tipos aceitos: ${VALID_CLAIM_TYPES.map((t) => '`' + t + '`').join(', ')}\n\n` +
-        `Exemplo: \`/sinistro Prudential morte_natural infarto agudo do miocardio\`` +
-        SIGNATURE,
-    ]
-  }
-
-  try {
-    const result = await analyzePreSinistro({
-      insurerName,
-      claimType,
-      description,
-    })
-
-    const verdictEmoji =
-      result.verdict === 'COBERTO'
-        ? '✅'
-        : result.verdict === 'NAO_COBERTO'
-          ? '❌'
-          : '⚠️'
-
-    let text = `*Análise pré-sinistro — ${insurerName}*\n\n`
-    text += `*Veredicto:* ${verdictEmoji} ${result.verdict}\n`
-    text += `*Confiança:* ${Math.round(result.confidence * 100)}%\n\n`
-
-    if (result.rationale) {
-      text += `*Fundamento:*\n${result.rationale}\n\n`
-    }
-
-    if (result.citation?.excerpt) {
-      text += `*Base legal:*\n_${result.citation.excerpt}_\n`
-      if (result.citation.source_url) {
-        text += `${result.citation.source_url}\n`
-      }
-      text += '\n'
-    }
-
-    if (result.documentsChecklist.length > 0) {
-      text += `*Documentos necessários:*\n`
-      for (const doc of result.documentsChecklist) {
-        text += `• ${doc}\n`
-      }
-      text += '\n'
-    }
-
-    if (result.laudoTerms.length > 0) {
-      text += `*Termos do laudo:*\n`
-      for (const term of result.laudoTerms) {
-        text += `• ${term}\n`
-      }
-      text += '\n'
-    }
-
-    if (result.riskFlags.length > 0) {
-      text += `*Alertas de risco:*\n`
-      for (const flag of result.riskFlags) {
-        text += `⚠️ ${flag}\n`
-      }
-      text += '\n'
-    }
-
-    text += `_Análise gerada em ${result.latencyMs}ms (${result.model})_`
-    text += SIGNATURE
-
-    await incrementQueries(broker.id)
-    return splitMessage(text)
-  } catch (err: any) {
-    console.error('[whatsapp/sinistro] error:', err)
-    return [
-      `Não consegui analisar o evento agora.\n\n` +
-        `Erro: ${err.message ?? 'desconhecido'}\n` +
-        `Verifique o nome da seguradora e tente novamente.` +
-        SIGNATURE,
-    ]
-  }
-}
-
-// ---------------------------------------------------------------------------
-// /feedback
-// ---------------------------------------------------------------------------
 
 /**
  * Handle the /feedback command.
@@ -550,8 +362,8 @@ function formatHelp(brokerName: string): string {
     `/ajuda — Este menu\n` +
     `/plano — Ver seu plano atual\n` +
     `/feedback 1-5 — Avaliar a última resposta\n` +
-    `/comparar <seguradoraA> vs <seguradoraB> — Comparar produtos\n` +
-    `/sinistro <seguradora> <tipo> <descricao> — Analise pré-sinistro` +
+    `/comparar — Comparar seguradoras (em breve)\n` +
+    `/sinistro — Analise pre-sinistro (em breve)` +
     SIGNATURE
   )
 }
@@ -564,7 +376,7 @@ function formatOnboarding(phone: string): string {
     `1. Acesse nosso site e crie sua conta\n` +
     `2. Cadastre este numero de WhatsApp\n` +
     `3. Pronto! Pode me perguntar qualquer coisa sobre seguros de vida.\n\n` +
-    `O plano gratuito inclui ${PLANS.free.queriesPerDay} consultas por dia.` +
+    `O plano gratuito inclui ${PLANS.FREE.queriesPerDay} consultas por dia.` +
     SIGNATURE
   )
 }

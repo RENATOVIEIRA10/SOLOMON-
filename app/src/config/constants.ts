@@ -16,15 +16,12 @@ export const BRAND = {
   positioning: 'Seu consultor privado de seguros de vida',
 } as const
 
-/** Keys MUST match the DB CHECK: brokers_plan_check (lowercase). */
-export type BrokerPlan = 'free' | 'corretor' | 'consultor' | 'corretora'
-
 export const PLANS = {
-  free: { name: 'Gratuito', queriesPerDay: 5, price: 0 },
-  corretor: { name: 'Corretor', queriesPerDay: 50, price: 5900 },
-  consultor: { name: 'Consultor', queriesPerDay: -1, price: 14900 },
-  corretora: { name: 'Corretora', queriesPerDay: -1, price: 34900, maxUsers: 5 },
-} as const satisfies Record<BrokerPlan, { name: string; queriesPerDay: number; price: number; maxUsers?: number }>
+  FREE: { name: 'Gratuito', queriesPerDay: 5, price: 0 },
+  CORRETOR: { name: 'Corretor', queriesPerDay: 50, price: 5900 },
+  CONSULTOR: { name: 'Consultor', queriesPerDay: -1, price: 14900 },
+  CORRETORA: { name: 'Corretora', queriesPerDay: -1, price: 34900, maxUsers: 5 },
+} as const
 
 export const RAG = {
   chunkSize: 500,
