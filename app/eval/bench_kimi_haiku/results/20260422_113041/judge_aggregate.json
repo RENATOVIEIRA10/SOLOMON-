@@ -1,0 +1,20 @@
+{
+  "n": 9,
+  "haiku": {
+    "faithfulness": 0.9277777777777777,
+    "correctness": 0.4833333333333333,
+    "usefulness": 0.8,
+    "avg_latency_ms": 7817.111111111111
+  },
+  "kimi": {
+    "faithfulness": 0.9611111111111111,
+    "correctness": 0.47777777777777775,
+    "usefulness": 0.8055555555555556,
+    "avg_latency_ms": 182874.55555555556
+  },
+  "wins": {
+    "haiku": 3,
+    "kimi": 4,
+    "tie": 2
+  }
+}
