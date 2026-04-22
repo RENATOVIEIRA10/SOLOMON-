@@ -10,9 +10,10 @@ Uso:
                        [--questions questions.jsonl] \\
                        [--limit N] \\
                        [--skip-ragas]  # so coleta respostas, nao roda metricas
+                       [--json-mode-isolated]  # pre-sinistro: faithfulness so no rationale
 
 Env vars obrigatorias (so quando roda Ragas):
-    OPENROUTER_API_KEY  — usado como judge LLM (Claude Haiku 4.5)
+    ANTHROPIC_API_KEY  — usado como judge LLM (Claude Haiku 4.5)
 
 Roda na VPS (notebook 4GB nao aguenta Ragas em paralelo).
 """
@@ -93,8 +94,9 @@ def call_pre_sinistro(ask_endpoint: str, pre_body: dict[str, Any], timeout: int 
         parts.append(f"VEREDICTO: {ps['verdict']}")
     if ps.get("confidence") is not None:
         parts.append(f"Confianca: {ps['confidence']:.2f}")
-    if ps.get("rationale"):
-        parts.append(ps["rationale"])
+    rationale = ps.get("rationale") or ""
+    if rationale:
+        parts.append(rationale)
     cit = ps.get("citation") or {}
     if cit.get("excerpt"):
         clause = cit.get("clause") or ""
@@ -133,6 +135,7 @@ def call_pre_sinistro(ask_endpoint: str, pre_body: dict[str, Any], timeout: int 
     # Reembrulha no formato esperado por collect_responses/build_ragas_dataset
     result["data"] = {
         "answer": answer,
+        "rationale": rationale,
         "sources": sources,
         "sourceCount": len(sources),
         "model": ps.get("model", "claude-sonnet-4.6"),
@@ -187,7 +190,7 @@ def collect_responses(
     return records
 
 
-def build_ragas_dataset(records: list[dict[str, Any]]):
+def build_ragas_dataset(records: list[dict[str, Any]], json_mode_isolated: bool = False):
     """Converte records (so os que ok=True) para datasets.Dataset no formato Ragas."""
     from datasets import Dataset
 
@@ -197,6 +200,19 @@ def build_ragas_dataset(records: list[dict[str, Any]]):
             continue
         data = r["response"]["data"]
         answer = data.get("answer") or ""
+        # Isolamento de JSON mode: para pre-sinistro, faithfulness so no rationale
+        # (texto puro) + citation.excerpt. Isso desambigua se o score baixo vem do
+        # harness (JSON mode) ou do Sonnet alucinando.
+        if json_mode_isolated and r.get("category") == "pre_sinistro":
+            rationale = data.get("rationale") or ""
+            # Concatena rationale + excerpt da citacao (o excerpt e a ancora factual)
+            # para manter o link entre justificativa e fonte.
+            sources = data.get("sources") or []
+            excerpt = ""
+            if sources:
+                excerpt = sources[0].get("content") or ""
+            parts = [p for p in (rationale, excerpt) if p]
+            answer = "\n\n".join(parts) if parts else answer
         sources = data.get("sources") or []
         model = data.get("model", "")
         # Prefixa [insurer — product] no content quando disponivel. Sem isso,
@@ -274,6 +290,8 @@ def main() -> int:
     parser.add_argument("--questions", default=str(SCRIPT_DIR / "questions.jsonl"))
     parser.add_argument("--limit", type=int, default=0, help="0 = todas")
     parser.add_argument("--skip-ragas", action="store_true", help="so coleta respostas, nao roda Ragas")
+    parser.add_argument("--json-mode-isolated", action="store_true",
+                        help="pre-sinistro: faithfulness avaliado so no rationale + excerpt (isola JSON mode bias)")
     parser.add_argument("--results-dir", default=str(SCRIPT_DIR / "results"))
     args = parser.parse_args()
 
@@ -283,12 +301,16 @@ def main() -> int:
         questions = questions[: args.limit]
 
     timestamp = dt.datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    # Se json-mode-isolated, adiciona sufixo no diretorio para nao sobrescrever
+    if args.json_mode_isolated:
+        timestamp += "_json_isolated"
     out_dir = Path(args.results_dir) / timestamp
     out_dir.mkdir(parents=True, exist_ok=True)
 
     print(f"=== SOLOMON Ragas eval — {timestamp} ===")
     print(f"endpoint:  {args.endpoint}")
     print(f"questions: {len(questions)} (file: {args.questions})")
+    print(f"json-mode-isolated: {args.json_mode_isolated}")
     print(f"results:   {out_dir}")
     print()
 
@@ -306,7 +328,7 @@ def main() -> int:
         return 1
 
     print("\n=== rodando Ragas (faithfulness + answer_correctness + context_precision) ===")
-    dataset = build_ragas_dataset(records)
+    dataset = build_ragas_dataset(records, json_mode_isolated=args.json_mode_isolated)
     scores = run_ragas(dataset, out_dir)
     print("\n=== scores agregados ===")
     print(json.dumps(scores["aggregate"], indent=2, ensure_ascii=False))
