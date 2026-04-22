@@ -9,14 +9,12 @@ import { createServiceClient } from '@/lib/supabase'
 import { ask } from '@/services/rag/answer'
 import { compareInsurers } from '@/services/rag/compare'
 import { analyzePreSinistro } from '@/services/rag/pre-sinistro'
-import { BRAND, PLANS } from '@/config/constants'
+import { BRAND, PLANS, type BrokerPlan } from '@/config/constants'
 import { getSession, addMessage, setBrokerId } from './session'
 import type { IncomingMessage } from './types'
 
 const MAX_WHATSAPP_LENGTH = 4096
 const SIGNATURE = `\n\n_${BRAND.tagline}_`
-
-type PlanKey = keyof typeof PLANS
 
 /**
  * Handle an incoming WhatsApp message.
@@ -50,7 +48,7 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
   }
 
   // 3. Check daily query limit
-  const plan = PLANS[broker.plan.toUpperCase() as PlanKey] ?? PLANS.FREE
+  const plan = PLANS[broker.plan as BrokerPlan] ?? PLANS.free
   const todayCount = await getQueriesCount(broker)
 
   if (plan.queriesPerDay !== -1 && todayCount >= plan.queriesPerDay) {
@@ -242,7 +240,7 @@ async function handleCommand(cmd: ParsedCommand, broker: BrokerRow): Promise<str
       return [await handleFeedbackCommand(cmd.args, broker)]
 
     case '/plano': {
-      const plan = PLANS[broker.plan.toUpperCase() as PlanKey] ?? PLANS.FREE
+      const plan = PLANS[broker.plan as BrokerPlan] ?? PLANS.free
       const limit = plan.queriesPerDay === -1 ? 'ilimitadas' : `${plan.queriesPerDay}/dia`
       return [
         `*Seu plano: ${plan.name}*\n\n` +
@@ -566,7 +564,7 @@ function formatOnboarding(phone: string): string {
     `1. Acesse nosso site e crie sua conta\n` +
     `2. Cadastre este numero de WhatsApp\n` +
     `3. Pronto! Pode me perguntar qualquer coisa sobre seguros de vida.\n\n` +
-    `O plano gratuito inclui ${PLANS.FREE.queriesPerDay} consultas por dia.` +
+    `O plano gratuito inclui ${PLANS.free.queriesPerDay} consultas por dia.` +
     SIGNATURE
   )
 }
