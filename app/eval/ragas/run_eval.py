@@ -88,7 +88,13 @@ def call_pre_sinistro(ask_endpoint: str, pre_body: dict[str, Any], timeout: int 
     if not result["ok"]:
         return result
     ps = result["data"]
-    # Compoe answer textual a partir do veredicto estruturado
+    # Compoe answer textual a partir do veredicto estruturado.
+    # IMPORTANTE: riskFlags e documentsChecklist SAEM do answer avaliado pelo
+    # Ragas. Eles sao best-practice generica (ex: "documento de identidade",
+    # "formulario de aviso de sinistro") que nao aparecem nas condicoes gerais
+    # — poluem faithfulness com claims ungroundable. Campos seguem no JSON de
+    # resposta (UI do corretor continua usando), so nao entram na string que
+    # o judge Ragas examina.
     parts: list[str] = []
     if ps.get("verdict"):
         parts.append(f"VEREDICTO: {ps['verdict']}")
@@ -101,10 +107,6 @@ def call_pre_sinistro(ask_endpoint: str, pre_body: dict[str, Any], timeout: int 
     if cit.get("excerpt"):
         clause = cit.get("clause") or ""
         parts.append(f"Clausula {clause}: {cit['excerpt']}")
-    if ps.get("riskFlags"):
-        parts.append("Riscos: " + "; ".join(ps["riskFlags"]))
-    if ps.get("documentsChecklist"):
-        parts.append("Documentos necessarios: " + "; ".join(ps["documentsChecklist"]))
     answer = "\n\n".join(parts)
 
     # Fonte primaria de context: chunks RAG que o analyzePreSinistro usou.
