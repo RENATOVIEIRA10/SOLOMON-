@@ -8,7 +8,7 @@
  * -> structured output.
  */
 
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { semanticSearch } from "./search";
 import { buildContext } from "./context-builder";
 import { resolveInsurerIds, loadEnrichment } from "./answer";
@@ -145,36 +145,30 @@ Retorne o JSON estruturado conforme schema.`;
 
   const systemPrompt = SYSTEM_PROMPT.replace("{context}", contextText);
 
-  // 5. Call LLM with JSON mode
-  const openrouterKey = process.env.OPENROUTER_API_KEY;
-  if (!openrouterKey) {
-    throw new Error("OPENROUTER_API_KEY nao configurada");
+  // 5. Call LLM — Anthropic Sonnet direto. Pre-sinistro e decisao juridica
+  // de alta consequencia (veredicto COBERTO/NAO_COBERTO/RISCO vira laudo pro
+  // corretor). Usa Sonnet 4.6, mesmo custando ~3x mais que Haiku 4.5: o custo
+  // extra (~R$0,02/analise) e negligivel perto do custo de um veredicto
+  // errado em sinistro. Sem fallback: falha explicita e melhor que veredicto
+  // diferente vindo de modelo fallback.
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) {
+    throw new Error("ANTHROPIC_API_KEY nao configurada");
   }
 
-  const client = new OpenAI({
-    apiKey: openrouterKey,
-    baseURL: "https://openrouter.ai/api/v1",
-    defaultHeaders: {
-      "HTTP-Referer": "https://solomon.aurios.com.br",
-      "X-Title": "SOLOMON - Pre-Sinistro",
-    },
-  });
+  const MODEL = "claude-sonnet-4-6";
+  const client = new Anthropic({ apiKey: anthropicKey });
 
-  // Pre-sinistro e decisao juridica de alta consequencia (veredicto COBERTO /
-  // NAO_COBERTO / RISCO vira laudo para o corretor). Usa Sonnet 4.6 aqui, mesmo
-  // custando ~3x mais que Haiku 4.5: o custo extra (~R$0,02/analise) e
-  // negligivel perto do custo de um veredicto errado em sinistro.
-  const completion = await client.chat.completions.create({
-    model: "anthropic/claude-sonnet-4.6",
-    temperature: 0.2,
+  const msg = await client.messages.create({
+    model: MODEL,
     max_tokens: 2048,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage },
-    ],
+    temperature: 0.2,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
   });
 
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const firstBlock = msg.content[0];
+  const raw = firstBlock?.type === "text" ? firstBlock.text : "{}";
   const parsed = extractJson<Partial<PreSinistroResult>>(raw);
   if (!parsed) {
     console.error("[pre-sinistro] JSON parse failed. Raw:", raw.slice(0, 800));
@@ -195,7 +189,7 @@ Retorne o JSON estruturado conforme schema.`;
       : [],
     laudoTerms: Array.isArray(parsed.laudoTerms) ? parsed.laudoTerms : [],
     riskFlags: Array.isArray(parsed.riskFlags) ? parsed.riskFlags : [],
-    model: completion.model,
+    model: msg.model,
     latencyMs: Date.now() - start,
     chunks: results.map((r) => ({
       content: r.content,
