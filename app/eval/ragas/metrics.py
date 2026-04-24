@@ -2,20 +2,27 @@
 Configura LLM judge + embeddings para Ragas.
 
 Judge backends:
-  - default (anthropic): Claude Haiku 4.5 via API nativa da Anthropic. Pago.
-  - ollama: Kimi K2.6 via Ollama Pro OpenAI-compat endpoint. Custo fixo
-    ($20/mes, 3 concurrent). Julio nao ve o judge — 0 risco em produto.
+  - default (anthropic): Claude Haiku 4.5 via API nativa da Anthropic. Pago
+    ~$0.64/rodada. Usar quando Gemini fora.
+  - gemini: Gemini 2.5 Flash via langchain-google-genai. ~$0.24/rodada
+    (62pct mais barato que Haiku), structured output nativo. Chave
+    compartilhada com REVELA — sem fixo novo. DEFAULT DE PRODUCAO.
+  - ollama: DESCONTINUADO — Ollama :cloud nao suporta structured output
+    (doc oficial). Testado 2026-04-23: kimi/gpt-oss/qwen3-coder todos
+    falharam. Mantido apenas por compat historica.
 
 Seleciona via env:
-    JUDGE_BACKEND=anthropic (default) | ollama
-    OLLAMA_BASE_URL=http://localhost:11434/v1  (default)
-    OLLAMA_JUDGE_MODEL=kimi-k2.6:cloud          (default)
+    JUDGE_BACKEND=anthropic (default por compat) | gemini | ollama
+    GEMINI_JUDGE_MODEL=gemini-2.5-flash  (default)
+    OLLAMA_BASE_URL=http://localhost:11434/v1  (default Ollama)
+    OLLAMA_JUDGE_MODEL=kimi-k2.6:cloud          (default Ollama)
 
 Embeddings: text-embedding-3-small da OpenAI (mantido — custo ~$0.002/eval,
 nao vale migrar agora).
 
 Requer:
     ANTHROPIC_API_KEY  (se JUDGE_BACKEND=anthropic)
+    GEMINI_API_KEY     (se JUDGE_BACKEND=gemini)
     OPENAI_API_KEY     (sempre, embeddings)
 """
 from __future__ import annotations
@@ -26,9 +33,33 @@ import os
 def build_evaluator_llm():
     """Constroi judge LLM baseado em JUDGE_BACKEND env (default: anthropic)."""
     backend = os.environ.get("JUDGE_BACKEND", "anthropic").lower()
+    if backend == "gemini":
+        return _build_gemini_judge()
     if backend == "ollama":
         return _build_ollama_judge()
     return _build_anthropic_judge()
+
+
+def _build_gemini_judge():
+    """Gemini 2.5 Flash via langchain_google_genai. Suporta structured output
+    nativo via JSON Schema (Pydantic) — compat com Ragas out-of-box."""
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    from ragas.llms import LangchainLLMWrapper
+
+    api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+    if not api_key:
+        raise RuntimeError("GEMINI_API_KEY nao definido — exporta antes de rodar.")
+
+    model = os.environ.get("GEMINI_JUDGE_MODEL", "gemini-2.5-flash")
+
+    chat = ChatGoogleGenerativeAI(
+        model=model,
+        google_api_key=api_key,
+        temperature=0.0,
+        max_output_tokens=8192,
+        timeout=120,
+    )
+    return LangchainLLMWrapper(chat)
 
 
 def _build_anthropic_judge():
