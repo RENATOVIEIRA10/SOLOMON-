@@ -71,16 +71,61 @@ Judge: Gemini 2.5 Flash. Answers: Haiku 4.5 (chat) + Sonnet 4.6 (pre-sinistro). 
 
 **P0-1: atacar comparison CP=0.18 (retrieval multi-seguradora).**
 
-Hipotese: quando query menciona 2+ seguradoras, retrieval retorna chunks sem contexto de qual seguradora e qual produto. Ragas CP=0 confirma: judge nao consegue ligar chunks as claims da resposta.
+### Auditoria 2026-04-24 — diagnostico ja feito
 
-Abordagem proposta:
-1. Audit: pegar Q33/Q35/Q36 (comparison multi-insurer), ver quais chunks voltaram e se tem marcacao clara de `insurer_name` + `product_name`
-2. Se falta prefix nos chunks: adicionar no build_context antes de mandar pro LLM
-3. Re-rodar Ragas sobre mesmas Qs apos fix
-4. Target: CP>0.40 em comparison
+Root cause confirmado por audit nas 5 perguntas comparison (ver `app/eval/ragas/results/20260423_200049/raw.jsonl`):
 
-Custo: 1 eval rodada Gemini (~$0.24).
-Tempo estimado: 2-4h.
+1. **insurerName + productName ja vem nos sources** — enrichment funciona, prefix no build_ragas_dataset funciona.
+2. **O problema e o CONTEUDO dos chunks retrievados**, nao o formato.
+3. **3 padroes distintos de falha** identificados:
+
+#### Padrao A — produto especifico mencionado mas nao filtrado (Q36)
+
+Query: "Como Prudential Renda Familiar compara ao Bradesco Tranquilidade Familiar?"
+Retrieval retorna 15 chunks:
+- 8 Prudential: 1 chunk RENDA FAMILIAR + 5 Conditions PDF + CAPITAL GLOBAL + TEMPORARIO DECRESCENTE
+- 7 Bradesco: 1 chunk TRANQUILIDADE FAMILIAR + 6 Vida Viva (outro produto)
+
+Causa: `answer.ts` multi-insurer path chama `semanticSearch(query, { insurerId: X, topK: 8 })` — filtra por insurer mas **nao por produto**. Produtos genericos da base (Vida Viva tem 15+ chunks) dominam produtos especificos raros (Tranquilidade Familiar tem 1 chunk).
+
+Fix: detectar produto na query (similar ao `detectProductHint` em rate-lookup.ts mas para produtos nao-rate) + passar `productId` pra `semanticSearch`. `SearchOptions` ja aceita productId (search.ts:26).
+
+Escopo: criar `app/src/services/rag/product-detector.ts` com ~30 produtos canonicos do catalogo, plugar em answer.ts multi-insurer path. ~80 linhas.
+
+#### Padrao B — "outras seguradoras" nao detectavel por nome (Q32)
+
+Query: "Compare Seguro Doencas Graves Plus da Prudential (DDR5G) com outras seguradoras que oferecem DG"
+Retrieval: 15/15 Prudential, ZERO outras.
+
+Causa: `detectInsurers` so identifica nomes explicitos. "outras seguradoras" vira mentionedInsurers=["Prudential"], falha em disparar multi-insurer broad search.
+
+Fix: detectar padroes "vs outras", "outras seguradoras", "catalogo" na query. Se match + tem 1 seguradora mencionada, fazer 2-stage: (1) busca focada naquela seguradora com produto especifico, (2) busca global cross-insurer pros concorrentes.
+
+Escopo: ~30 linhas em answer.ts.
+
+#### Padrao C — global search nao diversifica seguradoras (Q35)
+
+Query: "Quais seguradoras no seu catalogo cobrem cancer? Liste."
+Retrieval: 15 chunks distribuidos entre so 4 seguradoras (Tokio Marine 9, Zurich 3, Bradesco 2, Porto 1). Zero Prudential/SulAmerica/MetLife/Icatu/Azos apesar de todas oferecerem DG.
+
+Causa: `diversifyResults` (answer.ts:535+) ate garante cobertura mas so dentro dos 15 chunks retrieveddos; nao expande cobertura cross-insurer. Embedding similarity concentra em chunks Tokio Marine (cobertura forte em DG mulher).
+
+Fix: pra query global sem seguradora mencionada, usar **round-robin por insurer**: topK=2 chunks por insurer ativa (12 insurers × 2 = 24 chunks, trimm para topK final). Ou fazer 12 mini-searches filtradas por insurer_id e merger.
+
+Escopo: ~40 linhas em answer.ts + possivel nova funcao em search.ts.
+
+### Ordem de ataque recomendada (proxima sessao)
+
+1. **Fix A primeiro** (produto especifico) — cirurgico, ganho grande em Q36 e outras queries com produto mencionado. ~2h.
+2. **Fix C depois** (round-robin global) — medio impacto, destrava Q35 + concept queries genericas. ~2h.
+3. **Fix B por ultimo** (outras seguradoras) — pattern-matching, baixo risco. ~1h.
+
+Depois de cada fix: re-rodar Ragas sobre comparison subset apenas (5 perguntas × 3 metricas = 15 judges Gemini = ~$0.03).
+
+Target final: comparison CP>0.40 (atual 0.18).
+
+Custo total esperado: ~$0.20 em evals Gemini. Nenhuma chamada Anthropic.
+Tempo estimado: 5-6h de foco em 1 sessao dedicada.
 
 ---
 
@@ -102,3 +147,28 @@ F subiu 11.6pp em 3 dias. AC oscila. CP subiu 14.5pp.
 ## 6. Como atualizar este documento
 
 Atualizar a cada sessao que muda o scoreboard ou fecha um blocker. Commit message: `status: <resumo>`.
+
+---
+
+## 7. Sessao 2026-04-24 — handoff
+
+### Entregues hoje
+- Fix answer composition pre-sinistro (commit b57375e) — F pre_sinistro 0.252 -> 0.526 (+27pp)
+- Testado Ollama judge (kimi/gpt-oss/qwen) — TODOS falham (Ollama Cloud nao suporta structured output, confirmado doc oficial)
+- Judge migrado Haiku -> Gemini 2.5 Flash (commit bd1f2b2) — 62pct mais barato, usando chave REVELA
+- Julio review batch 1 aplicado (commit cbeeb9c) — 21/24 perguntas validadas, Q30 out_of_scope, Q35 GT meta reescrito
+- STATUS.md instituido (commit 6155fd5)
+- Auditoria comparison CP=0.18 — 3 padroes de falha identificados (secao 4)
+- Memoria local atualizada: hardware real (notebook 16GB, VPS 4GB), Ragas judge Ollama incompat
+
+### Pendente — proxima sessao pega dai
+
+1. **Implementar os 3 fixes de comparison** (secao 4) — ordem recomendada: A -> C -> B
+2. **Q48, Q49, Q50** — Julio review pendente (pre_sinistro)
+3. **Tokens expostos** — rotacionar `vcp_134r5...` (Vercel) + `sk-ant...ZV9Kl` (Anthropic)
+4. **AC=0.40 gap de conteudo** — auditar conhecimento faltante na base vs expectativa Julio (ex: Q26 VG Express 500 vidas nao esta nos CGs)
+
+### Saldos de API
+- Anthropic: ~$1.90 restante (nao queimado nesta sessao)
+- Gemini: chave REVELA compartilhada, $0 incremental
+- Ollama Pro: descartado como judge, ainda valido pra opencode dev agent
