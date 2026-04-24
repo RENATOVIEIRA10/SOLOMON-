@@ -200,6 +200,11 @@ def build_ragas_dataset(records: list[dict[str, Any]], json_mode_isolated: bool 
     for r in records:
         if not r["response"]["ok"]:
             continue
+        # Perguntas flaggeadas out_of_scope=true pelo Julio review nao entram
+        # no eval — SOLOMON e especialista em seguro de vida, avaliar contra
+        # perguntas fora desse escopo (ex: seguro viagem) distorce metricas.
+        if r.get("out_of_scope") is True:
+            continue
         data = r["response"]["data"]
         answer = data.get("answer") or ""
         # Isolamento de JSON mode: para pre-sinistro, faithfulness so no rationale
