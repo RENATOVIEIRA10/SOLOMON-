@@ -4,13 +4,45 @@ Harness para medir qualidade do RAG do SOLOMON contra baseline com 50 perguntas.
 
 ## O que mede
 
-Tres metricas Ragas, calibradas para detectar os modos de falha do SOLOMON:
+5 metricas Ragas (Fase 1 instituiu as 2 ultimas), calibradas para detectar
+os modos de falha do SOLOMON:
 
 - **faithfulness** — resposta e grounded nos chunks recuperados? (baixo = alucinacao)
 - **answer_correctness** — resposta bate com o ground truth? (baixo = erro factual)
-- **context_precision** — chunks recuperados sao relevantes? (baixo = retrieval ruim)
+- **context_precision** — chunks recuperados sao relevantes? (baixo = retrieval ruidoso)
+- **context_recall** — chunks necessarios foram recuperados? (baixo = retrieval cego)
+- **noise_sensitivity** — LLM se confunde com chunks irrelevantes? (alto = robusto)
 
-Judge LLM: **Claude Haiku 4.5** via OpenRouter (mesma stack do chat). Embeddings: **text-embedding-3-small** (OpenAI).
+Judge LLM: **Gemini 2.5 Flash** (default, JUDGE_BACKEND=gemini, ~62pct mais barato
+que Haiku) ou **Claude Haiku 4.5** (anthropic). Embeddings: **text-embedding-3-small**.
+
+### Multi-judge ensemble (--multi-judge)
+
+Roda Ragas 2x (Gemini + Haiku) e flag perguntas com `|delta| > 0.2` em qualquer
+metrica. Mata variancia de judge unico (~15-25% per paper G-Eval/ChainPoll).
+Custo ~$0.88/full vs $0.24/$0.64 single. Output em `judge_divergences.json` +
+coluna `divergence_flag` na tabela `eval_runs`.
+
+### Persistencia per-question (agentes-hub)
+
+Cada run grava 1 linha por pergunta em `eval_runs` (project=solomon) no
+agentes-hub Supabase. Permite SQL ad-hoc:
+
+```sql
+-- scoreboard ultimo run
+SELECT * FROM eval_latest_scoreboard WHERE project='solomon';
+
+-- regressoes recentes (>0.10 em qualquer metrica entre 2 ultimos runs)
+SELECT * FROM eval_recent_regressions WHERE project='solomon';
+
+-- perguntas em que judges divergem >0.2
+SELECT question_id, divergence_metric, divergence_delta
+FROM eval_runs
+WHERE divergence_flag = true AND project='solomon'
+ORDER BY divergence_delta DESC;
+```
+
+Pular hub: `--skip-hub`.
 
 ## Estrutura
 
@@ -48,20 +80,25 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 
-export OPENROUTER_API_KEY=<ver app/.env.local>
-export OPENAI_API_KEY=<ver app/.env.local>
+set -a && source /root/agents/config/.env && source /root/solomon/repo/app/.env.local && set +a
 
-python run_eval.py                              # roda todas as 50
+python run_eval.py                              # roda todas as 49 (judge default = anthropic)
+JUDGE_BACKEND=gemini python run_eval.py         # judge Gemini Flash (62% mais barato)
+python run_eval.py --multi-judge                # ensemble gemini+haiku, flag divergencias
 python run_eval.py --limit 5                    # smoke-test 5 primeiras
 python run_eval.py --skip-ragas                 # so coleta respostas (sem LLM judge)
+python run_eval.py --skip-hub                   # nao escreve no agentes-hub
 python run_eval.py --endpoint http://localhost:3004/api/ask  # contra dev server
 ```
 
 Output em `results/<YYYYMMDD_HHMMSS>/`:
-- `raw.jsonl` — todas as respostas de `/api/ask` (answer + sources + model + latencia)
-- `ragas_per_question.csv` — scores Ragas por pergunta
-- `ragas_scores.json` — scores agregados
+- `raw.jsonl` — respostas de `/api/ask` (answer + sources + model + latencia)
+- `ragas_per_question.csv` + `ragas_scores.json` — scores Ragas (judge primario)
+- `ragas_per_question_judge_b.csv` + `ragas_scores_judge_b.json` — judge secundario (--multi-judge)
+- `judge_divergences.json` — Qs com |delta|>0.2 entre judges (--multi-judge)
 - `REPORT.md` — gerado com `python report.py results/<ts>`
+
+E grava 1 linha por pergunta em `eval_runs` no agentes-hub.
 
 ## Interpretacao
 

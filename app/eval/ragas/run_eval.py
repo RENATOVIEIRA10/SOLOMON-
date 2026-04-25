@@ -261,34 +261,142 @@ def build_ragas_dataset(records: list[dict[str, Any]], json_mode_isolated: bool 
     return Dataset.from_list(rows)
 
 
-def run_ragas(dataset, out_dir: Path) -> dict[str, Any]:
-    """Roda faithfulness, answer_correctness, context_precision com Haiku 4.5 como judge."""
+METRIC_KEYS = (
+    "faithfulness",
+    "answer_correctness",
+    "context_precision",
+    "context_recall",
+    "noise_sensitivity",
+)
+
+
+def run_ragas(dataset, out_dir: Path, judge_override: str | None = None, suffix: str = "") -> dict[str, Any]:
+    """Roda 5 metricas Ragas com judge configuravel.
+
+    Core (3): faithfulness, answer_correctness, context_precision.
+    Adicionadas Fase 1 (2): context_recall (recupera o que precisa?),
+    noise_sensitivity (LLM se confunde com contexto irrelevante?).
+
+    judge_override: se passado, sobrescreve JUDGE_BACKEND temporariamente
+                    (usado pelo modo --multi-judge).
+    suffix: sufixo nos nomes dos arquivos de output (separa rodadas A/B).
+    """
     from ragas import evaluate
-    from ragas.metrics import answer_correctness, context_precision, faithfulness
+    from ragas.metrics import (
+        NoiseSensitivity,
+        answer_correctness,
+        context_precision,
+        context_recall,
+        faithfulness,
+    )
 
     from metrics import build_evaluator_llm, build_evaluator_embeddings
 
-    llm = build_evaluator_llm()
-    embeddings = build_evaluator_embeddings()
-
-    result = evaluate(
-        dataset=dataset,
-        metrics=[faithfulness, answer_correctness, context_precision],
-        llm=llm,
-        embeddings=embeddings,
-    )
+    prev_backend = os.environ.get("JUDGE_BACKEND")
+    if judge_override:
+        os.environ["JUDGE_BACKEND"] = judge_override
+    try:
+        llm = build_evaluator_llm()
+        embeddings = build_evaluator_embeddings()
+        result = evaluate(
+            dataset=dataset,
+            metrics=[
+                faithfulness,
+                answer_correctness,
+                context_precision,
+                context_recall,
+                NoiseSensitivity(),
+            ],
+            llm=llm,
+            embeddings=embeddings,
+        )
+    finally:
+        if judge_override:
+            if prev_backend is None:
+                os.environ.pop("JUDGE_BACKEND", None)
+            else:
+                os.environ["JUDGE_BACKEND"] = prev_backend
 
     # Salva scores por pergunta + agregado
     df = result.to_pandas()
-    df_path = out_dir / "ragas_per_question.csv"
+    csv_name = f"ragas_per_question{suffix}.csv"
+    df_path = out_dir / csv_name
     df.to_csv(df_path, index=False, encoding="utf-8")
 
-    scores_path = out_dir / "ragas_scores.json"
+    json_name = f"ragas_scores{suffix}.json"
+    scores_path = out_dir / json_name
     scores_path.write_text(
         json.dumps({k: float(v) for k, v in result._repr_dict.items()}, indent=2, ensure_ascii=False),
         encoding="utf-8",
     )
-    return {"aggregate": result._repr_dict, "per_question_csv": str(df_path), "scores_json": str(scores_path)}
+    # score_rows: 1 dict por pergunta com colunas das metricas + 'id'/'category'.
+    # Consumido por hub_writer pra gravar 1 linha em eval_runs por pergunta.
+    score_rows = df.to_dict("records")
+    return {
+        "aggregate": result._repr_dict,
+        "per_question_csv": str(df_path),
+        "scores_json": str(scores_path),
+        "score_rows": score_rows,
+    }
+
+
+def compute_divergence(
+    question_ids: list[str],
+    rows_a: list[dict[str, Any]],
+    rows_b: list[dict[str, Any]],
+    threshold: float = 0.2,
+) -> dict[str, dict[str, Any]]:
+    """Compara scores per-question entre 2 judges. Match por POSICAO (Ragas 0.2.x
+    dropa colunas 'id'/'category' do df). question_ids[i] = rows_a[i] = rows_b[i].
+
+    Retorna dict por question_id com a metrica de maior divergencia (so se |delta| > threshold).
+    """
+    if not (len(question_ids) == len(rows_a) == len(rows_b)):
+        return {}
+
+    # Inclui aliases nomeados pelo Ragas (ex: 'noise_sensitivity(mode=relevant)')
+    metric_aliases = {
+        "faithfulness": ("faithfulness",),
+        "answer_correctness": ("answer_correctness",),
+        "context_precision": ("context_precision",),
+        "context_recall": ("context_recall",),
+        "noise_sensitivity": (
+            "noise_sensitivity",
+            "noise_sensitivity(mode=relevant)",
+            "noise_sensitivity_relevant",
+        ),
+    }
+
+    def _val(row: dict[str, Any], aliases: tuple[str, ...]) -> float | None:
+        for k in aliases:
+            v = row.get(k)
+            if v is None:
+                continue
+            try:
+                f = float(v)
+            except (TypeError, ValueError):
+                continue
+            if f != f:
+                continue
+            return f
+        return None
+
+    out: dict[str, dict[str, Any]] = {}
+    for qid, ra, rb in zip(question_ids, rows_a, rows_b):
+        worst_metric = None
+        worst_delta = 0.0
+        for canonical, aliases in metric_aliases.items():
+            fa = _val(ra, aliases)
+            fb = _val(rb, aliases)
+            if fa is None or fb is None:
+                continue
+            d = abs(fa - fb)
+            if d > worst_delta:
+                worst_delta = d
+                worst_metric = canonical
+        if worst_metric and worst_delta > threshold:
+            out[qid] = {"metric": worst_metric, "delta": worst_delta}
+    return out
 
 
 def main() -> int:
@@ -299,6 +407,12 @@ def main() -> int:
     parser.add_argument("--skip-ragas", action="store_true", help="so coleta respostas, nao roda Ragas")
     parser.add_argument("--json-mode-isolated", action="store_true",
                         help="pre-sinistro: faithfulness avaliado so no rationale + excerpt (isola JSON mode bias)")
+    parser.add_argument("--skip-hub", action="store_true",
+                        help="nao grava per-question no agentes-hub (eval_runs). Util em smoke local.")
+    parser.add_argument("--multi-judge", action="store_true",
+                        help="roda Ragas 2x (gemini + anthropic Haiku) e flag perguntas com |delta|>0.2 em qualquer metrica. Custo ~$0.88/full vs $0.24/$0.64 single.")
+    parser.add_argument("--divergence-threshold", type=float, default=0.2,
+                        help="threshold absoluto de divergencia entre judges (default 0.2)")
     parser.add_argument("--results-dir", default=str(SCRIPT_DIR / "results"))
     args = parser.parse_args()
 
@@ -334,11 +448,66 @@ def main() -> int:
         print("Nenhuma resposta OK — abortando.")
         return 1
 
-    print("\n=== rodando Ragas (faithfulness + answer_correctness + context_precision) ===")
+    print("\n=== rodando Ragas (faithfulness, answer_correctness, context_precision, context_recall, noise_sensitivity) ===")
     dataset = build_ragas_dataset(records, json_mode_isolated=args.json_mode_isolated)
-    scores = run_ragas(dataset, out_dir)
-    print("\n=== scores agregados ===")
+
+    # --- judge primario ---
+    primary_backend = "gemini" if args.multi_judge else (os.environ.get("JUDGE_BACKEND", "anthropic").lower())
+    print(f"[judge primary] backend={primary_backend}")
+    scores = run_ragas(dataset, out_dir, judge_override=primary_backend if args.multi_judge else None)
+    print("\n=== scores agregados (primary) ===")
     print(json.dumps(scores["aggregate"], indent=2, ensure_ascii=False))
+
+    # --- judge secundario (multi-judge ensemble) ---
+    divergences: dict[str, dict[str, Any]] = {}
+    secondary_judge = None
+    if args.multi_judge:
+        secondary_judge = "anthropic"
+        print(f"\n[judge secondary] backend={secondary_judge} (ensemble check)")
+        scores_b = run_ragas(dataset, out_dir, judge_override=secondary_judge, suffix="_judge_b")
+        print("\n=== scores agregados (secondary) ===")
+        print(json.dumps(scores_b["aggregate"], indent=2, ensure_ascii=False))
+
+        eligible_ids = [
+            r["id"] for r in records
+            if r.get("response", {}).get("ok") and r.get("out_of_scope") is not True
+        ]
+        divergences = compute_divergence(
+            eligible_ids, scores["score_rows"], scores_b["score_rows"],
+            threshold=args.divergence_threshold,
+        )
+        div_path = out_dir / "judge_divergences.json"
+        div_path.write_text(json.dumps(divergences, indent=2, ensure_ascii=False), encoding="utf-8")
+        print(f"\n[multi-judge] {len(divergences)} perguntas com |delta|>{args.divergence_threshold} -> {div_path}")
+        for qid, info in sorted(divergences.items(), key=lambda kv: -kv[1]["delta"])[:5]:
+            print(f"  {qid}  metric={info['metric']:<20} delta={info['delta']:.3f}")
+
+    # Persiste 1 linha por pergunta no agentes-hub (tabela eval_runs).
+    # Falha silenciosa: eval no disco e o que importa, hub e observabilidade.
+    if not args.skip_hub:
+        try:
+            from hub_writer import write_eval_runs
+            judge_backend = primary_backend
+            judge_model = (
+                os.environ.get("GEMINI_JUDGE_MODEL", "gemini-2.5-flash") if judge_backend == "gemini"
+                else "claude-haiku-4-5" if judge_backend == "anthropic"
+                else os.environ.get("OLLAMA_JUDGE_MODEL", "kimi-k2.6:cloud")
+            )
+            hub_result = write_eval_runs(
+                records,
+                scores["score_rows"],
+                run_id=timestamp,
+                judge_backend=judge_backend,
+                judge_model=judge_model,
+                divergences=divergences,
+                divergence_judge_b=secondary_judge,
+            )
+            if hub_result["ok"]:
+                print(f"\n[hub] eval_runs: {hub_result['sent']} linhas gravadas no agentes-hub.")
+            else:
+                print(f"\n[hub] WARN sent={hub_result['sent']} failed={hub_result['failed']} err={hub_result.get('error')}")
+        except Exception as e:
+            print(f"\n[hub] WARN nao gravou no agentes-hub: {type(e).__name__}: {e}")
 
     print(f"\nReport: rode `python report.py {out_dir}` para gerar markdown.")
     return 0

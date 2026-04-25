@@ -1,31 +1,39 @@
 # SOLOMON — Estado do produto
 
-**Ultima atualizacao**: 2026-04-24 (pos review Julio batch 1)
-**Baseline Ragas**: `app/eval/ragas/results/20260424_rerun_pos_julio_review/`
+**Ultima atualizacao**: 2026-04-24 noite (Fase 1 eval entregue: 5 metricas + persistencia hub + multi-judge)
+**Baseline Ragas**: `app/eval/ragas/results/20260425_012159/` (judge primary Gemini 2.5 Flash, secondary Haiku degradou por saldo Anthropic $0)
+**Persistencia**: tabela `eval_runs` no agentes-hub (50 linhas, run_id=20260425_012159)
 **Ground truth**: 21/24 perguntas flaggeadas validadas por Julio; Q48-Q50 pendentes
 
 ---
 
-## 1. Scoreboard (Ragas sobre 49 perguntas)
+## 1. Scoreboard (Ragas sobre 49 perguntas, 5 metricas)
 
 Judge: Gemini 2.5 Flash. Answers: Haiku 4.5 (chat) + Sonnet 4.6 (pre-sinistro). Embeddings: text-embedding-3-small.
+**Fase 1 (2026-04-24) instituiu** `context_recall` (CR) e `noise_sensitivity` (NS).
 
-| Trilho | F | AC | CP | Status |
-|---|---|---|---|---|
-| rate_mag | 1.00 | 0.45 | 1.00 | ✅ Pronto |
-| rate_prudential | 1.00 | 0.42 | 1.00 | ✅ Pronto |
-| comparison | 0.77 | 0.25 | 0.18 | 🟡 CP estrutural; AC gap dataset |
-| concept | 0.77 | 0.28 | 0.48 | 🟡 AC gap dataset/docs |
-| edge | 0.53 | 0.63 | 0.86 | 🟡 F medio; AC/CP OK |
-| pre_sinistro | 0.54 | 0.51 | 0.61 | 🟡 F medio; Q48-50 sem review |
+| Trilho | F | AC | CP | CR | NS | Divergent | Status |
+|---|---|---|---|---|---|---|---|
+| rate_prudential | 1.00 | 0.37 | 1.00 | 1.00 | 0.88 | 2/5 | ✅ Pronto |
+| rate_mag | 1.00 | 0.44 | 1.00 | 0.90 | 0.76 | 4/10 | ✅ Pronto |
+| comparison | 0.50 | 0.20 | 0.16 | 0.15 | n/a | 7/10 | 🔴 retrieval cego (CR=0.15) |
+| concept | 0.77 | 0.31 | 0.44 | 0.33 | n/a | 10/15 | 🟡 retrieval cego (CR=0.33) |
+| edge | 0.56 | 0.66 | 0.81 | 0.30 | 0.00 | 5/5 | 🟡 prompt fraco (NS=0.00) |
+| pre_sinistro | 0.57 | 0.50 | 0.60 | 0.37 | n/a | 0/5 | 🟡 retrieval medio + F medio |
 
-**Agregado**: F=0.803 · AC=0.396 · CP=0.649
+**Agregado**: F=0.78 · AC=0.39 · CP=0.60 · CR=0.48 · NS=0.75
 
-### Leitura dos numeros
+### Leitura dos numeros (com 5 metricas)
 
-- **F=0.80** (alto) = SOLOMON nao alucina; respostas sao fundamentadas nos chunks recuperados.
-- **AC=0.40** (medio-baixo) = mesmo com GT validado por Julio, respostas nao batem com expectativa expert. Isso e gap de **conteudo da base**, nao de prompt.
-- **CP=0.65** agregado, mas **CP=0.18 em comparison** = retrieval multi-seguradora quebrado (problema estrutural, nao LLM).
+- **F=0.78** (alto) = SOLOMON nao alucina; respostas sao fundamentadas nos chunks recuperados.
+- **AC=0.39** (medio-baixo) = respostas nao batem 100% com expectativa expert. Gap de conteudo + limite de modelo.
+- **CP=0.60** agregado, mas **CP=0.16 em comparison** = retrieval multi-seguradora quebrado (estrutural).
+- **CR=0.48 (NOVA, Fase 1)** = **retrieval esta CEGO em 4 trilhos** (comparison 0.15, concept 0.33, edge 0.30, pre_sinistro 0.37). Recupera errado E perde o que deveria. Valida diagnostico das pesquisas (research-rag-sota + research-eval-vertical): gargalo e retrieval, nao geracao. Isto justifica priorizar Fase 2 (round-robin per-entity + query decomposition + reranker).
+- **NS=0.00 em edge (NOVA, Fase 1)** = LLM se confunde MUITO com chunks irrelevantes em casos edge. Bate com Padrao 3 da pesquisa: prompts especializados por trilho.
+
+### Multi-judge divergence (NOVA, Fase 1)
+
+28/41 perguntas com |delta|>0.2 entre Gemini (primary) e Haiku (secondary). **Numero inflado**: Haiku ficou sem saldo Anthropic na metade do secondary, gerou NaN/erros — divergencia real e desconhecida. Re-rodar `--multi-judge` apos recarga Anthropic pra ter ensemble valido.
 
 ---
 
@@ -131,16 +139,17 @@ Tempo estimado: 5-6h de foco em 1 sessao dedicada.
 
 ## 5. Historico de baselines
 
-| Data | Commit | F | AC | CP | Change |
-|---|---|---|---|---|---|
-| 2026-04-21 | 20260421_001234 | 0.687 | 0.427 | 0.504 | baseline inicial |
-| 2026-04-23 | 20260423_182541 | 0.734 | 0.437 | 0.504 | +rag_exclude, 45/50 OK |
-| 2026-04-23 | 20260423_200049 | 0.709 | 0.420 | 0.478 | +pre-sinistro Anthropic, 50/50 OK (judge Haiku) |
-| 2026-04-24 | rerun_judge_fixed | 0.721 | 0.435 | 0.508 | +fix answer pre-sinistro (judge Haiku) |
-| 2026-04-24 | rerun_judge_gemini_flash | 0.770 | 0.408 | 0.631 | +judge Gemini |
-| **2026-04-24** | **rerun_pos_julio_review** | **0.803** | **0.396** | **0.649** | **+Julio review GT 21/24** |
+| Data | Commit | F | AC | CP | CR | NS | Change |
+|---|---|---|---|---|---|---|---|
+| 2026-04-21 | 20260421_001234 | 0.687 | 0.427 | 0.504 | — | — | baseline inicial |
+| 2026-04-23 | 20260423_182541 | 0.734 | 0.437 | 0.504 | — | — | +rag_exclude, 45/50 OK |
+| 2026-04-23 | 20260423_200049 | 0.709 | 0.420 | 0.478 | — | — | +pre-sinistro Anthropic, 50/50 OK (judge Haiku) |
+| 2026-04-24 | rerun_judge_fixed | 0.721 | 0.435 | 0.508 | — | — | +fix answer pre-sinistro (judge Haiku) |
+| 2026-04-24 | rerun_judge_gemini_flash | 0.770 | 0.408 | 0.631 | — | — | +judge Gemini |
+| 2026-04-24 | rerun_pos_julio_review | 0.803 | 0.396 | 0.649 | — | — | +Julio review GT 21/24 |
+| **2026-04-24** | **20260425_012159** | **0.782** | **0.392** | **0.603** | **0.477** | **0.750** | **Fase 1: +CR/NS, persiste hub** |
 
-F subiu 11.6pp em 3 dias. AC oscila. CP subiu 14.5pp.
+F subiu 9.5pp em 3 dias. AC oscila. CP subiu 9.9pp. **CR/NS instituidos Fase 1 — primeira vez que vemos retrieval recall.**
 
 ---
 
@@ -161,14 +170,42 @@ Atualizar a cada sessao que muda o scoreboard ou fecha um blocker. Commit messag
 - Auditoria comparison CP=0.18 — 3 padroes de falha identificados (secao 4)
 - Memoria local atualizada: hardware real (notebook 16GB, VPS 4GB), Ragas judge Ollama incompat
 
-### Pendente — proxima sessao pega dai
+### Sessao 2026-04-24 noite — Fase 1 do plano novo (entregue)
 
-1. **Implementar os 3 fixes de comparison** (secao 4) — ordem recomendada: A -> C -> B
-2. **Q48, Q49, Q50** — Julio review pendente (pre_sinistro)
-3. **Tokens expostos** — rotacionar `vcp_134r5...` (Vercel) + `sk-ant...ZV9Kl` (Anthropic)
-4. **AC=0.40 gap de conteudo** — auditar conhecimento faltante na base vs expectativa Julio (ex: Q26 VG Express 500 vidas nao esta nos CGs)
+**Contexto**: 2 pesquisas SOTA disparadas (research-rag-sota + research-eval-vertical). Plano antigo de 3 fixes manuais substituido por plano de 4 fases focado em diagnostico + tecnicas validadas pelo mercado (Harvey AI, Anthropic Contextual Retrieval, etc.). Ver `plans/research-rag-sota-2026-04-24.md` e `plans/research-eval-vertical-2026-04-24.md`.
+
+**Fase 1 — Eval melhor antes de mexer em codigo (entregue):**
+1. **Ragas com 5 metricas** (era 3): adicionado `context_recall` (recupera o que precisa?) e `noise_sensitivity` (LLM se confunde com chunks irrelevantes?)
+2. **Tabela `eval_runs` no agentes-hub** (`zwnlpumonvkrghoxnddd`): cada run grava 1 linha por pergunta com 5 metricas + flags. RLS aberto pro anon (mesmo padrao `sync_context`). 50 linhas gravadas pro run_id `20260425_012159`.
+3. **2 views SQL no hub**: `eval_latest_scoreboard` (agregado por trilho do ultimo run) e `eval_recent_regressions` (Qs que cairam >0.10 entre 2 ultimos runs)
+4. **Multi-judge ensemble** (`--multi-judge`): roda Gemini + Haiku, flag perguntas com |delta|>0.2 em qualquer metrica. Gravacao na coluna `divergence_flag/metric/delta`.
+5. **Bugs achados durante validacao + corrigidos**: RLS bloqueava INSERT (anon), Ragas 0.2.x dropa colunas extras (id/category) → join por indice, `noise_sensitivity` vem como `noise_sensitivity(mode=relevant)` → aceita aliases.
+
+**Aprendizado novo de baseline pos-Fase 1:**
+- **CR baixo em 4 trilhos** (comparison 0.15, concept 0.33, edge 0.30, pre_sinistro 0.37) = **retrieval esta CEGO**. Isso valida o diagnostico das 2 pesquisas: o gargalo principal e *retrieval*, nao geracao. Justifica a Fase 2 (round-robin per-entity + query decomposition + reranker) atacar antes de mexer em prompt.
+- **NS=0.00 em edge** = LLM se confunde com chunks irrelevantes em casos edge. Bate com Padrao 3 (prompts especializados por trilho).
+- **28/41 perguntas com divergencia multi-judge** mas NUMERO INFLADO porque Haiku ficou sem saldo Anthropic na metade do secondary. Re-rodar `--multi-judge` apos recarga pra ter ensemble valido.
+
+**Pendente — proxima sessao pega dai**
+
+**Fase 2 — Atacar comparison CP=0.16 (~6h):**
+1. Round-robin per-entity em `app/src/services/rag/compare.ts` (top-N por seguradora, ~3h)
+2. Query decomposition com Haiku (decompoe "compare 15 seguradoras" em 15 sub-queries, ~3h)
+3. Re-rodar Ragas só comparison subset (~$0.03)
+4. Esperado: comparison CR 0.15 -> 0.55+, CP 0.16 -> 0.50+
+
+**Fase 3 — Reranker + Citations API (~5h):**
+- Cohere Rerank 3 multilingual em `search.ts` (top-50 vetor → re-ordena → top-10)
+- Anthropic Citations API em `pre-sinistro.ts` (Sonnet obrigado a citar span exato)
+- Esperado: AC todos trilhos +5-10pp, pre_sinistro F 0.57 -> 0.70+
+
+**Pendencias antigas mantidas:**
+- Q48, Q49, Q50 — Julio review pre_sinistro
+- AC=0.39 gap de conteudo — auditar Q26 VG Express 500 vidas etc.
+- (Tokens expostos: CEO declarou notebook seguro, descartado.)
+- Recarregar Anthropic ($0 atualmente — quebrou secondary judge da Fase 1)
 
 ### Saldos de API
-- Anthropic: ~$1.90 restante (nao queimado nesta sessao)
+- Anthropic: **$0** (esgotou no secondary judge da Fase 1) — recarregar para multi-judge funcionar
 - Gemini: chave REVELA compartilhada, $0 incremental
 - Ollama Pro: descartado como judge, ainda valido pra opencode dev agent
