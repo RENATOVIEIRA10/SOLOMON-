@@ -1,6 +1,6 @@
 # SOLOMON — Estado do produto
 
-**Ultima atualizacao**: 2026-04-28 (Fase 2 entregue + re-eval rodado — AC +17pp, CR dobrou, CP -3pp por trade-off precision/recall)
+**Ultima atualizacao**: 2026-04-28 noite (Sessao 1 do plano "vendavel": 5 patches CRITICAL/HIGH + auditoria revelou AC paradoxo + NS bug + Padrao B duplamente quebrado)
 **Baseline Ragas**: `app/eval/ragas/results/20260425_012159/` (judge primary Gemini 2.5 Flash, secondary Haiku degradou por saldo Anthropic $0)
 **Persistencia**: tabela `eval_runs` no agentes-hub (50 linhas, run_id=20260425_012159)
 **Ground truth**: 21/24 perguntas flaggeadas validadas por Julio; Q48-Q50 pendentes
@@ -149,6 +149,7 @@ Tempo estimado: 5-6h de foco em 1 sessao dedicada.
 | 2026-04-24 | rerun_pos_julio_review | 0.803 | 0.396 | 0.649 | — | — | +Julio review GT 21/24 |
 | **2026-04-24** | **20260425_012159** | **0.782** | **0.392** | **0.603** | **0.477** | **0.750** | **Fase 1: +CR/NS, persiste hub** |
 | 2026-04-28 | 20260428_154440 (comparison only, 10 Qs) | 0.517 | 0.377 | 0.129 | 0.308 | NaN | Fase 2: A+B+C (vs baseline comp 0.50/0.20/0.16/0.15) |
+| **2026-04-28** | **20260428_164429** (full 49 Qs) | **0.825** | **0.406** | **0.571** | **0.553** | **0.737** | **Fase 2 full pos-Padroes A/B/C — F+4.3pp, CR+7.6pp, AC paradoxo confirmado** |
 
 F subiu 9.5pp em 3 dias. AC oscila. CP subiu 9.9pp. **CR/NS instituidos Fase 1 — primeira vez que vemos retrieval recall.**
 
@@ -235,20 +236,39 @@ Atualizar a cada sessao que muda o scoreboard ou fecha um blocker. Commit messag
 
 **Proxima sessao**: iniciar Fase 3 (Cohere Rerank 3 multilingual em search.ts top-50→top-10 + Anthropic Citations API em pre-sinistro.ts). Esperado: comparison CP 0.13 → 0.50+, AC todos trilhos +5-10pp.
 
-**Saldo Anthropic:** se ainda em $0, multi-judge nao roda; eval primario com Gemini-only continua valido.
+### Sessao 2026-04-28 noite — Sessao 1 do plano "vendavel" (commit 14d79bc)
 
-**Fase 3 — Reranker + Citations API (~5h):**
-- Cohere Rerank 3 multilingual em `search.ts` (top-50 vetor → re-ordena → top-10)
-- Anthropic Citations API em `pre-sinistro.ts` (Sonnet obrigado a citar span exato)
-- Esperado: AC todos trilhos +5-10pp, pre_sinistro F 0.57 -> 0.70+
+**Decisao executiva**: plano de 6 sessoes (~20-30h) pra produto vendavel manualmente Julio + 5 corretores beta. Hoje rodou Sessao 1 — patches CRITICAL/HIGH descobertos pelo Codex review.
 
-**Pendencias antigas mantidas:**
-- Q48, Q49, Q50 — Julio review pre_sinistro
-- AC=0.39 gap de conteudo — auditar Q26 VG Express 500 vidas etc.
-- (Tokens expostos: CEO declarou notebook seguro, descartado.)
-- Recarregar Anthropic ($0 atualmente — quebrou secondary judge da Fase 1)
+**Patches aplicados (commit 14d79bc):**
+
+1. **CRITICAL llm.ts**: timeouts AbortController por provider (Anthropic 8s, Gemini 7s, OpenAI 6s). Stream Anthropic com emittedDelta flag — se ja emitiu token, NAO fallback (evita resposta duplicada). Fallback chain extraido em `callLLMFallbackWithoutAnthropic` — stream retry NAO bate Anthropic de novo.
+2. **HIGH rate-lookup.ts**: `AGE_CTX_RE` exige contexto forte ("idade|cliente|segurado|pessoa|homem|mulher"). Removido `de NN` generico que pegava "capital de 50 mil" como idade=50.
+3. **MED rate-lookup.ts**: `parseBrazilianNumber` detecta padrao US thousands `N{1,3}(,NNN)+` — "500,000" agora e 500000, nao 500.
+4. **HIGH answer.ts rate fast-path**: gate `hasEnoughDimensions` (age+capital OU productCode+age+gender+capital). Sem isso, confidence=0.4 + lowConfidence=true + prefix "[Aviso]" no answer. Antes: confidence=1.0 hardcoded com selo de certeza absoluta sobre 40 linhas erradas.
+5. **HIGH answer.ts Padrao B**: `compareIntent` flag + `SYSTEM_PROMPT_COMPARE_TEMPLATE` (substitui Passo 3+5 anti-comparativos). Cap `totalLimit=topK+5` reservando 5-7 slots pros chunks "others". Skip slice quando compareIntent. Antes: slice cortava todos os 11 chunks de outras seguradoras antes do LLM ver.
+6. **MED answer.ts Padrao C**: `questionImpliesComparison` detector estrito (compare/comparar/versus/vs/diferenca/melhor/mais barato/no catalogo/quais seguradoras OU 2+ insurers detectadas). Round-robin SO em queries comparativas. Concept/edge/general voltam ao `semanticSearch` focado pre-Fase 2. Tambem restringe `questionImpliesOtherInsurers` (remove gatilhos amplos "que oferecem", "no mercado", "varias seguradoras", "quais seguradoras").
+
+**Auditoria que mudou interpretacao do baseline:**
+
+- **AC paradoxo CONFIRMADO sistemico**: 12 perguntas rate_prudential+rate_mag com F=1.00+CR=1.00 mas AC=0.27-0.49. Auditei 5 respostas — todas numericamente PERFEITAS. Judge Gemini fragmenta claims e desconta formato/metadata extras. **AC=0.39 agregado e parcialmente fantasma. Targets de AC sao questionaveis.** Decisao: ignorar AC como sinal primario; usar F + CR como targets.
+
+- **NS=0.00 em edge era BUG**: 4/5 Qs com NS=NULL no hub, so Q42 com NS=0.0. "Media NS=0 edge" foi calculada de 1 ponto. Acao em prompt edge nao se justifica.
+
+- **CR comparison BIMODAL**: 5 Qs com CR=0.0 (Q32/Q36/Q38/Q39/Q40) + 5 com CR=0.20-0.50. Media 0.15 esconde "metade falha completamente". Padrao A salvou Q36/Q37/Q38; Padrao B nunca funcionou (slice + system prompt anti-comparativo).
+
+**Targets atualizados (decisao executiva):**
+- F >= 0.85 (era 0.825 — quase la)
+- CR >= 0.65 (era 0.553)
+- AC: descartado como target primario (paradoxo do judge)
+- pre_sinistro F >= 0.85 (com Citations API + post-validation)
+- latencia P95 < 10s
+
+**Saldo Anthropic 2026-04-28: $8** — reservado pra Sessao 2 (Citations API dev/test).
+
+**Proxima sessao (Sessao 2)**: pre-sinistro hardening — Citations API + post-validation veredicto (Codex review identificou 2 CRITICAL: aceita citation/excerpt sem validar; verdict so normalizado por enum sem checar evidencia).
 
 ### Saldos de API
-- Anthropic: **$0** (esgotou no secondary judge da Fase 1) — recarregar para multi-judge funcionar
+- Anthropic: **$8** (recarga 2026-04-28 noite) — reservado Sessao 2 Citations API
 - Gemini: chave REVELA compartilhada, $0 incremental
-- Ollama Pro: descartado como judge, ainda valido pra opencode dev agent
+- Ollama Pro: descartado como judge

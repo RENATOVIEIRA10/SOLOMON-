@@ -30,7 +30,13 @@ const ANTHROPIC_MODEL = 'claude-haiku-4-5'
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const GEMINI_MODEL = 'gemini-2.5-flash'
 
-const ANTHROPIC_TIMEOUT_MS = 8000
+// Anthropic Haiku 4.5 com 24 chunks de contexto + 2048 max_tokens output
+// pode levar 8-11s tipicamente. 12s acomoda P95 sem cair em fallback degradado.
+// Gemini e ~3-5s tipico, OpenAI gpt-4o-mini ~3-4s — totais maximos:
+//   sucesso Anthropic <= 12s
+//   Anthropic timeout + Gemini sucesso <= 12 + 7 = 19s
+//   chain completa estourar = 25s (raro, so quando ambos lentos)
+const ANTHROPIC_TIMEOUT_MS = 12000
 const GEMINI_TIMEOUT_MS = 7000
 const OPENAI_TIMEOUT_MS = 6000
 
