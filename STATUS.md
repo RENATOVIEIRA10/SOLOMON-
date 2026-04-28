@@ -266,6 +266,20 @@ Atualizar a cada sessao que muda o scoreboard ou fecha um blocker. Commit messag
 
 **Saldo Anthropic 2026-04-28: $8** — reservado pra Sessao 2 (Citations API dev/test).
 
+**Smoke prod pos-Sessao 1 (commit 8bacaee, timeout 15s/8s/6s):**
+
+| Q | Tipo | Tempo | Model | Sources | Insurers no answer | Status |
+|---|---|---|---|---|---|---|
+| Q3 "TM10 capital de 500 mil 35 anos M" | rate fast-path | 2s | rate-table-lookup | n/a | n/a | ✅ R$ 2.600,45/ano correto, parser fix OK |
+| Q4 "Premio WL10G" (sem dimensoes) | rate fast-path | 1s | rate-table-lookup | 40 | n/a | ✅ confidence=0.4 + [Aviso] OK |
+| Q5 "Carencia morte natural Prudential" | single-insurer RAG | 12s | claude-haiku-4-5 | 15 | 1 | ✅ resposta correta |
+| Q1 "Quais cobrem cancer?" (Padrao C) | global round-robin | 18s | claude-haiku-4-5 | 15 | **12** | ✅ tabela com TODAS 12 seguradoras |
+| Q2 "DG Prudential vs outras" (Padrao B) | cross-insurer | 25s | fallback | 17 | 1 | ⚠️ retrieval OK (17 mistura Prud+others) mas LLM estourou — Sessao 2 |
+
+**Win real Sessao 1**: Q1 saiu de "fallback 4 insurers concentradas" pra "Anthropic 12 insurers em tabela estruturada" — Padrao C entregando "Certeza absoluta" cross-insurer.
+
+**Limitacao conhecida Sessao 1**: Q2 cross-insurer (Padrao B com 17 chunks pesados) ainda cai em fallback degradado quando Anthropic e Gemini estouram timeout consecutivamente. Sessao 2 ataca via Citations API + modelo Sonnet em pre-sinistro (que tem post-validation).
+
 **Proxima sessao (Sessao 2)**: pre-sinistro hardening — Citations API + post-validation veredicto (Codex review identificou 2 CRITICAL: aceita citation/excerpt sem validar; verdict so normalizado por enum sem checar evidencia).
 
 ### Saldos de API
