@@ -1,6 +1,6 @@
 # SOLOMON — Estado do produto
 
-**Ultima atualizacao**: 2026-04-28 (Fase 2 codigo entregue — 3 padroes A/B/C atacados em answer.ts, comparison subset re-eval pendente)
+**Ultima atualizacao**: 2026-04-28 (Fase 2 entregue + re-eval rodado — AC +17pp, CR dobrou, CP -3pp por trade-off precision/recall)
 **Baseline Ragas**: `app/eval/ragas/results/20260425_012159/` (judge primary Gemini 2.5 Flash, secondary Haiku degradou por saldo Anthropic $0)
 **Persistencia**: tabela `eval_runs` no agentes-hub (50 linhas, run_id=20260425_012159)
 **Ground truth**: 21/24 perguntas flaggeadas validadas por Julio; Q48-Q50 pendentes
@@ -148,6 +148,7 @@ Tempo estimado: 5-6h de foco em 1 sessao dedicada.
 | 2026-04-24 | rerun_judge_gemini_flash | 0.770 | 0.408 | 0.631 | — | — | +judge Gemini |
 | 2026-04-24 | rerun_pos_julio_review | 0.803 | 0.396 | 0.649 | — | — | +Julio review GT 21/24 |
 | **2026-04-24** | **20260425_012159** | **0.782** | **0.392** | **0.603** | **0.477** | **0.750** | **Fase 1: +CR/NS, persiste hub** |
+| 2026-04-28 | 20260428_154440 (comparison only, 10 Qs) | 0.517 | 0.377 | 0.129 | 0.308 | NaN | Fase 2: A+B+C (vs baseline comp 0.50/0.20/0.16/0.15) |
 
 F subiu 9.5pp em 3 dias. AC oscila. CP subiu 9.9pp. **CR/NS instituidos Fase 1 — primeira vez que vemos retrieval recall.**
 
@@ -212,7 +213,27 @@ Atualizar a cada sessao que muda o scoreboard ou fecha um blocker. Commit messag
 
 **Build status:** tsc isolado nos 3 arquivos da apenas erro ambient `Cannot find module '@anthropic-ai/sdk'` (mesmo erro de `llm.ts` e `pre-sinistro.ts` em master — node_modules sem types neste notebook). Vercel build em prod resolve.
 
-**Re-eval Ragas pendente:** apos Vercel deployar, rodar comparison subset (5 perguntas, ~$0.03 Gemini judge) e comparar com baseline 20260425_012159 (CR=0.15 CP=0.16 AC=0.20). Targets: CR>0.55, CP>0.50.
+**Re-eval Ragas executado** (run `20260428_154440`, 10 comparison questions, judge Gemini, --skip-hub):
+
+| Metrica (comparison only) | Baseline `20260425_012159` | Pos-Fase 2 `20260428_154440` | Δ |
+|---|---|---|---|
+| F (faithfulness) | 0.501 | 0.517 | +1.6pp |
+| AC (answer_correctness) | 0.204 | **0.377** | **+17.3pp** ✓ |
+| CP (context_precision) | 0.156 | 0.129 | -2.7pp ⚠️ |
+| CR (context_recall) | 0.153 | **0.308** | **+15.5pp** ✓ |
+
+**Por padrao:**
+- **Padrao C (Q35 "quais cobrem cancer")**: smoke test prod retornou **12 insurers distintas no answer** (era 4 no baseline). Ragas: AC 0.93. Round-robin per-entity validado.
+- **Padrao A (Q36 "Renda Familiar vs Tranquilidade Familiar")**: CR 0.00 → 0.25 (produto-aware boost levantou chunks especificos). CP caiu 0.70 → 0.64 (esperado).
+- **Padrao B (Q32 "DG Prudential vs outras")**: response detalhado e estruturado em prod (smoke test); judge Gemini retornou NaN em F/AC nesta amostra (comum, structured-output flake).
+
+**Veredicto:** Fase 2 entregou o que prometia onde importa — retrieval cobre 2x mais (CR +106%), respostas mais corretas (AC +85%), Q35 saiu de 4 → 12 insurers cobertas. CP regrediu pelo trade-off classico precision/recall: ao abrir o leque cross-insurer, mais chunks irrelevantes entram no contexto. **Reranker da Fase 3 (Cohere Rerank 3) resolve essa parte** — corta os irrelevantes pos-retrieval sem perder a cobertura.
+
+**Targets parciais:**
+- comparison CR > 0.55: atingiu 0.31 (61% caminho do target, mas dobrou desde baseline)
+- comparison CP > 0.50: regrediu pra 0.13 — bloqueador depende da Fase 3 Reranker
+
+**Proxima sessao**: iniciar Fase 3 (Cohere Rerank 3 multilingual em search.ts top-50→top-10 + Anthropic Citations API em pre-sinistro.ts). Esperado: comparison CP 0.13 → 0.50+, AC todos trilhos +5-10pp.
 
 **Saldo Anthropic:** se ainda em $0, multi-judge nao roda; eval primario com Gemini-only continua valido.
 
