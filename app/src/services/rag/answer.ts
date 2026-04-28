@@ -77,6 +77,22 @@ FORMATO DA SECAO "FONTES E LIMITACOES":
 DOCUMENTOS DE REFERENCIA:
 {context}`
 
+/**
+ * System prompt variant para queries comparativas (Padrao B).
+ * Substitui Passo 3+5 do template original que mandava IGNORAR chunks de
+ * outras seguradoras — em comparativo isso conflita com o objetivo. Aqui
+ * permite comparacao explicita lado-a-lado sem fundir clausulas.
+ */
+export const SYSTEM_PROMPT_COMPARE_TEMPLATE = SYSTEM_PROMPT_TEMPLATE
+  .replace(
+    'Passo 3: Se o corretor perguntou sobre a seguradora X e existem chunks de Y ou Z no contexto: IGNORE Y e Z. Use APENAS chunks de X para fundamentar a resposta.',
+    'Passo 3: Se o intent for comparativo, COMPARE explicitamente cada seguradora separadamente: "Na X...", "Na Y...", "Na Z...". Use apenas chunks da propria seguradora para cada bloco.'
+  )
+  .replace(
+    'Passo 5: NUNCA combine clausulas de seguradoras diferentes em uma mesma afirmacao.',
+    'Passo 5: Compare lado a lado, sem fundir clausulas de seguradoras diferentes em uma mesma afirmacao.'
+  )
+
 export interface AskOptions {
   brokerId?: string
   channel?: 'whatsapp' | 'dashboard' | 'api'
@@ -121,7 +137,9 @@ export async function ask(
 
   // 0. Detect insurer names in the question for targeted search
   const mentionedInsurers = detectInsurers(question)
-  console.log(`[rag/ask] Mentioned insurers: ${mentionedInsurers.length > 0 ? mentionedInsurers.join(', ') : 'none (global search)'}`)
+  // Padrao B intent: 1 insurer mencionada + query pede comparacao com "outras"
+  const compareIntent = mentionedInsurers.length === 1 && questionImpliesOtherInsurers(question)
+  console.log(`[rag/ask] Mentioned insurers: ${mentionedInsurers.length > 0 ? mentionedInsurers.join(', ') : 'none (global search)'} | compareIntent=${compareIntent}`)
 
   // 0a. Rate lookup fast-path: se a pergunta e sobre TAXA/PREMIO e temos
   // seguradora detectada, consulta insurer_rate_tables direto — bypass LLM.
@@ -155,12 +173,29 @@ export async function ask(
           limit: 40,
         })
         if (rateRows.length > 0) {
-          const answer = formatRateAnswer({
+          // Confidence gate: rate fast-path so retorna 1.0 se temos
+          // dimensoes minimas (age+capital OU productCode+age+gender+capital).
+          // Senao, abaixa pra 0.4 e marca lowConfidence — o corretor
+          // pode receber 40 linhas com filtros frouxos sem o selo de
+          // "certeza absoluta".
+          const hasAgeAndCapital = intent.age !== undefined && intent.capital !== undefined
+          const hasProductCodeFull =
+            intent.productCode !== undefined &&
+            intent.age !== undefined &&
+            intent.gender !== undefined &&
+            intent.capital !== undefined
+          const hasEnoughDimensions = hasAgeAndCapital || hasProductCodeFull
+          const confidence = hasEnoughDimensions ? 1.0 : 0.4
+
+          let answer = formatRateAnswer({
             insurerName: mentionedInsurers[0],
             intent,
             rows: rateRows,
           })
-          console.log(`[rag/ask] Rate fast-path HIT — ${rateRows.length} rows. Bypassing LLM.`)
+          if (!hasEnoughDimensions) {
+            answer = `> [Aviso] Consulta com parametros incompletos. Informe idade, sexo e capital segurado para garantir taxa correta.\n\n${answer}`
+          }
+          console.log(`[rag/ask] Rate fast-path HIT — ${rateRows.length} rows, confidence=${confidence}. Bypassing LLM.`)
           return {
             answer,
             citations: [],
@@ -168,10 +203,10 @@ export async function ask(
             model: 'rate-table-lookup',
             tokensUsed: 0,
             latencyMs: Date.now() - startTime,
-            confidenceScore: 1.0,
-            avgSimilarity: 1.0,
+            confidenceScore: confidence,
+            avgSimilarity: confidence,
             sourceCount: rateRows.length,
-            lowConfidence: false,
+            lowConfidence: !hasEnoughDimensions,
           }
         }
         console.log(`[rag/ask] Rate fast-path MISS — no rows, falling through to RAG.`)
@@ -195,7 +230,8 @@ export async function ask(
     // the specific product mentioned in the query (Q36 "Renda Familiar") win
     // over generic-product chunks (Vida Viva).
     const insurerIds = await resolveInsurerIds(mentionedInsurers)
-    const perInsurer = Math.ceil(RAG.topK / mentionedInsurers.length)
+    // compareIntent: reserva 5 slots pra "others" no Padrao B; senao, divide topK pelas mencionadas.
+    const perInsurer = compareIntent ? Math.max(1, RAG.topK - 5) : Math.ceil(RAG.topK / mentionedInsurers.length)
     const perInsurerFetch = Math.min(RAG.fetchK, perInsurer * 3)
     const queryTokens = tokenizeForProductMatch(question)
     const queryEmbedding = await embedQuery(expandedQuery)
@@ -224,7 +260,7 @@ export async function ask(
     // detectInsurers retorna so a mencionada, multi-insurer search nao
     // fornece "outras". Disparar round-robin cross-insurer EXCLUINDO a
     // mencionada e mergear pra dar contexto comparativo.
-    if (mentionedInsurers.length === 1 && questionImpliesOtherInsurers(question)) {
+    if (compareIntent) {
       const mentionedIdSet = new Set<string>()
       for (const ids of (await resolveInsurerIds(mentionedInsurers)).values()) {
         ids.forEach((id) => mentionedIdSet.add(id))
@@ -233,8 +269,13 @@ export async function ask(
         excludeInsurerIds: mentionedIdSet,
         perInsurerTopK: 1,
       })
-      console.log(`[rag/ask] Padrao B: +${others.length} cross-insurer chunks (others)`)
-      searchResults.push(...others)
+      // Reserva 5-7 slots pros "others" — sem isso o slice de topK
+      // adiante corta tudo (bug HIGH 13). Cap total = topK + 5.
+      const otherSlots = Math.min(7, Math.max(5, RAG.topK + 5 - searchResults.length))
+      const selectedOthers = others.slice(0, otherSlots)
+      const totalLimit = RAG.topK + 5
+      console.log(`[rag/ask] Padrao B: +${selectedOthers.length}/${others.length} cross-insurer chunks (others), total cap ${totalLimit}`)
+      searchResults = [...searchResults, ...selectedOthers].slice(0, totalLimit)
     }
   } else if (options?.insurerFilter) {
     // Caller forced a single-insurer filter — honor it without round-robin.
@@ -242,12 +283,17 @@ export async function ask(
       insurerId: options.insurerFilter,
       topK: RAG.globalTopK,
     })
-  } else {
-    // Padrao C: global search round-robin per-entity. 1 mini-search por
-    // insurer ativa em paralelo (top-2 cada) merged + sorted, em vez de pulled
-    // 15 chunks de 1 chamada pgvector onde embedding similarity concentra em
-    // 2-3 insurers (Q35 retornava 4/12 ativas). Diversidade real cross-insurer.
+  } else if (questionImpliesComparison(question)) {
+    // Padrao C: round-robin per-entity SO em queries comparativas explicitas.
+    // 1 mini-search por insurer ativa em paralelo (top-2 cada) merged + sorted.
+    // Sem isso, concept/edge queries despejavam 24 chunks irrelevantes no LLM.
     searchResults = await roundRobinGlobalSearch(expandedQuery)
+  } else {
+    // Concept / edge / general queries sem insurer: busca focada (topK=15)
+    // mantem chunks no mesmo cluster semantico — comportamento pre-Fase 2.
+    searchResults = await semanticSearch(expandedQuery, {
+      topK: RAG.globalTopK,
+    })
   }
 
   // 1b. Fallback: structured search on products/coverages — so roda quando
@@ -270,7 +316,9 @@ export async function ask(
   // 2b. Diversify results — ensure coverage across insurers (only for global search)
   if (mentionedInsurers.length === 0) {
     searchResults = diversifyResults(searchResults, enrichment, mentionedInsurers)
-  } else if (searchResults.length > RAG.topK) {
+  } else if (!compareIntent && searchResults.length > RAG.topK) {
+    // Single-insurer ou multi-insurer normal: trim pra topK.
+    // CompareIntent ja respeita totalLimit=topK+5 acima — NAO cortar aqui.
     searchResults = searchResults.slice(0, RAG.topK)
   }
 
@@ -288,8 +336,10 @@ export async function ask(
   const confidenceScore = Math.round((avgSimilarity * 0.6 + sourceFactor * 0.4) * 100) / 100
   const lowConfidence = confidenceScore < LOW_CONFIDENCE_THRESHOLD
 
-  // 4. Build system prompt
-  const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace('{context}', contextText || 'Nenhum documento encontrado.')
+  // 4. Build system prompt — variant comparativa quando Padrao B disparou,
+  // pra nao mandar LLM "ignorar Y/Z" justamente quando precisa comparar.
+  const promptTemplate = compareIntent ? SYSTEM_PROMPT_COMPARE_TEMPLATE : SYSTEM_PROMPT_TEMPLATE
+  const systemPrompt = promptTemplate.replace('{context}', contextText || 'Nenhum documento encontrado.')
 
   // 5. Build user message (with optional conversation history)
   const userMessage = buildUserMessage(question, options?.conversationHistory)
@@ -590,6 +640,10 @@ export async function roundRobinGlobalSearch(
  * "concorrentes" etc. detectInsurers alone returns just the named one and
  * the multi-insurer path stays narrow — this pattern triggers the cross-
  * insurer round-robin to enrich the context.
+ *
+ * Restringido em 2026-04-28: gatilhos amplos ("que oferecem", "no mercado",
+ * "varias seguradoras", "quais seguradoras") removidos pra evitar disparo
+ * em queries nao comparativas que apenas mencionam mercado.
  */
 export function questionImpliesOtherInsurers(question: string): boolean {
   const q = stripAccentsLower(question)
@@ -598,11 +652,32 @@ export function questionImpliesOtherInsurers(question: string): boolean {
     /\bdemais\s+(?:seguradoras?|operadoras?)\b/,
     /\bvs?\s+outras?\b/,
     /\bno\s+(?:seu\s+)?catalogo\b/,
-    /\bquais\s+(?:seguradoras?|operadoras?)\b/,
     /\b(?:concorrentes?|concorrencia)\b/,
-    /\bno\s+mercado\b/,
-    /\bvarias\s+seguradoras?\b/,
-    /\bque\s+oferecem\b/,
+  ]
+  return triggers.some((re) => re.test(q))
+}
+
+/**
+ * Padrao C scope detector: stricter than questionImpliesOtherInsurers.
+ * Usado quando NENHUMA seguradora foi mencionada — define se a query merece
+ * fan-out global (round-robin per-entity) ou busca focada (semanticSearch
+ * single-call). Concept/edge queries sem comparacao explicita devem
+ * permanecer focadas.
+ */
+export function questionImpliesComparison(question: string): boolean {
+  if (detectInsurers(question).length >= 2) return true
+
+  const q = stripAccentsLower(question)
+  const triggers = [
+    /\bcompare\b/,
+    /\bcomparar\b/,
+    /\bversus\b/,
+    /\bvs\.?\b/,
+    /\bdiferenca\s+entre\b/,
+    /\bqual\s+(?:e\s+)?melhor\b/,
+    /\bmais\s+barato\b/,
+    /\bno\s+(?:seu\s+)?catalogo\b/,
+    /\bquais\s+(?:seguradoras?|operadoras?)\b/,
   ]
   return triggers.some((re) => re.test(q))
 }

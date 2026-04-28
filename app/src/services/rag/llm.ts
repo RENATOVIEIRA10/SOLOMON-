@@ -30,6 +30,10 @@ const ANTHROPIC_MODEL = 'claude-haiku-4-5'
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const GEMINI_MODEL = 'gemini-2.5-flash'
 
+const ANTHROPIC_TIMEOUT_MS = 8000
+const GEMINI_TIMEOUT_MS = 7000
+const OPENAI_TIMEOUT_MS = 6000
+
 // ---------------------------------------------------------------------------
 // Langfuse singleton (instantiated only if keys are present)
 // ---------------------------------------------------------------------------
@@ -95,6 +99,20 @@ export async function callLLM(
     }
   }
 
+  return callLLMFallbackWithoutAnthropic(systemPrompt, userMessage, start, trace)
+}
+
+/**
+ * Fallback chain Gemini -> OpenAI, used both by callLLM (when Anthropic fails)
+ * and by callLLMStream fallback path (so streaming retry doesn't hammer
+ * Anthropic again on outage).
+ */
+async function callLLMFallbackWithoutAnthropic(
+  systemPrompt: string,
+  userMessage: string,
+  start: number,
+  trace?: ReturnType<NonNullable<typeof langfuse>['trace']>
+): Promise<LLMResponse> {
   // 2. Try Gemini
   const geminiKey = process.env.GEMINI_API_KEY
   if (geminiKey) {
@@ -162,13 +180,23 @@ async function callAnthropic(
 ): Promise<Omit<LLMResponse, 'latencyMs'>> {
   const client = new Anthropic({ apiKey })
 
-  const msg = await client.messages.create({
-    model: ANTHROPIC_MODEL,
-    max_tokens: 2048,
-    temperature: 0.3,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: userMessage }],
-  })
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS)
+  let msg
+  try {
+    msg = await client.messages.create(
+      {
+        model: ANTHROPIC_MODEL,
+        max_tokens: 2048,
+        temperature: 0.3,
+        system: systemPrompt,
+        messages: [{ role: 'user', content: userMessage }],
+      },
+      { signal: controller.signal }
+    )
+  } finally {
+    clearTimeout(timeoutId)
+  }
 
   const firstBlock = msg.content[0]
   const text = firstBlock?.type === 'text' ? firstBlock.text : ''
@@ -211,11 +239,19 @@ async function callGemini(
     },
   }
 
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  })
+  const geminiController = new AbortController()
+  const geminiTimeoutId = setTimeout(() => geminiController.abort(), GEMINI_TIMEOUT_MS)
+  let response
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: geminiController.signal,
+    })
+  } finally {
+    clearTimeout(geminiTimeoutId)
+  }
 
   if (!response.ok) {
     const errorBody = await response.text()
@@ -251,15 +287,25 @@ async function callOpenAI(
   const client = new OpenAI({ apiKey })
   const model = 'gpt-4o-mini'
 
-  const completion = await client.chat.completions.create({
-    model,
-    temperature: 0.3,
-    max_tokens: 2048,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      { role: 'user', content: userMessage },
-    ],
-  })
+  const openaiController = new AbortController()
+  const openaiTimeoutId = setTimeout(() => openaiController.abort(), OPENAI_TIMEOUT_MS)
+  let completion
+  try {
+    completion = await client.chat.completions.create(
+      {
+        model,
+        temperature: 0.3,
+        max_tokens: 2048,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+      },
+      { signal: openaiController.signal }
+    )
+  } finally {
+    clearTimeout(openaiTimeoutId)
+  }
 
   const text = completion.choices[0]?.message?.content
   if (!text) {
@@ -314,25 +360,31 @@ export async function* callLLMStream(
   })
 
   const anthropicKey = process.env.ANTHROPIC_API_KEY
+  let emittedDelta = false
   if (anthropicKey) {
     const gen = trace?.generation({
       name: 'anthropic.haiku.stream',
       model: ANTHROPIC_MODEL,
       input: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
     })
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS)
     try {
       let fullText = ''
       yield { type: 'start', model: ANTHROPIC_MODEL }
 
       const client = new Anthropic({ apiKey: anthropicKey })
 
-      const stream = client.messages.stream({
-        model: ANTHROPIC_MODEL,
-        max_tokens: 2048,
-        temperature: 0.3,
-        system: systemPrompt,
-        messages: [{ role: 'user', content: userMessage }],
-      })
+      const stream = client.messages.stream(
+        {
+          model: ANTHROPIC_MODEL,
+          max_tokens: 2048,
+          temperature: 0.3,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: userMessage }],
+        },
+        { signal: controller.signal }
+      )
 
       for await (const event of stream) {
         if (
@@ -342,6 +394,7 @@ export async function* callLLMStream(
           const delta = event.delta.text
           fullText += delta
           yield { type: 'delta', text: delta }
+          emittedDelta = true
         }
       }
 
@@ -366,12 +419,22 @@ export async function* callLLMStream(
     } catch (error) {
       const msg = (error as Error).message
       gen?.end({ level: 'ERROR', statusMessage: msg })
-      console.warn('[rag/llm-stream] Anthropic stream failed, falling back to non-streaming:', msg)
+      // Se ja emitiu pelo menos 1 delta, NAO fallback — propagar erro pro
+      // caller (evita resposta duplicada). So fallback se Anthropic falhou
+      // antes de qualquer token.
+      if (emittedDelta) {
+        await safeFlush()
+        throw error
+      }
+      console.warn('[rag/llm-stream] Anthropic stream failed (pre-delta), falling back:', msg)
+    } finally {
+      clearTimeout(timeout)
     }
   }
 
-  // Fallback: non-streaming (Gemini or OpenAI) — emit as single delta
-  const result = await callLLM(systemPrompt, userMessage)
+  // Fallback: non-streaming (Gemini or OpenAI) — emit as single delta.
+  // PULA Anthropic (ja falhou ou sem key) — usa fallback chain direto.
+  const result = await callLLMFallbackWithoutAnthropic(systemPrompt, userMessage, start, trace)
   trace?.update({ output: result.text, metadata: { fellback: true } })
   await safeFlush()
 

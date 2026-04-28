@@ -74,8 +74,9 @@ const RATE_KEYWORDS = [
 
 /** Regex: idade explicita em anos. */
 const AGE_RE = /\b(\d{1,2})\s*anos?\b/i
-/** Regex: idade sem sufixo quando precedida por "idade"/"com" */
-const AGE_CTX_RE = /(?:idade\s*(?:de\s*)?|com\s+|de\s+)(\d{2})\b/i
+/** Regex: idade sem sufixo apenas com contexto forte antes do numero.
+ *  Removido o `de NN` generico que pegava "capital de 50 mil" como idade=50. */
+const AGE_CTX_RE = /\b(?:idade|cliente|segurado|pessoa|homem|mulher|feminino|masculino)\s*(?:de|com|:)?\s*(\d{2})\b/i
 /** Regex: idade apos gender ("homem 40", "mulher 35"). Corretor frequente omite "anos". */
 const AGE_GENDER_RE = /\b(?:homem|mulher|masculino|feminino|masc|fem)\s+(\d{2})\b/i
 
@@ -378,6 +379,11 @@ function parseBrazilianNumber(s: string): number {
     return parseFloat(s.replace(/\./g, '').replace(',', '.'))
   }
   if (hasComma && !hasDot) {
+    // "500,000" e "1,234,567" sao formato US thousands; com 3 digitos apos
+    // virgula tratar como separador de milhar pra evitar virar decimal 500.
+    if (/^\d{1,3}(?:,\d{3})+$/.test(s)) {
+      return parseFloat(s.replace(/,/g, ''))
+    }
     return parseFloat(s.replace(',', '.'))
   }
   if (hasDot && !hasComma) {
