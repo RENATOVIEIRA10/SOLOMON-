@@ -28,6 +28,32 @@ Este arquivo e committed. Qualquer Claude em qualquer maquina le isto na primeir
 
 Nota: existe tambem `/root/solomon/app/` (sem git, timestamp antigo 2026-04-14) — e uma copia stale de dev pre-unificacao do repo. Nao usar, nao comitar de la. Candidato a limpeza: consolidar PM2 `solomon-web` apontando para `/root/solomon/repo/app/` e remover o `/root/solomon/app/` antigo.
 
+## Arquitetura macro
+
+SOLOMON tem **3 trilhos** que compartilham o mesmo retrieval (pgvector) mas usam pipelines diferentes:
+
+1. **Cotacao deterministica** (`app/src/services/rag/rate-lookup.ts`) — fast-path zero LLM. Detecta produtos com tabela de premio (Prudential, MAG) e retorna calculo direto do DB. F=1.00 sempre.
+2. **Oraculo conceitual** (`answer.ts` + `compare.ts` + `context-builder.ts` + `llm.ts`) — RAG vanilla pra perguntas sobre coberturas, exclusoes, comparativos. LLM = Claude Haiku 4.5.
+3. **Pre-sinistro** (`pre-sinistro.ts`) — analisa evento + apolice, devolve veredicto COBERTO/NAO_COBERTO/RISCO + checklist. LLM = Claude Sonnet 4.6 (alta consequencia juridica).
+
+**API routes principais:**
+- `POST /api/ask` — entrada do oraculo (chat + comparison)
+- `POST /api/ask/stream` — versao SSE (dashboard)
+- `POST /api/pre-sinistro` — trilho 3
+- `POST /api/webhook/whatsapp` — webhook Meta Cloud API
+- `POST /api/compare` — trilho 2 path multi-insurer
+
+**Fluxo eval e scoreboard** (instituido 2026-04-24):
+- `STATUS.md` na raiz e o **scoreboard canonico** — atualizar a cada fase fechada.
+- `app/eval/ragas/` tem 49 perguntas validadas por Julio (corretor ancora) e 5 metricas Ragas: faithfulness (F), answer_correctness (AC), context_precision (CP), context_recall (CR), noise_sensitivity (NS).
+- Cada run grava 1 linha por pergunta na tabela `eval_runs` do agentes-hub (`zwnlpumonvkrghoxnddd`); views uteis: `eval_latest_scoreboard`, `eval_recent_regressions`.
+
+**Ingestao de seguradoras** (`app/scripts/`):
+- `ingest-opin.ts` — APIs Open Insurance (Prudential, Bradesco, etc.)
+- `crawl-pdfs-playwright.ts` + `crawl-sites.ts` — MAG/MetLife/Azos (sem OPIN)
+- `generate-missing-embeddings.ts` — backfill embedding pra chunks novos
+- `crawl-news.ts` — noticias setor (CQCS, Segs)
+
 ## Abertura de sessao (OBRIGATORIO)
 
 Na primeira resposta de TODA sessao nesta pasta, ANTES de qualquer outra coisa:
@@ -76,6 +102,33 @@ Na primeira resposta de TODA sessao nesta pasta, ANTES de qualquer outra coisa:
 - Webhook Vercel (nao VPS): latencia aceitavel, cold start OK, escala sozinho. NAO migrar para VPS.
 - Cliente Julio e stakeholder ancora — pendencias criticas em `shared/facts.md` do aurios-agents-workspace precisam ser fechadas antes de declarar SOLOMON "pronto".
 - Dashboard corretor (phase 3+): componentes React em `app/src/components/`, servicos RAG em `app/src/services/rag/` (compare, pre-sinistro, stream).
+
+## Comandos comuns
+
+Tudo a partir de `app/` (Next.js 16 + Turbopack, branch master):
+
+```bash
+cd app
+npm run dev            # localhost:3000 (VPS roda em 3004 via PM2 solomon-web)
+npm run build          # SEMPRE rodar antes de push (pgvector/pdf-parse quebram)
+npm run lint
+```
+
+**Eval Ragas — sempre na VPS** (notebook 4GB nao aguenta paralelo):
+
+```bash
+ssh root@104.131.187.118
+cd /root/solomon/repo/app/eval/ragas && source .venv/bin/activate
+set -a && source /root/agents/config/.env && source /root/solomon/repo/app/.env.local && set +a
+
+python run_eval.py                    # full 49 perguntas, judge default Anthropic
+JUDGE_BACKEND=gemini python run_eval.py
+python run_eval.py --multi-judge      # ensemble Gemini+Haiku, flag |delta|>0.2
+python run_eval.py --limit 3          # smoke
+python run_eval.py --skip-hub         # sem persistencia agentes-hub
+```
+
+**Migrations Supabase produto** (`ohmoyfbtfuznhlpjcbbk`): criar arquivo em `app/supabase/migrations/<YYYYMMDDHHMMSS>_<nome>.sql`, aplicar via `mcp__supabase__apply_migration` E commitar o arquivo. Migrations do agentes-hub (`zwnlpumonvkrghoxnddd`) NAO vao pro repo.
 
 ## Idioma
 
