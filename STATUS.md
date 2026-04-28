@@ -280,7 +280,32 @@ Atualizar a cada sessao que muda o scoreboard ou fecha um blocker. Commit messag
 
 **Limitacao conhecida Sessao 1**: Q2 cross-insurer (Padrao B com 17 chunks pesados) ainda cai em fallback degradado quando Anthropic e Gemini estouram timeout consecutivamente. Sessao 2 ataca via Citations API + modelo Sonnet em pre-sinistro (que tem post-validation).
 
-**Proxima sessao (Sessao 2)**: pre-sinistro hardening — Citations API + post-validation veredicto (Codex review identificou 2 CRITICAL: aceita citation/excerpt sem validar; verdict so normalizado por enum sem checar evidencia).
+### Sessao 2026-04-28 noite — Sessao 2 entregue (commit 5f913e8)
+
+**Pre-sinistro hardening end-to-end**: 6 patches CRITICAL/HIGH + Anthropic Citations API integrados em `pre-sinistro.ts`. Saiu de F=0.57 (43% claims sem fundamento) pra produto que REJEITA laudos sem evidencia.
+
+**Patches aplicados:**
+1. CRITICAL post-validation veredicto (COBERTO requer chunk com cobertura; NAO_COBERTO requer exclusao explicita; senao downgrade RISCO + rationale prefixed)
+2. CRITICAL validacao citation/excerpt (trecho deve aparecer literal em chunks; senao citation=null + riskFlag)
+3. HIGH busca paralela Promise.all + sort por similarity DESC antes do slice
+4. HIGH minimo evidencia (>=3 chunks E avg sim >= 0.50; senao RISCO pre-fabricado sem chamar LLM)
+5. HIGH match exato `resolveInsurerIdsExact` (sem substring que trazia seguradoras erradas)
+6. HIGH `productHint?` opcional (filtra chunks por metadata.product_name; sem match: RISCO)
+7. NOVO Anthropic Citations API: chunks viram documents com `citations: { enabled: true }`. Sonnet OBRIGADO a citar trechos literais via API nativa.
+
+**Smoke prod 3 casos (validado em prod commit 5f913e8):**
+
+| Caso | Verdict | Confidence | Citation | Validacao |
+|---|---|---|---|---|
+| Morte por infarto, 3 anos apolice | **COBERTO** | 0.82 | null + 3 riskFlags | post-validation OK |
+| Cancer in situ (exclusao classica) | **NAO_COBERTO** | 0.97 | "todos os cânceres não invasivos (in situ)" — LITERAL dos chunks | Citations API funcionando |
+| Suicidio nos primeiros 2 anos | **RISCO** | 0.35 | null + riskFlag "docs nao contêm clausula" + Art. 798 | Comportamento honesto |
+
+Latencia: 21-28s (Citations API overhead). Dentro de Vercel maxDuration=60s.
+
+**Saldo Anthropic pos-Sessao 2: ~$6.50** (consumiu ~$0.50 nos 3 smoke Sonnet + dev).
+
+**Proxima sessao (Sessao 3)**: Cohere Rerank 3 multilingual em search.ts (top-50→top-10) — ataca CP regredido + cron eval semanal Hermes + cache invalidation loadActiveInsurers.
 
 ### Saldos de API
 - Anthropic: **$8** (recarga 2026-04-28 noite) — reservado Sessao 2 Citations API
