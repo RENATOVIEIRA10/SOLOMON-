@@ -1,6 +1,6 @@
 # SOLOMON — Estado do produto
 
-**Ultima atualizacao**: 2026-04-24 noite (Fase 1 eval entregue: 5 metricas + persistencia hub + multi-judge)
+**Ultima atualizacao**: 2026-04-28 (Fase 2 codigo entregue — 3 padroes A/B/C atacados em answer.ts, comparison subset re-eval pendente)
 **Baseline Ragas**: `app/eval/ragas/results/20260425_012159/` (judge primary Gemini 2.5 Flash, secondary Haiku degradou por saldo Anthropic $0)
 **Persistencia**: tabela `eval_runs` no agentes-hub (50 linhas, run_id=20260425_012159)
 **Ground truth**: 21/24 perguntas flaggeadas validadas por Julio; Q48-Q50 pendentes
@@ -193,6 +193,28 @@ Atualizar a cada sessao que muda o scoreboard ou fecha um blocker. Commit messag
 2. Query decomposition com Haiku (decompoe "compare 15 seguradoras" em 15 sub-queries, ~3h)
 3. Re-rodar Ragas só comparison subset (~$0.03)
 4. Esperado: comparison CR 0.15 -> 0.55+, CP 0.16 -> 0.50+
+
+### Sessao 2026-04-28 — Fase 2 codigo entregue (re-eval pendente)
+
+**Correcao de rumo importante:** o plano original falava em "round-robin per-entity em `compare.ts`", mas o eval Ragas chama `/api/ask` (run_eval.py L35) que passa por `answer.ts`, NAO por `compare.ts` (esse so e atingido via `/api/compare` standalone). Os 3 padroes A/B/C auditados em 2026-04-24 estao todos em `answer.ts`. Fase 2 ataca la.
+
+**Implementado:**
+
+1. **search.ts** — `embedQuery` exportado + `semanticSearchWithEmbedding(embedding, options)` para callers que fazem N mini-searches com a mesma query (round-robin) embedam UMA vez e reusam.
+
+2. **answer.ts (Padrao C, Q35 "quais seguradoras cobrem cancer")** — global path agora roda `roundRobinGlobalSearch`: `loadActiveInsurers()` cacheado 5min lista 12 insurers ativas (>=50 chunks); `Promise.allSettled` fan-out 1 mini-search per insurer com `topK=2` cada, mergea + ordena por similarity. Substitui o pull unico que concentrava chunks em 2-3 insurers.
+
+3. **answer.ts (Padrao A, Q36 "Renda Familiar vs Tranquilidade Familiar")** — multi-insurer path agora `fetchK = perInsurer*3` + `boostByProductMatch`: re-rankeia chunks por overlap entre tokens da query e `metadata.product_name` (boost multiplicativo 1.0-1.5). Resolve dominacao de produtos genericos sobre produto especifico (1.84% chunks tem `product_id`, mas ~80% tem `metadata.product_name`).
+
+4. **answer.ts (Padrao B, Q32 "DG Prudential vs outras seguradoras")** — `questionImpliesOtherInsurers(q)` detecta padroes "outras seguradoras / no catalogo / concorrentes / vs outras / que oferecem". Quando true + 1 insurer mencionada, dispara `roundRobinGlobalSearch` com `excludeInsurerIds` da mencionada e `perInsurerTopK=1`, mergeando ate 11 chunks cross-insurer no contexto.
+
+5. **compare.ts** — fechou o refactor d8dc35a/a20db96 que tinha esquecido este arquivo. Saiu de OpenRouter, entrou Anthropic SDK direto (`claude-haiku-4-5`). Consistencia com `llm.ts` e `pre-sinistro.ts`. Zero refs OpenRouter no codebase agora.
+
+**Build status:** tsc isolado nos 3 arquivos da apenas erro ambient `Cannot find module '@anthropic-ai/sdk'` (mesmo erro de `llm.ts` e `pre-sinistro.ts` em master — node_modules sem types neste notebook). Vercel build em prod resolve.
+
+**Re-eval Ragas pendente:** apos Vercel deployar, rodar comparison subset (5 perguntas, ~$0.03 Gemini judge) e comparar com baseline 20260425_012159 (CR=0.15 CP=0.16 AC=0.20). Targets: CR>0.55, CP>0.50.
+
+**Saldo Anthropic:** se ainda em $0, multi-judge nao roda; eval primario com Gemini-only continua valido.
 
 **Fase 3 — Reranker + Citations API (~5h):**
 - Cohere Rerank 3 multilingual em `search.ts` (top-50 vetor → re-ordena → top-10)

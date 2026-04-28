@@ -30,8 +30,10 @@ export interface SearchOptions {
 
 /**
  * Embeds a single query string using the same model as document embeddings.
+ * Exported so callers fanning the same query across N insurers (Padrao C
+ * round-robin) embed once and reuse, avoiding N redundant OpenAI calls.
  */
-async function embedQuery(query: string): Promise<number[]> {
+export async function embedQuery(query: string): Promise<number[]> {
   const [embedding] = await embedChunks([query])
   if (!embedding) {
     throw new Error('[rag/search] Failed to generate query embedding')
@@ -48,13 +50,21 @@ export async function semanticSearch(
   query: string,
   options?: SearchOptions
 ): Promise<SearchResult[]> {
+  const queryEmbedding = await embedQuery(query)
+  return semanticSearchWithEmbedding(queryEmbedding, options)
+}
+
+/**
+ * Variant that accepts a pre-computed embedding. Used by round-robin
+ * per-entity search where the same query is fanned out across N insurers.
+ */
+export async function semanticSearchWithEmbedding(
+  queryEmbedding: number[],
+  options?: SearchOptions
+): Promise<SearchResult[]> {
   const topK = options?.topK ?? RAG.topK
   const threshold = options?.threshold ?? RAG.similarityThreshold
 
-  // 1. Embed the query
-  const queryEmbedding = await embedQuery(query)
-
-  // 2. Call pgvector RPC
   const supabase = createServiceClient()
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

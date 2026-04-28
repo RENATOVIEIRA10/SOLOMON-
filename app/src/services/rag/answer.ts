@@ -6,7 +6,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
-import { semanticSearch, type SearchResult } from './search'
+import { embedQuery, semanticSearch, semanticSearchWithEmbedding, type SearchResult } from './search'
 import { buildContext, type ContextBlock, type EnrichmentData } from './context-builder'
 import { callLLM, type LLMResponse } from './llm'
 import { extractCitations, type Citation } from './citation'
@@ -190,18 +190,26 @@ export async function ask(
   let searchResults: SearchResult[] = []
 
   if (mentionedInsurers.length > 0) {
-    // Targeted search: query each mentioned insurer separately to guarantee results
+    // Targeted search: query each mentioned insurer separately to guarantee results.
+    // Padrao A: fetch wider then re-rank by product_name overlap so chunks of
+    // the specific product mentioned in the query (Q36 "Renda Familiar") win
+    // over generic-product chunks (Vida Viva).
     const insurerIds = await resolveInsurerIds(mentionedInsurers)
     const perInsurer = Math.ceil(RAG.topK / mentionedInsurers.length)
+    const perInsurerFetch = Math.min(RAG.fetchK, perInsurer * 3)
+    const queryTokens = tokenizeForProductMatch(question)
+    const queryEmbedding = await embedQuery(expandedQuery)
 
     for (const [name, ids] of insurerIds) {
       let nameResults: SearchResult[] = []
       for (const id of ids) {
-        const r = await semanticSearch(expandedQuery, { insurerId: id, topK: perInsurer })
+        const r = await semanticSearchWithEmbedding(queryEmbedding, { insurerId: id, topK: perInsurerFetch })
         nameResults.push(...r)
       }
-      console.log(`[rag/ask] ${name}: ${nameResults.length} results (across ${ids.length} insurer row(s))`)
-      searchResults.push(...nameResults)
+      const boosted = boostByProductMatch(nameResults, queryTokens)
+      const trimmed = boosted.slice(0, perInsurer)
+      console.log(`[rag/ask] ${name}: ${nameResults.length} fetched, ${trimmed.length} after product-boost (across ${ids.length} insurer row(s))`)
+      searchResults.push(...trimmed)
     }
 
     // If targeted search found nothing, fall back to global
@@ -211,16 +219,35 @@ export async function ask(
         topK: RAG.fetchK,
       })
     }
-  } else {
-    // Global search: pulling 50 chunks cross-insurer contaminates the LLM context
-    // (causa raiz das alucinacoes 2/6 reportadas) — a regra "nao misturar" no
-    // system prompt nao salva se ja entraram chunks de outras seguradoras na
-    // entrada. Quando nao ha seguradora detectada, busca estreita (topK=15)
-    // para forcar chunks do mesmo cluster semantico.
+
+    // Padrao B (Q32): "Compare DG da Prudential com outras seguradoras".
+    // detectInsurers retorna so a mencionada, multi-insurer search nao
+    // fornece "outras". Disparar round-robin cross-insurer EXCLUINDO a
+    // mencionada e mergear pra dar contexto comparativo.
+    if (mentionedInsurers.length === 1 && questionImpliesOtherInsurers(question)) {
+      const mentionedIdSet = new Set<string>()
+      for (const ids of (await resolveInsurerIds(mentionedInsurers)).values()) {
+        ids.forEach((id) => mentionedIdSet.add(id))
+      }
+      const others = await roundRobinGlobalSearch(expandedQuery, {
+        excludeInsurerIds: mentionedIdSet,
+        perInsurerTopK: 1,
+      })
+      console.log(`[rag/ask] Padrao B: +${others.length} cross-insurer chunks (others)`)
+      searchResults.push(...others)
+    }
+  } else if (options?.insurerFilter) {
+    // Caller forced a single-insurer filter — honor it without round-robin.
     searchResults = await semanticSearch(expandedQuery, {
-      insurerId: options?.insurerFilter,
+      insurerId: options.insurerFilter,
       topK: RAG.globalTopK,
     })
+  } else {
+    // Padrao C: global search round-robin per-entity. 1 mini-search por
+    // insurer ativa em paralelo (top-2 cada) merged + sorted, em vez de pulled
+    // 15 chunks de 1 chamada pgvector onde embedding similarity concentra em
+    // 2-3 insurers (Q35 retornava 4/12 ativas). Diversidade real cross-insurer.
+    searchResults = await roundRobinGlobalSearch(expandedQuery)
   }
 
   // 1b. Fallback: structured search on products/coverages — so roda quando
@@ -420,6 +447,164 @@ export async function loadEnrichment(results: SearchResult[]): Promise<Enrichmen
   }
 
   return { insurers, products }
+}
+
+// ---------------------------------------------------------------------------
+// Product-name overlap boost (Padrao A)
+// ---------------------------------------------------------------------------
+
+const PRODUCT_MATCH_STOPWORDS = new Set([
+  'como','qual','quais','compare','comparar','versus','entre','para','com','sem',
+  'por','pelo','pela','pelos','pelas','dos','das','nos','nas','que','uma','umas',
+  'uns','foi','sao','tem','mais','menos','seguradora','seguradoras','seguro',
+  'seguros','catalogo','plano','planos','outras','outros','sobre','tipo',
+  'tipos','vida','renda','capital','idade','anos','homem','mulher','feminino',
+  'masculino','cliente','codigo','cobertura','coberturas','exclusao','exclusoes',
+  'carencia','carencias','contestabilidade','principais','diferencas','diferenca',
+  'beneficio','beneficios','assistencia','funeral','antecipacao','prazo',
+  'declaracoes','condicoes','gerais','documentos','referencias','minha','meu',
+  'meus','minhas','sua','seu','seus','suas','este','esta','estes','estas',
+])
+
+function stripAccentsLower(s: string): string {
+  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+}
+
+export function tokenizeForProductMatch(s: string): Set<string> {
+  return new Set(
+    stripAccentsLower(s)
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter((t) => t.length >= 4 && !PRODUCT_MATCH_STOPWORDS.has(t))
+  )
+}
+
+/**
+ * Re-rank chunks by overlap between query tokens and metadata.product_name
+ * tokens. Multiplicative boost (1.0 → 1.5) — keeps embedding similarity as the
+ * primary signal but breaks ties between chunks of comparable similarity in
+ * favour of the product the query actually mentions.
+ */
+export function boostByProductMatch(chunks: SearchResult[], queryTokens: Set<string>): SearchResult[] {
+  if (queryTokens.size === 0 || chunks.length === 0) return [...chunks]
+  return [...chunks]
+    .map((c) => {
+      const pname = (c.metadata?.product_name as string | undefined) ?? ''
+      if (!pname) return { ...c, similarity: c.similarity ?? 0 }
+      const ptoks = tokenizeForProductMatch(pname)
+      if (ptoks.size === 0) return { ...c, similarity: c.similarity ?? 0 }
+      let overlap = 0
+      for (const t of ptoks) if (queryTokens.has(t)) overlap++
+      const productOverlap = overlap / ptoks.size
+      const factor = 1 + 0.5 * productOverlap
+      return { ...c, similarity: (c.similarity ?? 0) * factor }
+    })
+    .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
+}
+
+// ---------------------------------------------------------------------------
+// Active insurers cache + round-robin global search (Padrao C / Padrao B)
+// ---------------------------------------------------------------------------
+
+interface ActiveInsurer { id: string; name: string }
+let activeInsurersCache: { value: ActiveInsurer[]; ts: number } | null = null
+const ACTIVE_INSURERS_TTL_MS = 5 * 60 * 1000
+
+/**
+ * Returns insurers that have at least minChunks indexed chunks. Cached for
+ * 5min to avoid hitting Supabase on every global query.
+ */
+async function loadActiveInsurers(minChunks = 50): Promise<ActiveInsurer[]> {
+  if (activeInsurersCache && Date.now() - activeInsurersCache.ts < ACTIVE_INSURERS_TTL_MS) {
+    return activeInsurersCache.value
+  }
+  const supabase = createServiceClient()
+  const { data: ins } = await supabase.from('insurers').select('id, name')
+  if (!ins) {
+    return []
+  }
+  const counts = await Promise.all(
+    ins.map(async (i) => {
+      const { count } = await supabase
+        .from('documents')
+        .select('id', { count: 'exact', head: true })
+        .eq('insurer_id', i.id)
+        .not('embedding', 'is', null)
+        .is('valid_until', null)
+      return { id: i.id, name: i.name, count: count ?? 0 }
+    })
+  )
+  const rows = counts.filter((c) => c.count >= minChunks).map(({ id, name }) => ({ id, name }))
+  activeInsurersCache = { value: rows, ts: Date.now() }
+  return rows
+}
+
+interface RoundRobinOptions {
+  excludeInsurerIds?: Set<string>
+  perInsurerTopK?: number
+}
+
+/**
+ * Round-robin per-entity global search. Embeds the query ONCE, fans out to
+ * each active insurer in parallel with topK=perInsurerTopK, merges and sorts
+ * by similarity. Caps at fetchK*2 raw chunks; downstream diversifyResults
+ * trims to RAG.topK. Optionally excludes specific insurer ids (used by Padrao
+ * B to fetch "other insurers" without re-fetching the mentioned one).
+ */
+export async function roundRobinGlobalSearch(
+  query: string,
+  opts?: RoundRobinOptions
+): Promise<SearchResult[]> {
+  const all = await loadActiveInsurers()
+  const insurers = opts?.excludeInsurerIds
+    ? all.filter((i) => !opts.excludeInsurerIds!.has(i.id))
+    : all
+  if (insurers.length === 0) {
+    return semanticSearch(query, { topK: RAG.globalTopK })
+  }
+
+  const queryEmbedding = await embedQuery(query)
+  const perInsurerTopK = opts?.perInsurerTopK ?? 2
+
+  const settled = await Promise.allSettled(
+    insurers.map((i) =>
+      semanticSearchWithEmbedding(queryEmbedding, { insurerId: i.id, topK: perInsurerTopK })
+    )
+  )
+
+  const merged: SearchResult[] = []
+  for (const r of settled) {
+    if (r.status === 'fulfilled') merged.push(...r.value)
+  }
+  merged.sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
+
+  const cap = RAG.fetchK * 2
+  const trimmed = merged.length > cap ? merged.slice(0, cap) : merged
+  console.log(`[rag/round-robin-global] ${insurers.length} insurers × ${perInsurerTopK} = ${merged.length} chunks (capped to ${trimmed.length})`)
+  return trimmed
+}
+
+/**
+ * Padrao B detector: question mentions one insurer but explicitly asks for
+ * comparison against "outras seguradoras" / "demais" / "no catalogo" /
+ * "concorrentes" etc. detectInsurers alone returns just the named one and
+ * the multi-insurer path stays narrow — this pattern triggers the cross-
+ * insurer round-robin to enrich the context.
+ */
+export function questionImpliesOtherInsurers(question: string): boolean {
+  const q = stripAccentsLower(question)
+  const triggers = [
+    /\boutras?\s+(?:seguradoras?|operadoras?)\b/,
+    /\bdemais\s+(?:seguradoras?|operadoras?)\b/,
+    /\bvs?\s+outras?\b/,
+    /\bno\s+(?:seu\s+)?catalogo\b/,
+    /\bquais\s+(?:seguradoras?|operadoras?)\b/,
+    /\b(?:concorrentes?|concorrencia)\b/,
+    /\bno\s+mercado\b/,
+    /\bvarias\s+seguradoras?\b/,
+    /\bque\s+oferecem\b/,
+  ]
+  return triggers.some((re) => re.test(q))
 }
 
 /**

@@ -6,10 +6,12 @@
  * Depois, LLM compara e destaca diferencas.
  */
 
-import OpenAI from "openai";
+import Anthropic from "@anthropic-ai/sdk";
 import { semanticSearch } from "./search";
 import { buildContext } from "./context-builder";
 import { resolveInsurerIds, loadEnrichment } from "./answer";
+
+const ANTHROPIC_MODEL = "claude-haiku-4-5";
 
 export interface CompareInput {
   insurerNames: string[]; // 2-3 seguradoras
@@ -138,20 +140,13 @@ export async function compareInsurers(
   const enrichment = await loadEnrichment(uniqResults);
   const { contextText, sources } = buildContext(uniqResults, enrichment);
 
-  // 5. LLM call
-  const openrouterKey = process.env.OPENROUTER_API_KEY;
-  if (!openrouterKey) {
-    throw new Error("OPENROUTER_API_KEY nao configurada");
+  // 5. LLM call (Anthropic direto — alinhado ao refactor d8dc35a / a20db96)
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
+  if (!anthropicKey) {
+    throw new Error("ANTHROPIC_API_KEY nao configurada");
   }
 
-  const client = new OpenAI({
-    apiKey: openrouterKey,
-    baseURL: "https://openrouter.ai/api/v1",
-    defaultHeaders: {
-      "HTTP-Referer": "https://solomon.aurios.com.br",
-      "X-Title": "SOLOMON - Comparador",
-    },
-  });
+  const client = new Anthropic({ apiKey: anthropicKey });
 
   const userMessage = `Compare estas seguradoras para ${input.productType}:
 
@@ -163,17 +158,16 @@ Retorne JSON estruturado com as dimensoes comparativas.`;
 
   const systemPrompt = SYSTEM_PROMPT.replace("{context}", contextText);
 
-  const completion = await client.chat.completions.create({
-    model: "anthropic/claude-haiku-4.5",
+  const completion = await client.messages.create({
+    model: ANTHROPIC_MODEL,
     temperature: 0.2,
     max_tokens: 3000,
-    messages: [
-      { role: "system", content: systemPrompt },
-      { role: "user", content: userMessage },
-    ],
+    system: systemPrompt,
+    messages: [{ role: "user", content: userMessage }],
   });
 
-  const raw = completion.choices[0]?.message?.content ?? "{}";
+  const firstBlock = completion.content[0];
+  const raw = firstBlock?.type === "text" ? firstBlock.text : "{}";
   const parsed = extractJson<{
     dimensions?: CompareDimension[];
     summary?: string;
