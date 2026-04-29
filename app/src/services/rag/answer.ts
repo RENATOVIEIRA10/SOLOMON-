@@ -311,10 +311,16 @@ export async function ask(
   }
 
   // 1c. Cohere Rerank 3.5 (Sessao 3, 2026-04-28): cross-encoder corta ruido
-  // pos-retrieval mantendo cobertura. Ataca CP regredido pelo Padrao C/B
-  // (era 0.13 em comparison subset). Tolerante: se COHERE_API_KEY ausente
-  // ou Cohere falha, retorna similarity order — sem regressao.
-  if (searchResults.length > RAG.rerankK) {
+  // pos-retrieval. Tolerante: se COHERE_API_KEY ausente ou Cohere falha,
+  // retorna similarity order.
+  //
+  // SKIP em queries comparativas (Padrao B/C): preservar diversidade
+  // cross-insurer no contexto LLM. Sem skip, fallback slice(0, topN) corta
+  // 12 insurers do Padrao C pra 6 (regressao). Mesmo com Cohere ativo,
+  // top-10 por relevancia tende a concentrar.
+  const isComparativeGlobal = mentionedInsurers.length === 0 && questionImpliesComparison(question)
+  const skipRerank = compareIntent || isComparativeGlobal
+  if (!skipRerank && searchResults.length > RAG.rerankK) {
     searchResults = await rerankWithCohere(question, searchResults, RAG.rerankK)
   }
 
