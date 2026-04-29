@@ -39,8 +39,9 @@ export const RAG = {
   globalTopK: 15,
   /** Apos Cohere Rerank, manter top-N pra contexto LLM. Reranker corta
    *  ruido pos-retrieval mantendo cobertura — ataca CP regredido pelo
-   *  Padrao C (Sessao 3, 2026-04-28). */
-  rerankK: 10,
+   *  Padrao C (Sessao 3, 2026-04-28). 12 acomoda edge/pre_sinistro
+   *  que se beneficiam de chunks atipicos em rank 11-12. */
+  rerankK: 12,
   /** Modelo Cohere Rerank usado em searchAndRerank. */
   rerankModel: 'rerank-v3.5',
   similarityThreshold: 0.35,

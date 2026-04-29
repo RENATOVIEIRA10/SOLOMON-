@@ -314,12 +314,15 @@ export async function ask(
   // pos-retrieval. Tolerante: se COHERE_API_KEY ausente ou Cohere falha,
   // retorna similarity order.
   //
-  // SKIP em queries comparativas (Padrao B/C): preservar diversidade
-  // cross-insurer no contexto LLM. Sem skip, fallback slice(0, topN) corta
-  // 12 insurers do Padrao C pra 6 (regressao). Mesmo com Cohere ativo,
-  // top-10 por relevancia tende a concentrar.
+  // SKIP em queries comparativas pra preservar diversidade cross-insurer:
+  // (a) Padrao B (compareIntent: 1 insurer + "outras")
+  // (b) Padrao C (global: 0 insurers + questionImpliesComparison)
+  // (c) Multi-insurer explicito: 2+ insurers detectadas (ex: "compare X
+  //     com Y"). Sem skip aqui, eval pos-Cohere mostrou CR comparison
+  //     despencar -0.21pp porque Cohere concentra top-N em 1-2 insurers.
+  const isMultiInsurerExplicit = mentionedInsurers.length >= 2
   const isComparativeGlobal = mentionedInsurers.length === 0 && questionImpliesComparison(question)
-  const skipRerank = compareIntent || isComparativeGlobal
+  const skipRerank = compareIntent || isComparativeGlobal || isMultiInsurerExplicit
   if (!skipRerank && searchResults.length > RAG.rerankK) {
     searchResults = await rerankWithCohere(question, searchResults, RAG.rerankK)
   }
