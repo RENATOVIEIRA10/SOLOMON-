@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Search, User, Mail, Phone, Trash2, X } from "lucide-react";
-import { motion } from "framer-motion";
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -89,24 +89,42 @@ export function ClientsView() {
       </div>
 
       {/* List */}
-      {loading ? (
-        <p className="text-sm text-solomon-cream-muted">Carregando...</p>
-      ) : filtered.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <User className="h-8 w-8 text-solomon-cream-muted/40 mx-auto mb-3" />
-            <p className="text-solomon-cream-muted mb-4">
-              {query ? "Nenhum cliente encontrado." : "Você ainda não cadastrou clientes."}
-            </p>
-            {!query && (
-              <Button onClick={() => setDialogOpen(true)} variant="outline">
-                <Plus className="h-4 w-4" />
-                Cadastrar primeiro cliente
-              </Button>
-            )}
-          </CardContent>
-        </Card>
-      ) : (
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.p
+            key="loading"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="text-sm text-solomon-cream-muted"
+          >
+            Carregando...
+          </motion.p>
+        ) : filtered.length === 0 ? (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Card>
+              <CardContent className="py-12 text-center">
+                <User className="h-8 w-8 text-solomon-cream-muted/40 mx-auto mb-3" />
+                <p className="text-solomon-cream-muted mb-4">
+                  {query ? "Nenhum cliente encontrado." : "Você ainda não cadastrou clientes."}
+                </p>
+                {!query && (
+                  <Button onClick={() => setDialogOpen(true)} variant="outline">
+                    <Plus className="h-4 w-4" />
+                    Cadastrar primeiro cliente
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered.map((c) => (
             <motion.div
@@ -166,7 +184,8 @@ export function ClientsView() {
             </motion.div>
           ))}
         </div>
-      )}
+        )}
+      </AnimatePresence>
 
       <ClientFormDialog
         open={dialogOpen}

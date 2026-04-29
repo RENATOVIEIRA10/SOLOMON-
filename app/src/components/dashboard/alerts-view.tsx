@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { ExternalLink, Bell } from "lucide-react";
-import { motion } from "framer-motion";
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -65,16 +65,34 @@ export function AlertsView() {
         </p>
       </header>
 
-      {loading ? (
-        <p className="text-sm text-solomon-cream-muted">Carregando...</p>
-      ) : alerts.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Bell className="h-8 w-8 text-solomon-cream-muted/40 mx-auto mb-3" />
-            <p className="text-solomon-cream-muted">Sem alertas no momento.</p>
-          </CardContent>
-        </Card>
-      ) : (
+      <AnimatePresence mode="wait">
+        {loading ? (
+          <motion.p
+            key="loading"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            className="text-sm text-solomon-cream-muted"
+          >
+            Carregando...
+          </motion.p>
+        ) : alerts.length === 0 ? (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Bell className="h-8 w-8 text-solomon-cream-muted/40 mx-auto mb-3" />
+                <p className="text-solomon-cream-muted">Sem alertas no momento.</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : (
         <ul className="flex flex-col gap-3">
           {alerts.map((alert, i) => {
             const meta = TYPE_META[alert.type] ?? {
@@ -130,7 +148,8 @@ export function AlertsView() {
             );
           })}
         </ul>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

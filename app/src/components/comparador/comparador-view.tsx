@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   TrendingUp,
   TrendingDown,
@@ -165,14 +165,24 @@ export function ComparadorView() {
         </CardContent>
       </Card>
 
-      {error && (
-        <Card className="border-destructive/40 bg-destructive/5 mb-6">
-          <CardContent className="py-4 flex items-start gap-3">
-            <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-            <p className="text-sm text-solomon-cream">{error}</p>
-          </CardContent>
-        </Card>
-      )}
+      <AnimatePresence mode="wait">
+        {error && (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Card className="border-destructive/40 bg-destructive/5 mb-6">
+              <CardContent className="py-4 flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+                <p className="text-sm text-solomon-cream">{error}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {result && <CompareTable result={result} />}
     </div>

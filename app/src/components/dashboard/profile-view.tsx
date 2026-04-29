@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Check, User, Phone, Mail, FileText, IdCard } from "lucide-react";
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -157,12 +158,21 @@ export function ProfileView() {
               <Button type="submit" disabled={saving}>
                 {saving ? "Salvando..." : "Salvar alterações"}
               </Button>
-              {saved && (
-                <span className="inline-flex items-center gap-1.5 text-xs text-solomon-gold">
-                  <Check className="h-3.5 w-3.5" />
-                  Alterações salvas
-                </span>
-              )}
+              <AnimatePresence mode="wait">
+                {saved && (
+                  <motion.span
+                    key="saved"
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -4 }}
+                    transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                    className="inline-flex items-center gap-1.5 text-xs text-solomon-gold"
+                  >
+                    <Check className="h-3.5 w-3.5" />
+                    Alterações salvas
+                  </motion.span>
+                )}
+              </AnimatePresence>
             </div>
           </CardContent>
         </Card>

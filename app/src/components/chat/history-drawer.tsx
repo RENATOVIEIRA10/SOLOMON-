@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
+import { motion, AnimatePresence } from "framer-motion";
 import { History, X, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,20 +65,36 @@ export function HistoryDrawer({
           </div>
 
           <div className="overflow-y-auto h-[calc(100dvh-80px)] px-3 py-3">
-            {loading && (
-              <p className="text-center text-xs text-solomon-cream-muted py-8">
-                Carregando...
-              </p>
-            )}
-            {!loading && items.length === 0 && (
-              <div className="flex flex-col items-center gap-3 py-12 text-center text-solomon-cream-muted">
-                <MessageSquare className="h-8 w-8 opacity-40" />
-                <p className="text-sm">Nenhuma consulta ainda.</p>
-                <p className="text-xs opacity-70">
-                  Suas próximas perguntas aparecerão aqui.
-                </p>
-              </div>
-            )}
+            <AnimatePresence mode="wait">
+              {loading && (
+                <motion.p
+                  key="loading"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+                  className="text-center text-xs text-solomon-cream-muted py-8"
+                >
+                  Carregando...
+                </motion.p>
+              )}
+              {!loading && items.length === 0 && (
+                <motion.div
+                  key="empty"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+                  className="flex flex-col items-center gap-3 py-12 text-center text-solomon-cream-muted"
+                >
+                  <MessageSquare className="h-8 w-8 opacity-40" />
+                  <p className="text-sm">Nenhuma consulta ainda.</p>
+                  <p className="text-xs opacity-70">
+                    Suas próximas perguntas aparecerão aqui.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
             <ul className="flex flex-col gap-1.5">
               {items.map((item) => (
                 <li key={item.id}>

@@ -1,17 +1,32 @@
 import Link from "next/link";
 import Image from "next/image";
-import { ArrowRight, ShieldCheck, Scale, FileSearch } from "lucide-react";
+import { ArrowRight, ShieldCheck, Check, Quote } from "lucide-react";
+import { motion } from "framer-motion";
+
+const fadeUp = {
+  initial: { opacity: 0, y: 16 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.45, ease: [0.22, 1, 0.36, 1] },
+};
+
+const staggerContainer = {
+  animate: {
+    transition: {
+      staggerChildren: 0.1,
+    },
+  },
+};
 
 export default function LandingPage() {
   return (
     <div className="relative flex min-h-dvh flex-col bg-background text-foreground overflow-hidden">
-      {/* Gradient ambience */}
+      {/* Ambiente sutil: uma só glow dourada no canto superior */}
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-0 opacity-60"
+        className="pointer-events-none absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full opacity-20"
         style={{
           background:
-            "radial-gradient(circle at 20% 0%, rgba(184,147,58,0.12) 0%, transparent 55%), radial-gradient(circle at 80% 100%, rgba(184,147,58,0.08) 0%, transparent 55%)",
+            "radial-gradient(circle, rgba(184,147,58,0.18) 0%, transparent 70%)",
         }}
       />
 
@@ -43,65 +58,426 @@ export default function LandingPage() {
         </nav>
       </header>
 
-      {/* Hero */}
-      <main className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 md:px-10 py-16 md:py-24">
-        <div className="flex flex-col items-center max-w-3xl text-center">
-          <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-solomon-gold/30 bg-solomon-graphite/60 px-4 py-1.5 text-xs uppercase tracking-[0.2em] text-solomon-gold-light backdrop-blur">
-            <span className="h-1.5 w-1.5 rounded-full bg-solomon-gold animate-pulse" />
-            Prévia por convite
+      <main className="relative z-10 flex-1">
+        {/* Hero: assimétrico, editorial */}
+        <section className="px-6 md:px-10 pt-10 md:pt-16 pb-16 md:pb-24">
+          <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
+            {/* Texto */}
+            <motion.div
+              className="lg:col-span-7"
+              initial="initial"
+              animate="animate"
+              variants={staggerContainer}
+            >
+              <motion.span
+                variants={fadeUp}
+                className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-solomon-gold/80 mb-6"
+              >
+                <span className="h-1.5 w-1.5 rounded-full bg-solomon-gold animate-pulse" />
+                Prévia por convite
+              </motion.span>
+
+              <motion.h1
+                variants={fadeUp}
+                className="font-display text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[0.95] text-solomon-cream"
+              >
+                Certeza
+                <br />
+                absoluta.
+                <br />
+                <span className="italic text-solomon-gold">Em segundos.</span>
+              </motion.h1>
+
+              <motion.p
+                variants={fadeUp}
+                className="mt-8 max-w-lg text-lg md:text-xl leading-relaxed text-solomon-cream-muted"
+              >
+                Seu consultor privado de IA para seguros de vida. Responde com
+                citação exata da cláusula — de qualquer seguradora, em tempo
+                real.
+              </motion.p>
+
+              <motion.p
+                variants={fadeUp}
+                className="mt-4 text-sm font-mono uppercase tracking-wider text-solomon-gold/80"
+              >
+                ChatGPT chuta. SOLOMON prova.
+              </motion.p>
+
+              <motion.div
+                variants={fadeUp}
+                className="mt-10 flex flex-col sm:flex-row gap-4"
+              >
+                <Link
+                  href="/signup"
+                  className="group inline-flex items-center justify-center gap-2 rounded-md bg-solomon-gold px-8 py-3.5 text-base font-medium text-solomon-black transition-all hover:bg-solomon-gold-light hover:shadow-lg hover:shadow-solomon-gold/20"
+                >
+                  Solicitar acesso
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                </Link>
+                <Link
+                  href="/chat"
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-solomon-gold/30 bg-solomon-graphite/50 px-8 py-3.5 text-base font-medium text-solomon-cream transition-colors hover:border-solomon-gold hover:bg-solomon-graphite"
+                >
+                  Ver demonstração
+                </Link>
+              </motion.div>
+            </motion.div>
+
+            {/* Visual: carta de resposta estilo terminal */}
+            <motion.div
+              className="lg:col-span-5"
+              initial={{ opacity: 0, x: 24 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1], delay: 0.2 }}
+            >
+              <div className="relative rounded-lg border border-solomon-gold/20 bg-solomon-graphite/80 p-6 md:p-8 shadow-2xl shadow-black/40">
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <div className="h-3 w-3 rounded-full bg-solomon-gold/60" />
+                    <div className="h-3 w-3 rounded-full bg-solomon-cream-muted/30" />
+                    <div className="h-3 w-3 rounded-full bg-solomon-cream-muted/30" />
+                  </div>
+                  <span className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/50">
+                    SOLOMON · Resposta
+                  </span>
+                </div>
+
+                <div className="space-y-4 font-mono text-sm leading-relaxed">
+                  <p className="text-solomon-cream">
+                    <span className="text-solomon-gold">Pergunta:</span>{" "}
+                    <span className="text-solomon-cream-muted">
+                      O suicídio é coberto após 24 meses na Prudential Vida
+                      Total?
+                    </span>
+                  </p>
+                  <div className="h-px bg-solomon-gold/20" />
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <Check className="h-4 w-4 text-solomon-gold shrink-0 mt-0.5" />
+                      <p className="text-solomon-cream">
+                        Sim. Após 24 meses de vigência, a cobertura por morte
+                        natural ou acidental inclui suicídio.
+                      </p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                      <Quote className="h-4 w-4 text-solomon-gold/60 shrink-0 mt-0.5" />
+                      <p className="text-solomon-cream-muted text-xs">
+                        “A Seguradora garantirá o pagamento do Capital Seguro em
+                        caso de Morte Natural ou Acidental do Segurado,
+                        ocorrida após 24 meses de vigência da apólice.”
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] text-solomon-cream-muted/60 uppercase tracking-wider">
+                      <span>Fonte:</span>
+                      <span className="text-solomon-gold/80">
+                        Condicoes_Gerais_Prudential_VidaTotal_2025.pdf · p. 12
+                        · § 4.2
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div
+                  aria-hidden
+                  className="pointer-events-none absolute -bottom-8 -left-8 h-32 w-32 rounded-full bg-solomon-gold/5 blur-3xl"
+                />
+              </div>
+            </motion.div>
           </div>
+        </section>
 
-          <h1 className="font-display text-5xl md:text-7xl font-semibold leading-[1.05] text-solomon-cream">
-            Certeza absoluta.
-            <br />
-            <span className="italic text-solomon-gold">Em segundos.</span>
-          </h1>
+        {/* Marquee: ritmo mecânico */}
+        <div className="relative overflow-hidden border-y border-solomon-gold/10 py-3 bg-solomon-black">
+          <div className="flex whitespace-nowrap animate-marquee">
+            {Array.from({ length: 2 }).map((_, dup) => (
+              <div key={dup} className="flex items-center gap-8 px-4">
+                {[
+                  "Prudential",
+                  "MAG",
+                  "Icatu",
+                  "MetLife",
+                  "Bradesco",
+                  "Azos",
+                  "SulAmérica",
+                  "Porto Seguro",
+                  "Liberty",
+                  "AXA",
+                  "Allianz",
+                  "HDI",
+                  "Mapfre",
+                  "Zurich",
+                ].map((name) => (
+                  <span
+                    key={name + dup}
+                    className="inline-flex items-center gap-3 font-mono text-xs uppercase tracking-widest text-solomon-cream-muted/50"
+                  >
+                    <span className="h-1.5 w-1.5 rotate-45 bg-solomon-gold/60" />
+                    {name}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
 
-          <p className="mt-8 max-w-xl text-lg md:text-xl leading-relaxed text-solomon-cream-muted">
-            Seu consultor privado de IA para seguros de vida. Responde com
-            citação exata da cláusula — de qualquer seguradora, em tempo real.
-          </p>
+        {/* Divider */}
+        <div className="px-6 md:px-10">
+          <div className="max-w-7xl mx-auto">
+            <div className="divider-gold" />
+          </div>
+        </div>
 
-          <p className="mt-4 text-sm font-mono uppercase tracking-wider text-solomon-gold/80">
-            ChatGPT chuta. SOLOMON prova.
-          </p>
+        {/* Features: editorial, sem cards idênticos */}
+        <section className="px-6 md:px-10 py-20 md:py-28">
+          <div className="max-w-7xl mx-auto">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-100px" }}
+              transition={{ duration: 0.5 }}
+              className="mb-16 md:mb-24"
+            >
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-solomon-gold/80 mb-3">
+                Três trilhos. Uma só fonte.
+              </p>
+              <h2 className="font-display text-4xl md:text-5xl lg:text-6xl text-solomon-cream">
+                Do oráculo ao veredicto.
+              </h2>
+            </motion.div>
 
-          <div className="mt-12 flex flex-col sm:flex-row gap-4">
+            {/* 01 SOLOMON */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.5 }}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start mb-20 md:mb-28"
+            >
+              <div className="lg:col-span-1">
+                <span className="font-display text-6xl md:text-7xl text-solomon-gold/20 leading-none">
+                  01
+                </span>
+              </div>
+              <div className="lg:col-span-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <h3 className="font-display text-3xl md:text-4xl text-solomon-cream">
+                    SOLOMON
+                  </h3>
+                  <span className="rounded-full bg-solomon-gold/10 px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-solomon-gold border border-solomon-gold/20">
+                    ao vivo
+                  </span>
+                </div>
+                <p className="text-base md:text-lg leading-relaxed text-solomon-cream-muted">
+                  Pergunta livre sobre qualquer seguradora. Resposta em segundos
+                  com citação da cláusula exata. Não interpreta — prova.
+                </p>
+              </div>
+              <div className="lg:col-span-6">
+                <div className="rounded-lg border border-solomon-gold/15 bg-solomon-graphite/40 p-5 font-mono text-xs leading-relaxed space-y-2">
+                  <p className="text-solomon-cream-muted/60">
+                    $ solomon ask &quot;Cobertura de doenças pré-existentes
+                    MAG?&quot;
+                  </p>
+                  <p className="text-solomon-cream">
+                    → COBERTO após 180 dias de vigência.
+                  </p>
+                  <p className="text-solomon-cream-muted/70 pl-4 border-l-2 border-solomon-gold/30">
+                    &quot;As doenças pré-existentes serão cobertas após 180 dias
+                    de vigência da apólice.&quot; — MAG, CGA 2025, p. 8.
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 02 Pré-Sinistro: destaque com tratamento diferente */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.5 }}
+              className="relative rounded-xl border border-solomon-gold/30 bg-solomon-graphite p-8 md:p-12 mb-20 md:mb-28"
+            >
+              <span className="absolute -top-3 left-8 md:left-12 rounded-full bg-solomon-gold px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-solomon-black">
+                Killer Feature
+              </span>
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+                <div className="lg:col-span-1">
+                  <span className="font-display text-6xl md:text-7xl text-solomon-gold/20 leading-none">
+                    02
+                  </span>
+                </div>
+                <div className="lg:col-span-5">
+                  <h3 className="font-display text-3xl md:text-4xl text-solomon-cream mb-4">
+                    Pré-Sinistro
+                  </h3>
+                  <p className="text-base md:text-lg leading-relaxed text-solomon-cream-muted mb-6">
+                    Cruza o evento com as condições gerais antes de abrir.
+                    Veredicto, checklist e risk flags. Evite surpresas no
+                    momento mais delicado com o cliente.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-md bg-solomon-black px-3 py-2 border border-solomon-gold/20">
+                      <ShieldCheck className="h-4 w-4 text-solomon-gold" />
+                      <span className="text-xs font-mono text-solomon-cream">
+                        COBERTO
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-md bg-solomon-black px-3 py-2 border border-solomon-gold/20">
+                      <span className="text-xs font-mono text-solomon-cream-muted">
+                        RISCO
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded-md bg-solomon-black px-3 py-2 border border-solomon-gold/20">
+                      <span className="text-xs font-mono text-solomon-cream-muted">
+                        NÃO COBERTO
+                      </span>
+                    </div>
+                  </div>
+                </div>
+                <div className="lg:col-span-6">
+                  <div className="space-y-3">
+                    {[
+                      "Apólice vigente confirmada",
+                      "Evento dentro do período de carência",
+                      "Cobertura específica ativa",
+                      "Documentação completa",
+                    ].map((item, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center gap-3 rounded-md bg-solomon-black/50 px-4 py-3 border border-solomon-gold/10"
+                      >
+                        <div className="h-4 w-4 rounded border border-solomon-gold/40 flex items-center justify-center">
+                          {i < 3 && (
+                            <Check className="h-3 w-3 text-solomon-gold" />
+                          )}
+                        </div>
+                        <span className="text-sm text-solomon-cream">
+                          {item}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* 03 Comparador */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true, margin: "-80px" }}
+              transition={{ duration: 0.5 }}
+              className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-start"
+            >
+              <div className="lg:col-span-1">
+                <span className="font-display text-6xl md:text-7xl text-solomon-gold/20 leading-none">
+                  03
+                </span>
+              </div>
+              <div className="lg:col-span-5">
+                <h3 className="font-display text-3xl md:text-4xl text-solomon-cream mb-4">
+                  Comparador
+                </h3>
+                <p className="text-base md:text-lg leading-relaxed text-solomon-cream-muted">
+                  Lado a lado entre seguradoras. Mostra onde você é superior.
+                  Converte prospect em cliente com dados, não com opinião.
+                </p>
+              </div>
+              <div className="lg:col-span-6">
+                <div className="rounded-lg border border-solomon-gold/15 bg-solomon-graphite/40 overflow-hidden">
+                  <div className="grid grid-cols-3 gap-px bg-solomon-gold/10 text-[10px] font-mono uppercase tracking-wider text-solomon-cream-muted">
+                    <div className="bg-solomon-graphite/80 px-3 py-2">
+                      Critério
+                    </div>
+                    <div className="bg-solomon-graphite/80 px-3 py-2 text-center">
+                      Prudential
+                    </div>
+                    <div className="bg-solomon-graphite/80 px-3 py-2 text-center">
+                      MAG
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-px bg-solomon-gold/5 text-xs">
+                    <div className="bg-solomon-black/40 px-3 py-2.5 text-solomon-cream">
+                      Carência suicídio
+                    </div>
+                    <div className="bg-solomon-black/40 px-3 py-2.5 text-center text-solomon-gold font-medium">
+                      24 meses
+                    </div>
+                    <div className="bg-solomon-black/40 px-3 py-2.5 text-center text-solomon-cream-muted">
+                      36 meses
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-px bg-solomon-gold/5 text-xs">
+                    <div className="bg-solomon-black/40 px-3 py-2.5 text-solomon-cream">
+                      Doenças pré
+                    </div>
+                    <div className="bg-solomon-black/40 px-3 py-2.5 text-center text-solomon-cream-muted">
+                      180 dias
+                    </div>
+                    <div className="bg-solomon-black/40 px-3 py-2.5 text-center text-solomon-gold font-medium">
+                      90 dias
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        </section>
+
+        {/* CTA final */}
+        <section className="px-6 md:px-10 py-20 md:py-28 border-t border-solomon-gold/10">
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="max-w-4xl mx-auto text-center"
+          >
+            <h2 className="font-display text-4xl md:text-6xl lg:text-7xl text-solomon-cream mb-6">
+              Pronto para{" "}
+              <span className="italic text-solomon-gold">provar</span>?
+            </h2>
+            <p className="text-lg md:text-xl text-solomon-cream-muted mb-10 max-w-2xl mx-auto leading-relaxed">
+              Acesso exclusivo para corretores de seguros de vida. Solicite seu
+              convite e experimente a diferença entre chutar e saber.
+            </p>
             <Link
               href="/signup"
-              className="group inline-flex items-center justify-center gap-2 rounded-md bg-solomon-gold px-8 py-3.5 text-base font-medium text-solomon-black transition-all hover:bg-solomon-gold-light hover:shadow-lg hover:shadow-solomon-gold/20"
+              className="group inline-flex items-center justify-center gap-2 rounded-md bg-solomon-gold px-10 py-4 text-lg font-medium text-solomon-black transition-all hover:bg-solomon-gold-light hover:shadow-xl hover:shadow-solomon-gold/20"
             >
               Solicitar acesso
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
             </Link>
-            <Link
-              href="/chat"
-              className="inline-flex items-center justify-center gap-2 rounded-md border border-solomon-gold/30 bg-solomon-graphite/50 px-8 py-3.5 text-base font-medium text-solomon-cream transition-colors hover:border-solomon-gold hover:bg-solomon-graphite"
-            >
-              Ver demonstração
-            </Link>
-          </div>
-        </div>
+            <p className="mt-4 text-xs font-mono text-solomon-cream-muted/50">
+              Resposta em até 24h · Sem compromisso
+            </p>
+          </motion.div>
+        </section>
 
-        {/* Pillar cards */}
-        <div className="mt-24 md:mt-32 grid grid-cols-1 md:grid-cols-3 gap-6 max-w-5xl w-full">
-          <FeatureCard
-            icon={<FileSearch className="h-5 w-5" />}
-            title="SOLOMON"
-            description="Pergunta livre sobre qualquer seguradora. Resposta em segundos com citação da cláusula exata."
-          />
-          <FeatureCard
-            icon={<ShieldCheck className="h-5 w-5" />}
-            title="Pré-Sinistro"
-            description="Cruza o evento com as condições gerais antes de abrir. Veredicto, checklist e risk flags."
-            featured
-          />
-          <FeatureCard
-            icon={<Scale className="h-5 w-5" />}
-            title="Comparador"
-            description="Lado a lado entre seguradoras. Mostra onde você é superior. Converte prospect em cliente."
-          />
-        </div>
+        {/* Status operacional */}
+        <section className="px-6 md:px-10 py-16 md:py-20 border-t border-solomon-gold/10">
+          <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-px bg-solomon-gold/10 border border-solomon-gold/10 rounded-lg overflow-hidden">
+            {[
+              { label: "Seguradoras indexadas", value: "14+" },
+              { label: "Cláusulas analisadas", value: "16.940+" },
+              { label: "Tempo médio de resposta", value: "< 3s" },
+              { label: "Disponibilidade", value: "24/7" },
+            ].map((stat) => (
+              <div
+                key={stat.label}
+                className="bg-solomon-black/80 px-6 py-8 md:py-10 flex flex-col items-start"
+              >
+                <span className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/50 mb-2">
+                  {stat.label}
+                </span>
+                <span className="font-display text-3xl md:text-4xl text-solomon-cream">
+                  {stat.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
       </main>
 
       {/* Footer */}
@@ -113,43 +489,6 @@ export default function LandingPage() {
           </span>
         </div>
       </footer>
-    </div>
-  );
-}
-
-function FeatureCard({
-  icon,
-  title,
-  description,
-  featured,
-}: {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  featured?: boolean;
-}) {
-  return (
-    <div
-      className={`group relative rounded-xl border p-6 transition-all duration-300 ${
-        featured
-          ? "border-solomon-gold/40 bg-solomon-graphite shadow-lg shadow-solomon-gold/5"
-          : "border-solomon-gold/15 bg-solomon-graphite/40 hover:border-solomon-gold/30 hover:bg-solomon-graphite/60"
-      }`}
-    >
-      {featured && (
-        <span className="absolute -top-2.5 right-4 rounded-full bg-solomon-gold px-2.5 py-0.5 text-[10px] font-mono uppercase tracking-wider text-solomon-black">
-          Killer
-        </span>
-      )}
-      <div className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-solomon-gold/10 text-solomon-gold">
-        {icon}
-      </div>
-      <h3 className="mt-4 font-display text-2xl text-solomon-cream">
-        {title}
-      </h3>
-      <p className="mt-2 text-sm leading-relaxed text-solomon-cream-muted">
-        {description}
-      </p>
     </div>
   );
 }

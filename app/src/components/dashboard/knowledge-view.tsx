@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Search, ExternalLink, BookOpen } from "lucide-react";
-import { motion } from "framer-motion";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { InsurerFilter } from "@/components/chat/insurer-filter";
@@ -74,24 +74,41 @@ export function KnowledgeView() {
         </div>
       </form>
 
-      {results === null ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <BookOpen className="h-8 w-8 text-solomon-cream-muted/40 mx-auto mb-3" />
-            <p className="text-solomon-cream-muted">
-              Digite uma pergunta ou termo para buscar nas condições gerais.
-            </p>
-          </CardContent>
-        </Card>
-      ) : results.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-solomon-cream-muted">
-              Nenhum trecho encontrado. Tente outro termo{insurer ? ` ou remova o filtro ${insurer}` : ""}.
-            </p>
-          </CardContent>
-        </Card>
-      ) : (
+      <AnimatePresence mode="wait">
+        {results === null ? (
+          <motion.div
+            key="idle"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Card>
+              <CardContent className="py-12 text-center">
+                <BookOpen className="h-8 w-8 text-solomon-cream-muted/40 mx-auto mb-3" />
+                <p className="text-solomon-cream-muted">
+                  Digite uma pergunta ou termo para buscar nas condições gerais.
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : results.length === 0 ? (
+          <motion.div
+            key="empty"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+          >
+            <Card>
+              <CardContent className="py-12 text-center">
+                <p className="text-solomon-cream-muted">
+                  Nenhum trecho encontrado. Tente outro termo{insurer ? ` ou remova o filtro ${insurer}` : ""}.
+                </p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        ) : (
         <ul className="flex flex-col gap-4">
           {results.map((r, i) => (
             <motion.li
@@ -143,7 +160,8 @@ export function KnowledgeView() {
             </motion.li>
           ))}
         </ul>
-      )}
+        )}
+      </AnimatePresence>
     </div>
   );
 }

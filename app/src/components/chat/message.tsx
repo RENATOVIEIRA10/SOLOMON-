@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Copy, Check, ThumbsUp, ThumbsDown, ExternalLink } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 export type Citation = {
@@ -75,16 +75,33 @@ export function MessageBubble({
           )}
         </div>
 
-        {!isUser && !message.loading && message.citations && message.citations.length > 0 && (
-          <div className="w-full flex flex-col gap-2 mt-1">
-            {message.citations.map((c) => (
-              <CitationCard key={c.index} citation={c} />
-            ))}
-          </div>
-        )}
+        <AnimatePresence mode="wait">
+          {!isUser && !message.loading && message.citations && message.citations.length > 0 && (
+            <motion.div
+              key="citations"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              className="w-full flex flex-col gap-2 mt-1"
+            >
+              {message.citations.map((c) => (
+                <CitationCard key={c.index} citation={c} />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {!isUser && !message.loading && (
-          <div className="flex items-center gap-1 text-solomon-cream-muted/60 pt-1">
+        <AnimatePresence mode="wait">
+          {!isUser && !message.loading && (
+            <motion.div
+              key="feedback"
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              className="flex items-center gap-1 text-solomon-cream-muted/60 pt-1"
+            >
             <button
               onClick={handleCopy}
               className="p-1.5 rounded-md hover:text-solomon-gold hover:bg-solomon-graphite/60 transition-colors"
@@ -123,8 +140,9 @@ export function MessageBubble({
             >
               <ThumbsDown className="h-3.5 w-3.5" />
             </button>
-          </div>
+          </motion.div>
         )}
+      </AnimatePresence>
       </div>
     </motion.div>
   );
