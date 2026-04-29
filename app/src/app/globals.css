@@ -173,4 +173,8 @@ body {
   .animate-marquee {
     animation: none;
   }
+  .motion-safe {
+    animation: none !important;
+    transition: none !important;
+  }
 }

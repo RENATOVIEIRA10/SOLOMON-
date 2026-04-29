@@ -22,14 +22,10 @@ const staggerContainer = {
 export default function LandingPage() {
   return (
     <div className="relative flex min-h-dvh flex-col bg-background text-foreground overflow-hidden">
-      {/* Ambiente sutil: uma só glow dourada no canto superior */}
+      {/* Ambiente sutil: borda dourada interna no canto superior direito */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full opacity-20"
-        style={{
-          background:
-            "radial-gradient(circle, rgba(184,147,58,0.18) 0%, transparent 70%)",
-        }}
+        className="pointer-events-none absolute -top-40 -right-40 h-[600px] w-[600px] rounded-full border border-[rgba(184,147,58,0.08)] bg-solomon-black"
       />
 
       {/* Header */}
@@ -75,13 +71,13 @@ export default function LandingPage() {
                 variants={fadeUp}
                 className="inline-flex items-center gap-2 font-mono text-[10px] uppercase tracking-[0.2em] text-solomon-gold/80 mb-6"
               >
-                <span className="h-1.5 w-1.5 rounded-full bg-solomon-gold animate-pulse" />
+                <span className="h-1.5 w-1.5 rounded-full bg-solomon-gold motion-safe:animate-pulse" />
                 Prévia por convite
               </motion.span>
 
               <motion.h1
                 variants={fadeUp}
-                className="font-display text-6xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-[0.95] text-solomon-cream"
+                className="font-display text-6xl md:text-7xl lg:text-8xl font-semibold tracking-tight leading-[0.95] text-solomon-cream"
               >
                 Certeza
                 <br />
@@ -153,7 +149,7 @@ export default function LandingPage() {
                       Total?
                     </span>
                   </p>
-                  <div className="h-px bg-solomon-gold/20" />
+                  <div className="divider-gold my-1" />
                   <div className="space-y-3">
                     <div className="flex items-start gap-3">
                       <Check className="h-4 w-4 text-solomon-gold shrink-0 mt-0.5" />
@@ -191,6 +187,10 @@ export default function LandingPage() {
 
         {/* Marquee: ritmo mecânico */}
         <div className="relative overflow-hidden border-y border-solomon-gold/10 py-3 bg-solomon-black">
+          {/* Fade esquerda */}
+          <div className="absolute left-0 top-0 bottom-0 w-16 md:w-24 bg-gradient-to-r from-solomon-black to-transparent z-10 pointer-events-none" />
+          {/* Fade direita */}
+          <div className="absolute right-0 top-0 bottom-0 w-16 md:w-24 bg-gradient-to-l from-solomon-black to-transparent z-10 pointer-events-none" />
           <div className="flex whitespace-nowrap animate-marquee">
             {Array.from({ length: 2 }).map((_, dup) => (
               <div key={dup} className="flex items-center gap-8 px-4">
@@ -231,7 +231,7 @@ export default function LandingPage() {
         </div>
 
         {/* Features: editorial, sem cards idênticos */}
-        <section className="px-6 md:px-10 py-20 md:py-28">
+        <section className="px-6 md:px-10 py-24 md:py-32">
           <div className="max-w-7xl mx-auto">
             <motion.div
               initial={{ opacity: 0, y: 12 }}
@@ -298,7 +298,7 @@ export default function LandingPage() {
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true, margin: "-80px" }}
               transition={{ duration: 0.5 }}
-              className="relative rounded-xl border border-solomon-gold/30 bg-solomon-graphite p-8 md:p-12 mb-20 md:mb-28"
+              className="relative rounded-xl border border-solomon-gold/30 bg-solomon-graphite px-8 md:px-12 pt-10 md:pt-14 pb-8 md:pb-12 mb-20 md:mb-28"
             >
               <span className="absolute -top-3 left-8 md:left-12 rounded-full bg-solomon-gold px-3 py-1 text-[10px] font-mono uppercase tracking-wider text-solomon-black">
                 Killer Feature
@@ -319,19 +319,19 @@ export default function LandingPage() {
                     momento mais delicado com o cliente.
                   </p>
                   <div className="flex flex-wrap items-center gap-3">
-                    <div className="flex items-center gap-2 rounded-md bg-solomon-black px-3 py-2 border border-solomon-gold/20">
-                      <ShieldCheck className="h-4 w-4 text-solomon-gold" />
-                      <span className="text-xs font-mono text-solomon-cream">
+                    <div className="flex items-center gap-2 rounded-md bg-[#5E9E6B]/10 px-3 py-2 border border-[#5E9E6B]/20">
+                      <ShieldCheck className="h-4 w-4 text-[#5E9E6B]" />
+                      <span className="text-xs font-mono text-[#5E9E6B]">
                         COBERTO
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-md bg-solomon-black px-3 py-2 border border-solomon-gold/20">
-                      <span className="text-xs font-mono text-solomon-cream-muted">
+                    <div className="flex items-center gap-2 rounded-md bg-[#C4983A]/10 px-3 py-2 border border-[#C4983A]/20">
+                      <span className="text-xs font-mono text-[#C4983A]">
                         RISCO
                       </span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-md bg-solomon-black px-3 py-2 border border-solomon-gold/20">
-                      <span className="text-xs font-mono text-solomon-cream-muted">
+                    <div className="flex items-center gap-2 rounded-md bg-[#B04040]/10 px-3 py-2 border border-[#B04040]/20">
+                      <span className="text-xs font-mono text-[#B04040]">
                         NÃO COBERTO
                       </span>
                     </div>
@@ -428,7 +428,7 @@ export default function LandingPage() {
         </section>
 
         {/* CTA final */}
-        <section className="px-6 md:px-10 py-20 md:py-28 border-t border-solomon-gold/10">
+<section className="px-6 md:px-10 py-16 md:py-20 border-t border-solomon-gold/10">
           <motion.div
             initial={{ opacity: 0, y: 16 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -459,17 +459,20 @@ export default function LandingPage() {
 
         {/* Status operacional */}
         <section className="px-6 md:px-10 py-16 md:py-20 border-t border-solomon-gold/10">
-          <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4 gap-px bg-solomon-gold/10 border border-solomon-gold/10 rounded-lg overflow-hidden">
+          <div className="max-w-7xl mx-auto grid grid-cols-2 md:grid-cols-4">
             {[
               { label: "Seguradoras indexadas", value: "14+" },
               { label: "Cláusulas analisadas", value: "16.940+" },
               { label: "Tempo médio de resposta", value: "< 3s" },
               { label: "Disponibilidade", value: "24/7" },
-            ].map((stat) => (
+            ].map((stat, i) => (
               <div
                 key={stat.label}
-                className="bg-solomon-black/80 px-6 py-8 md:py-10 flex flex-col items-start"
+                className="relative px-6 py-8 md:py-10 flex flex-col items-start"
               >
+                {i > 0 && (
+                  <div className="absolute left-0 top-1/4 bottom-1/4 w-px divider-gold" />
+                )}
                 <span className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/50 mb-2">
                   {stat.label}
                 </span>
@@ -483,12 +486,18 @@ export default function LandingPage() {
       </main>
 
       {/* Footer */}
-      <footer className="relative z-10 safe-bottom px-6 md:px-10 pt-8 pb-6 border-t border-solomon-gold/10">
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-solomon-cream-muted/70">
-          <span>© 2026 AUR.IOs — SOLOMON. Todos os direitos reservados.</span>
-          <span className="font-mono tracking-wider">
-            v1.0 · Acesso restrito
-          </span>
+      <footer className="relative z-10 safe-bottom px-6 md:px-10 pt-12 pb-8 border-t border-[rgba(184,147,58,0.1)]">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-3">
+            <span className="font-display text-xl text-solomon-gold">SOLOMON</span>
+            <span className="text-solomon-cream-muted/40 text-xs">| Oráculo de Seguros de Vida</span>
+          </div>
+          <div className="flex flex-col sm:flex-row items-center gap-4 text-xs text-solomon-cream-muted/60">
+            <span>© 2026 AUR.IOs — SOLOMON. Todos os direitos reservados.</span>
+            <span className="font-mono tracking-wider">
+              v1.0 · Acesso restrito
+            </span>
+          </div>
         </div>
       </footer>
     </div>
