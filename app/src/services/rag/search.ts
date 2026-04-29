@@ -96,3 +96,118 @@ export async function semanticSearchWithEmbedding(
     insurer_id: (row.insurer_id as string) ?? null,
   }))
 }
+
+// ---------------------------------------------------------------------------
+// Cohere Rerank 3.5 (Sessao 3, 2026-04-28)
+// ---------------------------------------------------------------------------
+
+const COHERE_RERANK_URL = 'https://api.cohere.com/v2/rerank'
+const COHERE_RERANK_TIMEOUT_MS = 5000
+/** Cohere limita documents a 1000 por request; chunks longos sao truncados em ~512 tokens internos. */
+const COHERE_MAX_DOC_CHARS = 4000
+
+interface CohereRerankResultItem {
+  index: number
+  relevance_score: number
+}
+
+interface CohereRerankResponse {
+  results: CohereRerankResultItem[]
+  meta?: { billed_units?: { search_units?: number } }
+}
+
+/**
+ * Rerank candidates via Cohere Rerank 3.5 (cross-encoder). Substitui o ranking
+ * por similarity (bi-encoder pgvector) por ranking de relevancia query-vs-chunk.
+ *
+ * Tolerante: se COHERE_API_KEY ausente, log warning e retorna candidates.slice(0, topN)
+ * — deploy continua funcionando sem reranker, so sem ganho de precision.
+ *
+ * Tolerante: se Cohere falhar (timeout, erro API), fallback pra similarity
+ * order pra nao quebrar producao.
+ */
+export async function rerankWithCohere(
+  query: string,
+  candidates: SearchResult[],
+  topN: number
+): Promise<SearchResult[]> {
+  if (candidates.length === 0) return []
+  if (candidates.length <= topN) return candidates
+
+  const apiKey = process.env.COHERE_API_KEY
+  if (!apiKey) {
+    console.warn('[rag/rerank] COHERE_API_KEY ausente — fallback pra similarity order')
+    return candidates.slice(0, topN)
+  }
+
+  const documents = candidates.map((c) =>
+    c.content.length > COHERE_MAX_DOC_CHARS ? c.content.slice(0, COHERE_MAX_DOC_CHARS) : c.content
+  )
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), COHERE_RERANK_TIMEOUT_MS)
+
+  try {
+    const response = await fetch(COHERE_RERANK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        model: RAG.rerankModel,
+        query,
+        documents,
+        top_n: topN,
+      }),
+      signal: controller.signal,
+    })
+
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '')
+      console.warn(`[rag/rerank] Cohere ${response.status}: ${errBody.slice(0, 200)} — fallback similarity`)
+      return candidates.slice(0, topN)
+    }
+
+    const data = (await response.json()) as CohereRerankResponse
+    if (!Array.isArray(data.results) || data.results.length === 0) {
+      console.warn('[rag/rerank] Cohere retornou results vazio — fallback similarity')
+      return candidates.slice(0, topN)
+    }
+
+    // Map indexes do response pra candidates originais. Substituir similarity
+    // pelo relevance_score do Cohere pra downstream (diversifyResults, etc)
+    // poder usar como sinal de qualidade.
+    const reranked: SearchResult[] = []
+    for (const r of data.results) {
+      const original = candidates[r.index]
+      if (original) {
+        reranked.push({ ...original, similarity: r.relevance_score })
+      }
+    }
+
+    const billed = data.meta?.billed_units?.search_units ?? 1
+    console.log(`[rag/rerank] Cohere ${RAG.rerankModel}: ${candidates.length} -> ${reranked.length} (billed ${billed} search units)`)
+    return reranked
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err)
+    console.warn(`[rag/rerank] Cohere falhou: ${msg} — fallback similarity`)
+    return candidates.slice(0, topN)
+  } finally {
+    clearTimeout(timeoutId)
+  }
+}
+
+/**
+ * Conveniencia: pgvector(fetchK=50) -> Cohere rerank -> top-N.
+ * Usado em answer.ts onde queremos qualidade alta no contexto LLM.
+ */
+export async function semanticSearchAndRerank(
+  query: string,
+  options?: SearchOptions & { fetchK?: number; rerankTopN?: number }
+): Promise<SearchResult[]> {
+  const fetchK = options?.fetchK ?? RAG.fetchK
+  const topN = options?.rerankTopN ?? RAG.rerankK
+  const candidates = await semanticSearch(query, { ...options, topK: fetchK })
+  return rerankWithCohere(query, candidates, topN)
+}

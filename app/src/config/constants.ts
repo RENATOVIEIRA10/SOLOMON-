@@ -37,6 +37,12 @@ export const RAG = {
   /** Busca global (nenhuma seguradora mencionada): fetchK estreito para
    *  evitar contaminacao cross-insurer no contexto do LLM. */
   globalTopK: 15,
+  /** Apos Cohere Rerank, manter top-N pra contexto LLM. Reranker corta
+   *  ruido pos-retrieval mantendo cobertura — ataca CP regredido pelo
+   *  Padrao C (Sessao 3, 2026-04-28). */
+  rerankK: 10,
+  /** Modelo Cohere Rerank usado em searchAndRerank. */
+  rerankModel: 'rerank-v3.5',
   similarityThreshold: 0.35,
   /** Max chunks per insurer when no specific insurer is mentioned */
   maxPerInsurer: 5,

@@ -6,7 +6,7 @@
  */
 
 import { createServiceClient } from '@/lib/supabase'
-import { embedQuery, semanticSearch, semanticSearchWithEmbedding, type SearchResult } from './search'
+import { embedQuery, rerankWithCohere, semanticSearch, semanticSearchWithEmbedding, type SearchResult } from './search'
 import { buildContext, type ContextBlock, type EnrichmentData } from './context-builder'
 import { callLLM, type LLMResponse } from './llm'
 import { extractCitations, type Citation } from './citation'
@@ -308,6 +308,14 @@ export async function ask(
     if (fallbackInsurerId) {
       searchResults = await structuredSearch(question, fallbackInsurerId)
     }
+  }
+
+  // 1c. Cohere Rerank 3.5 (Sessao 3, 2026-04-28): cross-encoder corta ruido
+  // pos-retrieval mantendo cobertura. Ataca CP regredido pelo Padrao C/B
+  // (era 0.13 em comparison subset). Tolerante: se COHERE_API_KEY ausente
+  // ou Cohere falha, retorna similarity order — sem regressao.
+  if (searchResults.length > RAG.rerankK) {
+    searchResults = await rerankWithCohere(question, searchResults, RAG.rerankK)
   }
 
   // 2. Enrich with insurer/product names (need names before diversifying)
