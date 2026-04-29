@@ -314,15 +314,19 @@ export async function ask(
   // pos-retrieval. Tolerante: se COHERE_API_KEY ausente ou Cohere falha,
   // retorna similarity order.
   //
-  // SKIP em queries comparativas pra preservar diversidade cross-insurer:
+  // SKIP em queries comparativas pra preservar diversidade:
   // (a) Padrao B (compareIntent: 1 insurer + "outras")
   // (b) Padrao C (global: 0 insurers + questionImpliesComparison)
-  // (c) Multi-insurer explicito: 2+ insurers detectadas (ex: "compare X
-  //     com Y"). Sem skip aqui, eval pos-Cohere mostrou CR comparison
-  //     despencar -0.21pp porque Cohere concentra top-N em 1-2 insurers.
+  // (c) Multi-insurer explicito: 2+ insurers detectadas
+  // (d) Single-insurer multi-produto: 1 insurer + comparison pattern
+  //     (ex: "WL10G vs WL00G", "DITA versus DIT MAC+IPAM"). Cohere
+  //     reranqueando 15 chunks pra 12 podia descartar chunk de produto
+  //     B. Eval pos-Cohere v2 mostrou CR comparison ficando em 0.02
+  //     mesmo com skip multi-insurer.
   const isMultiInsurerExplicit = mentionedInsurers.length >= 2
   const isComparativeGlobal = mentionedInsurers.length === 0 && questionImpliesComparison(question)
-  const skipRerank = compareIntent || isComparativeGlobal || isMultiInsurerExplicit
+  const isSingleInsurerCompare = mentionedInsurers.length === 1 && questionImpliesComparison(question)
+  const skipRerank = compareIntent || isComparativeGlobal || isMultiInsurerExplicit || isSingleInsurerCompare
   if (!skipRerank && searchResults.length > RAG.rerankK) {
     searchResults = await rerankWithCohere(question, searchResults, RAG.rerankK)
   }
