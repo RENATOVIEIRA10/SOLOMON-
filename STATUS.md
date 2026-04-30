@@ -305,7 +305,33 @@ Latencia: 21-28s (Citations API overhead). Dentro de Vercel maxDuration=60s.
 
 **Saldo Anthropic pos-Sessao 2: ~$6.50** (consumiu ~$0.50 nos 3 smoke Sonnet + dev).
 
-**Proxima sessao (Sessao 3)**: Cohere Rerank 3 multilingual em search.ts (top-50→top-10) — ataca CP regredido + cron eval semanal Hermes + cache invalidation loadActiveInsurers.
+### Sessao 2026-04-29 — Sessao 3 entregue parcial (commits 2234829, 8c9eb56, 5adb6a1)
+
+**Cohere Rerank 3.5 multilingual integrado** em search.ts + plug em answer.ts step 1c. Tolerante: sem `COHERE_API_KEY` faz fallback similarity. Key adicionada em Vercel env (production+preview+development) via CLI apos login interativo conta `atalaia`.
+
+**Eval Ragas full pos-Cohere v2** (run `20260429_212055`, commit 8c9eb56) revelou ganhos e regressoes mistos:
+
+| Trilho | F: pre→pos | CR: pre→pos | Veredicto |
+|---|---|---|---|
+| comparison | 0.65 → **0.79** | 0.23 → 0.02 | F **+14pp WIN**; CR caiu (queries multi-produto cairam fora do skip) |
+| concept | 0.76 → **0.81** | 0.36 → 0.27 | F **+5pp WIN**; CR quase recovery |
+| edge | 0.61 → 0.42 | 0.60 → 0.30 | regressao (Cohere top-10 corta chunks atipicos) |
+| pre_sinistro | 0.63 → 0.39 | 0.41 → 0.37 | F regrediu (Citations API + post-validation Sessao 2 mudaram answer shape) |
+| rate_* | 1.00 → 1.00 | 1.00 → 1.00 | neutro (fast-path bypassa) |
+
+**Iteracoes de skip pra preservar diversidade comparativa:**
+1. v1 (commit f3d90df): rerank ativo em todos os caminhos. Detect regressao comparison+edge.
+2. v2 (commit 8c9eb56): skip rerank em (a) compareIntent, (b) isComparativeGlobal, (c) multi-insurer length>=2. F comparison subiu, CR ainda baixo.
+3. v3 (commit 5adb6a1): adiciona skip pra (d) single-insurer multi-produto (questionImpliesComparison ativa em "WL10G vs WL00G"). Re-eval inconclusivo (Gemini judge retornou NaN agregado — provavel rate-limit chave compartilhada REVELA).
+
+**Estado em prod** (commit 5adb6a1): Cohere ativo SO em queries focadas single-insurer non-comparativas. Concept e rate_* mantem ganhos. Comparison/edge/pre_sinistro precisam re-eval na Sessao 4.
+
+**Trade-off Citations API pre_sinistro identificado**: F caiu -24pp mas AC subiu +10pp. Post-validation introduz claims de auto-rationale ("[Validacao automatica: ...]") que nao estao nos chunks — Ragas faithfulness penaliza. AC sobe porque grounding obrigado de Citations API forca respostas mais corretas. **Decisao adiada Sessao 4**: aceitar trade-off ou ajustar post-validation.
+
+**Saldo Anthropic ~$5.50** (gastei ~$1 Sonnet smoke pre-sinistro Sessao 3 + dev).
+**Saldo Cohere**: 1000 free trial mensal + ~30 calls usadas em smoke + 2 Ragas full ≈ ~150 search units gastos.
+
+**Proxima sessao (Sessao 4)**: re-rodar Ragas full v3 quando saldo Gemini reabilitar + investigar pre_sinistro F-24pp (rollback Citations API se trade-off nao valer a pena) + cron eval Hermes + smoke real com Julio.
 
 ### Saldos de API
 - Anthropic: **$8** (recarga 2026-04-28 noite) — reservado Sessao 2 Citations API
