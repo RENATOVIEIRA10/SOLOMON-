@@ -146,8 +146,10 @@ export async function ask(
   // Zero alucinacao em numeros: resposta vem de tabela estruturada com
   // citacao da pagina do PDF oficial. Fall-through para RAG normal se nao
   // encontrar linhas ou se faltam parametros criticos.
+  let rateIntentDetected = false
   if (mentionedInsurers.length === 1) {
     const intent = detectRateIntent(question, mentionedInsurers[0])
+    rateIntentDetected = intent.hasIntent
     if (intent.hasIntent) {
       console.log(`[rag/ask] Rate intent detected — attempting fast-path. Intent:`, {
         age: intent.age,
@@ -239,7 +241,11 @@ export async function ask(
     for (const [name, ids] of insurerIds) {
       let nameResults: SearchResult[] = []
       for (const id of ids) {
-        const r = await semanticSearchWithEmbedding(queryEmbedding, { insurerId: id, topK: perInsurerFetch })
+        const r = await semanticSearchWithEmbedding(queryEmbedding, {
+          insurerId: id,
+          topK: perInsurerFetch,
+          sourceType: rateIntentDetected ? 'rate_table_pdf' : undefined,
+        })
         nameResults.push(...r)
       }
       const boosted = boostByProductMatch(nameResults, queryTokens)
