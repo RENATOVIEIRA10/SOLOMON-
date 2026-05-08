@@ -3,6 +3,8 @@
 > Leia este arquivo no início de toda sessão neste repo.
 > Atualizar ao fechar cada ciclo.
 
+> 🪨 **Protocolo vinculante:** [Casa Firmada na Rocha](https://github.com/RENATOVIEIRA10/aurios-agents-workspace/blob/main/shared/protocols/casa-firmada-na-rocha.md) (ATIVO desde 2026-05-08). Fase atual = **fundação, não venda**. NÃO retomar conversa com Julio para uso em campo. NÃO prospectar 5 corretores beta. NÃO disparar Azure Document Intelligence. Foco: rotação de secrets vazados + validação `rag_exclude` filter + dedup semântica Prudential. Transição comercial requer frase explícita do CEO.
+
 ---
 
 ## Identidade do repo
@@ -41,6 +43,9 @@ Nenhum ciclo fechado ainda sob governança formal. Histórico anterior:
 - **Status:** PENDENTE
 - **Título:** Validar rag_exclude filter + rotate secrets + CI build validation
 - **Severidade:** CRÍTICA
+- **Owner:** Renato + Claude
+- **Target date:** 2026-05-09 (D1+D2 do War Room casa-firmada)
+- **Justificativa de fundação:** secrets vazados há 15 dias + chunks contaminados em produção são casa sobre areia. Itens #1 e #2 da seção 6 do diagnóstico `technology-path-2026-05-08.md`. NÃO declarar SOLOMON pronto/demo enquanto isto não fechar.
 
 **Problema 1 — rag_exclude filter pode não estar funcionando:**
 65 chunks do `cod1645` Prudential foram marcados com `rag_exclude=true` mas a RPC `match_documents` pode não estar filtrando esses chunks. Se o filtro falhou silenciosamente, respostas SOLOMON podem incluir dados de tabelas de prêmios contaminados, gerando cotações erradas para corretores.
