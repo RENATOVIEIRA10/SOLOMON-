@@ -41,21 +41,26 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
     setBrokerId(msg.from, broker.id)
   }
 
-  // 2. Handle special commands
+  // 2. Parse special commands (still needed before limit check to know if quota applies)
   const command = parseCommand(text)
+  const consumesQuota = !command || PAID_COMMANDS.has(command.name)
+
+  // 3. Check daily query limit on quota-consuming paths (RAG livre + /comparar + /sinistro).
+  // /ajuda, /plano, /feedback nunca batem o limite — sao meta-comandos sem custo de LLM/retrieval.
+  if (consumesQuota) {
+    const plan = PLANS[broker.plan as BrokerPlan] ?? PLANS.free
+    const todayCount = await getQueriesCount(broker)
+    if (plan.queriesPerDay !== -1 && todayCount >= plan.queriesPerDay) {
+      return [formatLimitReached(plan.name, plan.queriesPerDay)]
+    }
+  }
+
+  // 4. Dispatch commands
   if (command) {
     return handleCommand(command, broker)
   }
 
-  // 3. Check daily query limit
-  const plan = PLANS[broker.plan as BrokerPlan] ?? PLANS.free
-  const todayCount = await getQueriesCount(broker)
-
-  if (plan.queriesPerDay !== -1 && todayCount >= plan.queriesPerDay) {
-    return [formatLimitReached(plan.name, plan.queriesPerDay)]
-  }
-
-  // 4. Call RAG engine
+  // 5. Call RAG engine
   addMessage(msg.from, 'user', text)
 
   try {
@@ -85,6 +90,14 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
     console.error('[whatsapp/handler] RAG error:', error)
     return ['Desculpe, ocorreu um erro ao processar sua pergunta. Tente novamente em instantes.']
   }
+}
+
+// Commands that consume a paid quota slot (RAG/LLM). /ajuda, /plano, /feedback are free.
+const PAID_COMMANDS = new Set(['/comparar', '/sinistro'])
+
+/** Short opaque code so the user can reference a failure in support without exposing internals. */
+function brokerErrorCode(): string {
+  return Math.random().toString(36).slice(2, 8)
 }
 
 // ---------------------------------------------------------------------------
@@ -186,19 +199,10 @@ async function getQueriesCount(broker: BrokerRow): Promise<number> {
 
 async function incrementQueries(brokerId: string): Promise<void> {
   const supabase = createServiceClient()
-
-  // Use raw SQL via rpc for atomic increment, fallback to read-then-write
-  const { data } = await supabase
-    .from('brokers')
-    .select('queries_today')
-    .eq('id', brokerId)
-    .single()
-
-  if (data) {
-    await supabase
-      .from('brokers')
-      .update({ queries_today: data.queries_today + 1 })
-      .eq('id', brokerId)
+  // Atomic increment via RPC. Migration 20260511150000_increment_broker_queries.sql.
+  const { error } = await supabase.rpc('increment_broker_queries', { p_broker_id: brokerId })
+  if (error) {
+    console.error('[whatsapp/handler] increment_broker_queries failed:', error.message)
   }
 }
 
@@ -317,12 +321,13 @@ async function handleCompareCommand(
 
     await incrementQueries(broker.id)
     return splitMessage(text)
-  } catch (err: any) {
-    console.error('[whatsapp/compare] error:', err)
+  } catch (err) {
+    const code = brokerErrorCode()
+    console.error(`[whatsapp/compare] error code=${code}:`, err)
     return [
       `Não consegui gerar a comparação agora.\n\n` +
-        `Erro: ${err.message ?? 'desconhecido'}\n` +
-        `Tente reformular os nomes das seguradoras.` +
+        `Tente novamente em alguns segundos ou reformule os nomes das seguradoras.\n` +
+        `Código: ${code}` +
         SIGNATURE,
     ]
   }
@@ -356,28 +361,53 @@ async function handleSinistroCommand(
     ]
   }
 
-  const parts = args.trim().split(/\s+/)
-  if (parts.length < 3) {
+  const tokens = args.trim().split(/\s+/).filter(Boolean)
+  if (tokens.length < 3) {
     return [
       `Argumentos insuficientes.\n\n` +
         `Use: \`/sinistro <seguradora> <tipo> <descricao>\`\n` +
-        `Ex: \`/sinistro Prudential morte_natural infarto agudo do miocardio\`` +
+        `Ex: \`/sinistro Porto Seguro morte_natural infarto agudo do miocardio\`` +
         SIGNATURE,
     ]
   }
 
-  const insurerName = parts[0]
-  const claimType = parts[1].toLowerCase()
-  const description = parts.slice(2).join(' ')
+  // Locate the claim-type token. Insurer name is everything before it (1+ words);
+  // description is everything after. This supports multi-word insurer names like
+  // "Porto Seguro", "Tokio Marine", "Bradesco Seguros".
+  let claimTypeIdx = -1
+  for (let i = 0; i < tokens.length; i++) {
+    if (VALID_CLAIM_TYPES.includes(tokens[i].toLowerCase())) {
+      claimTypeIdx = i
+      break
+    }
+  }
 
-  if (!VALID_CLAIM_TYPES.includes(claimType)) {
+  if (claimTypeIdx === -1) {
     return [
-      `Tipo de sinistro não reconhecido: *${claimType}*\n\n` +
+      `Tipo de sinistro não reconhecido nos argumentos.\n\n` +
         `Tipos aceitos: ${VALID_CLAIM_TYPES.map((t) => '`' + t + '`').join(', ')}\n\n` +
-        `Exemplo: \`/sinistro Prudential morte_natural infarto agudo do miocardio\`` +
+        `Exemplo: \`/sinistro Porto Seguro morte_natural infarto agudo do miocardio\`` +
         SIGNATURE,
     ]
   }
+  if (claimTypeIdx === 0) {
+    return [
+      `Faltou o nome da seguradora antes do tipo.\n\n` +
+        `Use: \`/sinistro <seguradora> <tipo> <descricao>\`` +
+        SIGNATURE,
+    ]
+  }
+  if (claimTypeIdx === tokens.length - 1) {
+    return [
+      `Faltou a descrição do evento após o tipo de sinistro.\n\n` +
+        `Use: \`/sinistro <seguradora> <tipo> <descricao>\`` +
+        SIGNATURE,
+    ]
+  }
+
+  const insurerName = tokens.slice(0, claimTypeIdx).join(' ')
+  const claimType = tokens[claimTypeIdx].toLowerCase()
+  const description = tokens.slice(claimTypeIdx + 1).join(' ')
 
   try {
     const result = await analyzePreSinistro({
@@ -438,12 +468,13 @@ async function handleSinistroCommand(
 
     await incrementQueries(broker.id)
     return splitMessage(text)
-  } catch (err: any) {
-    console.error('[whatsapp/sinistro] error:', err)
+  } catch (err) {
+    const code = brokerErrorCode()
+    console.error(`[whatsapp/sinistro] error code=${code}:`, err)
     return [
       `Não consegui analisar o evento agora.\n\n` +
-        `Erro: ${err.message ?? 'desconhecido'}\n` +
-        `Verifique o nome da seguradora e tente novamente.` +
+        `Tente novamente em alguns segundos. Se persistir, verifique o nome da seguradora.\n` +
+        `Código: ${code}` +
         SIGNATURE,
     ]
   }

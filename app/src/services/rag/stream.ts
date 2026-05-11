@@ -25,6 +25,7 @@ import {
   diversifyResults,
   buildUserMessage,
   saveConversation,
+  stripSourcesSection,
   type AskOptions,
 } from "./answer";
 
@@ -125,7 +126,13 @@ export async function* askStream(
     const lowConfidence = confidenceScore < LOW_CONFIDENCE_THRESHOLD;
 
     // ---- 5. Prompt + stream ----
-    const systemPrompt = SYSTEM_PROMPT_TEMPLATE.replace(
+    // Stream path (dashboard SSE). Channel whatsapp suprime FONTES porque o
+    // canal injeta citacoes via formatRagResponse — guard defensivo.
+    const baseTemplate =
+      options?.channel === "whatsapp"
+        ? stripSourcesSection(SYSTEM_PROMPT_TEMPLATE)
+        : SYSTEM_PROMPT_TEMPLATE;
+    const systemPrompt = baseTemplate.replace(
       "{context}",
       contextText || "Nenhum documento encontrado."
     );

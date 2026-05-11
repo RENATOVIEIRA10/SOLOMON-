@@ -93,6 +93,20 @@ export const SYSTEM_PROMPT_COMPARE_TEMPLATE = SYSTEM_PROMPT_TEMPLATE
     'Passo 5: Compare lado a lado, sem fundir clausulas de seguradoras diferentes em uma mesma afirmacao.'
   )
 
+/**
+ * Remove a regra #11 e o bloco "FORMATO DA SECAO FONTES E LIMITACOES" do template.
+ * Usado quando o canal ja injeta as fontes apos a resposta (ex: WhatsApp via
+ * `formatRagResponse` em services/whatsapp/handler.ts), evitando duplicacao no
+ * texto final. O bloco "DOCUMENTOS DE REFERENCIA: {context}" e preservado.
+ */
+export function stripSourcesSection(template: string): string {
+  // \s+ tolera CRLF (notebook Windows) e LF (build Linux Vercel) de forma uniforme.
+  return template.replace(
+    /\n11\. OBRIGATORIO: No final de TODA resposta[\s\S]*?\n---\s+(?=DOCUMENTOS DE REFERENCIA:)/,
+    '\n\n'
+  )
+}
+
 export interface AskOptions {
   brokerId?: string
   channel?: 'whatsapp' | 'dashboard' | 'api'
@@ -365,7 +379,12 @@ export async function ask(
 
   // 4. Build system prompt — variant comparativa quando Padrao B disparou,
   // pra nao mandar LLM "ignorar Y/Z" justamente quando precisa comparar.
-  const promptTemplate = compareIntent ? SYSTEM_PROMPT_COMPARE_TEMPLATE : SYSTEM_PROMPT_TEMPLATE
+  // Canal whatsapp: suprime a secao FONTES E LIMITACOES porque o handler ja
+  // injeta as citacoes apos a resposta (single source of truth, sem duplicacao).
+  let promptTemplate = compareIntent ? SYSTEM_PROMPT_COMPARE_TEMPLATE : SYSTEM_PROMPT_TEMPLATE
+  if (options?.channel === 'whatsapp') {
+    promptTemplate = stripSourcesSection(promptTemplate)
+  }
   const systemPrompt = promptTemplate.replace('{context}', contextText || 'Nenhum documento encontrado.')
 
   // 5. Build user message (with optional conversation history)
