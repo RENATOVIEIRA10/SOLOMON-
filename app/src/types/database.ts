@@ -1223,6 +1223,10 @@ export type Database = {
           source_url: string
         }[]
       }
+      increment_broker_queries: {
+        Args: { p_broker_id: string }
+        Returns: number
+      }
       match_documents: {
         Args: {
           filter_exclude_non_life?: boolean
