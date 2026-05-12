@@ -9,16 +9,20 @@
  * - busca paralela por insurerIds + sort por similarity DESC antes do slice
  * - minimo evidencia (>=3 chunks E avg sim >= 0.50) ou downgrade RISCO
  * - productHint opcional pra filtrar chunks por metadata.product_name
- * - Anthropic Citations API (forca grounding span exato — ataca F=0.57)
  * - post-validation veredicto: COBERTO requer chunk com cobertura;
  *   NAO_COBERTO requer chunk com exclusao explicita; senao downgrade RISCO
  * - validacao citation/excerpt: trecho deve aparecer literal em chunks
+ *
+ * Wave A.2 (2026-05-12): Anthropic Citations API removida — saldo Anthropic
+ * SDK direto morreu em prod. Substituido por Gemini 2.5 Flash com
+ * responseMimeType=application/json. Citacoes literais agora dependem do
+ * prompt + validateCitation() (substring >=30 chars contra chunks reais).
  */
 
-import Anthropic from "@anthropic-ai/sdk";
 import { semanticSearch, type SearchResult } from "./search";
 import { loadEnrichment } from "./answer";
 import { createServiceClient } from "@/lib/supabase";
+import { callGeminiJson } from "./llm";
 
 export type Verdict = "COBERTO" | "NAO_COBERTO" | "RISCO";
 
@@ -57,7 +61,7 @@ export interface PreSinistroInput {
 
 const SYSTEM_PROMPT = `Voce e SOLOMON, especialista em analise pre-sinistro de seguros de vida no Brasil.
 
-MISSAO: O corretor te descreve um evento (morte, invalidez, doenca grave, etc) que aconteceu com o segurado. Voce analisa contra as condicoes gerais da seguradora fornecidas como documents (com Citations API ativa) e retorna um VEREDICTO ESTRUTURADO.
+MISSAO: O corretor te descreve um evento (morte, invalidez, doenca grave, etc) que aconteceu com o segurado. Voce analisa contra as condicoes gerais da seguradora fornecidas como chunks numerados [chunk_N] na mensagem do usuario e retorna um VEREDICTO ESTRUTURADO.
 
 TAREFA: Cruzar o evento com:
 1. Coberturas vigentes
@@ -97,7 +101,7 @@ REGRAS CRITICAS:
 - verdict "RISCO": pode ser coberto mas ha fatores que podem levar a negativa (carencia, DPS, contestabilidade, exclusao proxima).
 - verdict "NAO_COBERTO": evento esta em exclusao clara ou fora do escopo da cobertura. Exige chunk com exclusao explicita.
 - Se nao houver evidencia textual clara, use verdict "RISCO" com confidence baixa.
-- excerpt da citation DEVE ser trecho LITERAL dos documents — voce esta usando Citations API, entao cite trechos exatos.
+- excerpt da citation DEVE ser trecho LITERAL dos chunks [chunk_N] fornecidos — sem parafrase. O sistema valida substring contra os chunks reais e descarta a citacao se nao bater.
 - SEMPRE preencher documentsChecklist, laudoTerms, riskFlags com ao menos 1 item cada.
 - Retornar APENAS o JSON, sem texto adicional, sem fence.
 `;
@@ -105,11 +109,17 @@ REGRAS CRITICAS:
 /**
  * Analyzes a pre-claim scenario against the insurer's conditions.
  */
+/**
+ * Modelo configuravel via env var. Default `gemini-2.5-flash` apos Wave A.2.
+ * Permite swap pra `gemini-2.5-pro` (raciocinio juridico mais forte) ou volta
+ * pra Sonnet via fallback no futuro sem mudar codigo.
+ */
+const PRE_SINISTRO_MODEL = process.env.PRE_SINISTRO_MODEL ?? "gemini-2.5-flash";
+
 export async function analyzePreSinistro(
   input: PreSinistroInput
 ): Promise<PreSinistroResult> {
   const start = Date.now();
-  const MODEL = "claude-sonnet-4-6";
 
   // 1. Resolve insurer id(s) via match EXATO — substring match podia trazer
   // 2 seguradoras (HIGH 6 do Codex review).
@@ -145,7 +155,7 @@ export async function analyzePreSinistro(
     if (filtered.length === 0) {
       return buildRiskResult({
         start,
-        model: MODEL,
+        model: PRE_SINISTRO_MODEL,
         rationale: `Produto/apolice "${input.productHint}" nao encontrado em chunks indexados da ${input.insurerName}. Verifique o nome do produto ou solicite condicoes gerais especificas.`,
         riskFlags: [`productHint=${input.productHint} nao indexado`],
         chunks: results,
@@ -167,79 +177,48 @@ export async function analyzePreSinistro(
   if (results.length < 3 || avgSim < 0.5) {
     return buildRiskResult({
       start,
-      model: MODEL,
+      model: PRE_SINISTRO_MODEL,
       rationale: `Documentacao insuficiente da ${input.insurerName} para laudo conclusivo (apenas ${results.length} chunks com similaridade media ${avgSim.toFixed(2)}). Recomendado consultar a seguradora diretamente.`,
       riskFlags: ["Evidencia insuficiente para laudo automatico"],
       chunks: results,
     });
   }
 
-  // 5. Enrich (insurer/product names) pra logging — Citations API recebe
-  // chunks como documents diretamente, nao via context-builder.
+  // 5. Enrich (insurer/product names) pra logging.
   await loadEnrichment(results);
 
-  // 6. Build user message
-  const userMessage = `Analise este evento:
+  // 6. Build user message com chunks numerados inline (substitui o documents[]
+  // da Anthropic Citations API). Gemini le tudo como contexto unico.
+  const chunksBlock = results
+    .map((r, idx) => `[chunk_${idx + 1}]\n${r.content}`)
+    .join("\n\n");
+
+  const userMessage = `DOCUMENTOS DA SEGURADORA (chunks indexados):
+
+${chunksBlock}
+
+---
+
+ANALISE ESTE EVENTO:
 
 Seguradora: ${input.insurerName}
 ${input.productHint ? `Produto/apolice: ${input.productHint}\n` : ""}Tipo de evento: ${humanizeClaimType(input.claimType)}
 Descricao do evento: ${input.description}
 
-Cite trechos LITERAIS dos documents acima usando Citations API. Retorne o JSON estruturado conforme schema.`;
+Cite trecho LITERAL de um dos chunks no campo citation.excerpt — o sistema valida substring contra os chunks reais. Retorne APENAS o JSON estruturado.`;
 
-  // 7. Call Anthropic Sonnet com Citations API
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicKey) {
-    throw new Error("ANTHROPIC_API_KEY nao configurada");
-  }
-
-  const client = new Anthropic({ apiKey: anthropicKey });
-
-  // Cada chunk vira document com citations enabled.
-  const documents = results.map((r, idx) => ({
-    type: "document" as const,
-    source: {
-      type: "text" as const,
-      media_type: "text/plain" as const,
-      data: r.content,
-    },
-    title: `chunk_${idx + 1}`,
-    citations: { enabled: true },
-  }));
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const msg = await client.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
+  // 7. Call Gemini JSON — Wave A.2.
+  const completion = await callGeminiJson(SYSTEM_PROMPT, userMessage, {
+    model: PRE_SINISTRO_MODEL,
     temperature: 0.2,
-    system: SYSTEM_PROMPT,
-    messages: [
-      {
-        role: "user",
-        content: [
-          ...documents,
-          { type: "text", text: userMessage },
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ] as any,
-      },
-    ],
+    maxOutputTokens: 2048,
   });
 
-  // Citations API retorna text blocks com citations arrays — extrair texto e
-  // citations separadamente.
-  const rawText = collectTextBlocks(msg.content);
-  const anthropicCitations = extractAnthropicCitations(msg.content);
-  if (anthropicCitations.length > 0) {
-    console.log(
-      `[pre-sinistro] Anthropic Citations API: ${anthropicCitations.length} citacoes nativas extraidas`
-    );
-  }
-
-  const parsed = extractJson<Partial<PreSinistroResult>>(rawText);
+  const parsed = extractJson<Partial<PreSinistroResult>>(completion.text);
   if (!parsed) {
     console.error(
       "[pre-sinistro] JSON parse failed. Raw:",
-      rawText.slice(0, 800)
+      completion.text.slice(0, 800)
     );
     throw new Error(
       "LLM retornou resposta invalida. Tente novamente ou reformule o evento."
@@ -254,12 +233,14 @@ Cite trechos LITERAIS dos documents acima usando Citations API. Retorne o JSON e
       : "Analise inconclusiva — reformule a descricao com mais detalhes.";
   let riskFlags = Array.isArray(parsed.riskFlags) ? parsed.riskFlags : [];
 
-  // Validar citation/excerpt contra chunks reais (CRITICAL 1)
+  // Validar citation/excerpt contra chunks reais (CRITICAL 1).
+  // Wave A.2: sem Citations API nativa, este e o unico guard contra paraphrase
+  // do Gemini — se o LLM nao copiou trecho fiel, citation vira null.
   const validatedCitation = validateCitation(parsed.citation, results);
   if (parsed.citation && validatedCitation === null) {
     riskFlags = addRiskFlag(
       riskFlags,
-      "Citacao removida automaticamente: trecho nao encontrado nos documents indexados"
+      "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
     );
   }
 
@@ -283,7 +264,7 @@ Cite trechos LITERAIS dos documents acima usando Citations API. Retorne o JSON e
       : [],
     laudoTerms: Array.isArray(parsed.laudoTerms) ? parsed.laudoTerms : [],
     riskFlags,
-    model: msg.model,
+    model: completion.model,
     latencyMs: Date.now() - start,
     chunks: toResultChunks(results),
   };
@@ -535,44 +516,6 @@ function buildRiskResult(params: {
     latencyMs: Date.now() - params.start,
     chunks: toResultChunks(params.chunks),
   };
-}
-
-/** Extrai texto dos content blocks (Citations API retorna text + citations). */
-function collectTextBlocks(content: unknown): string {
-  if (!Array.isArray(content)) return "";
-  return content
-    .map((block) => {
-      if (
-        block &&
-        typeof block === "object" &&
-        "type" in block &&
-        (block as { type: string }).type === "text" &&
-        "text" in block &&
-        typeof (block as { text: unknown }).text === "string"
-      ) {
-        return (block as { text: string }).text;
-      }
-      return "";
-    })
-    .filter(Boolean)
-    .join("\n");
-}
-
-/** Extrai citations arrays dos content blocks (Citations API). */
-function extractAnthropicCitations(content: unknown): unknown[] {
-  if (!Array.isArray(content)) return [];
-  const cites: unknown[] = [];
-  for (const block of content) {
-    if (
-      block &&
-      typeof block === "object" &&
-      "citations" in block &&
-      Array.isArray((block as { citations: unknown[] }).citations)
-    ) {
-      cites.push(...(block as { citations: unknown[] }).citations);
-    }
-  }
-  return cites;
 }
 
 /**

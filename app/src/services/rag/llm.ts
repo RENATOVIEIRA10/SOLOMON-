@@ -281,6 +281,91 @@ async function callGemini(
   }
 }
 
+// ---------------------------------------------------------------------------
+// Gemini JSON helper — usado por compare.ts e pre-sinistro.ts
+// ---------------------------------------------------------------------------
+
+export interface GeminiJsonOptions {
+  /** Default: 'gemini-2.5-flash'. Pode ser sobrescrito via env var no caller. */
+  model?: string
+  /** Default 0.2 — tarefas estruturadas pedem determinismo. */
+  temperature?: number
+  /** Default 4096 — pre-sinistro e compare retornam JSONs maiores que chat. */
+  maxOutputTokens?: number
+  /** Default 25s — Gemini Flash JSON com contexto grande pode levar 15-20s. */
+  timeoutMs?: number
+}
+
+/**
+ * Chama Gemini com `responseMimeType: 'application/json'` — forca o modelo a
+ * devolver JSON valido sem fences/preambulo. Usado pelos paths que ate Wave A.1
+ * dependiam de Anthropic SDK direto (compare/pre-sinistro). Mesma chave do
+ * GEMINI_API_KEY ja em prod (validada via fallback chain do ask()).
+ *
+ * `systemInstruction` separa do `contents` — Gemini honra como instrucao
+ * persistente sem custo de tokens em cada turn. `userMessage` vai no role=user.
+ */
+export async function callGeminiJson(
+  systemPrompt: string,
+  userMessage: string,
+  options: GeminiJsonOptions = {}
+): Promise<Omit<LLMResponse, 'latencyMs'>> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) {
+    throw new Error('GEMINI_API_KEY nao configurada')
+  }
+
+  const model = options.model ?? GEMINI_MODEL
+  const temperature = options.temperature ?? 0.2
+  const maxOutputTokens = options.maxOutputTokens ?? 4096
+  const timeoutMs = options.timeoutMs ?? 25000
+
+  const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`
+
+  const body = {
+    systemInstruction: { parts: [{ text: systemPrompt }] },
+    contents: [
+      { role: 'user', parts: [{ text: userMessage }] },
+    ],
+    generationConfig: {
+      temperature,
+      maxOutputTokens,
+      responseMimeType: 'application/json',
+    },
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
+  let response
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timeoutId)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text()
+    throw new Error(`Gemini JSON error ${response.status}: ${errorBody.slice(0, 500)}`)
+  }
+
+  const data = await response.json()
+  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  if (!text) {
+    throw new Error('Gemini JSON returned empty response')
+  }
+
+  const tokensUsed =
+    (data?.usageMetadata?.promptTokenCount ?? 0) +
+    (data?.usageMetadata?.candidatesTokenCount ?? 0)
+
+  return { text, model, tokensUsed }
+}
+
 /**
  * Calls OpenAI GPT-4o-mini as last resort.
  */

@@ -6,12 +6,17 @@
  * Depois, LLM compara e destaca diferencas.
  */
 
-import Anthropic from "@anthropic-ai/sdk";
 import { semanticSearch } from "./search";
 import { buildContext } from "./context-builder";
 import { resolveInsurerIds, loadEnrichment } from "./answer";
+import { callGeminiJson } from "./llm";
 
-const ANTHROPIC_MODEL = "claude-haiku-4-5";
+/**
+ * Modelo configuravel via env var. Default `gemini-2.5-flash` apos Wave A.2
+ * (Anthropic SDK direto fora do ar em prod). Permite swap sem deploy de codigo
+ * quando saldo Anthropic voltar ou se quisermos testar Pro.
+ */
+const COMPARE_MODEL = process.env.COMPARE_MODEL ?? "gemini-2.5-flash";
 
 export interface CompareInput {
   insurerNames: string[]; // 2-3 seguradoras
@@ -140,14 +145,9 @@ export async function compareInsurers(
   const enrichment = await loadEnrichment(uniqResults);
   const { contextText, sources } = buildContext(uniqResults, enrichment);
 
-  // 5. LLM call (Anthropic direto — alinhado ao refactor d8dc35a / a20db96)
-  const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  if (!anthropicKey) {
-    throw new Error("ANTHROPIC_API_KEY nao configurada");
-  }
-
-  const client = new Anthropic({ apiKey: anthropicKey });
-
+  // 5. LLM call — Gemini direto (Wave A.2). Anthropic SDK saiu da chain em prod
+  // por saldo morto; callGeminiJson usa responseMimeType=application/json e
+  // valida GEMINI_API_KEY internamente.
   const userMessage = `Compare estas seguradoras para ${input.productType}:
 
 ${input.insurerNames.map((n, i) => `${i + 1}. ${n}`).join("\n")}
@@ -158,22 +158,18 @@ Retorne JSON estruturado com as dimensoes comparativas.`;
 
   const systemPrompt = SYSTEM_PROMPT.replace("{context}", contextText);
 
-  const completion = await client.messages.create({
-    model: ANTHROPIC_MODEL,
+  const completion = await callGeminiJson(systemPrompt, userMessage, {
+    model: COMPARE_MODEL,
     temperature: 0.2,
-    max_tokens: 3000,
-    system: systemPrompt,
-    messages: [{ role: "user", content: userMessage }],
+    maxOutputTokens: 3000,
   });
 
-  const firstBlock = completion.content[0];
-  const raw = firstBlock?.type === "text" ? firstBlock.text : "{}";
   const parsed = extractJson<{
     dimensions?: CompareDimension[];
     summary?: string;
-  }>(raw);
+  }>(completion.text);
   if (!parsed) {
-    console.error("[compare] JSON parse failed. Raw:", raw.slice(0, 800));
+    console.error("[compare] JSON parse failed. Raw:", completion.text.slice(0, 800));
     throw new Error("LLM retornou resposta invalida.");
   }
 
