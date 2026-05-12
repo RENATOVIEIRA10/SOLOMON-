@@ -96,15 +96,24 @@ export async function compareInsurers(
   input: CompareInput
 ): Promise<CompareResult> {
   const start = Date.now();
+  // Wave A.3: instrumentacao temporaria pra isolar onde compareInsurers
+  // estoura em prod. Remover apos diagnosticar.
+  const trace = Math.random().toString(36).slice(2, 8);
+  console.log(`[compare:${trace}] START insurerNames=${JSON.stringify(input.insurerNames)} productType=${input.productType}`);
 
   if (input.insurerNames.length < 2 || input.insurerNames.length > 3) {
     throw new Error("Selecione 2 ou 3 seguradoras para comparar.");
   }
 
   // 1. Resolve ids
+  console.log(`[compare:${trace}] step1 resolveInsurerIds...`);
   const idsMap = await resolveInsurerIds(input.insurerNames);
+  const idsBreakdown: Record<string, number> = {};
+  for (const [k, v] of idsMap) idsBreakdown[k] = v.length;
+  console.log(`[compare:${trace}] step1 result size=${idsMap.size} breakdown=${JSON.stringify(idsBreakdown)}`);
   if (idsMap.size < input.insurerNames.length) {
     const missing = input.insurerNames.filter((n) => !idsMap.has(n));
+    console.error(`[compare:${trace}] step1 missing=${JSON.stringify(missing)}`);
     throw new Error(`Seguradoras nao encontradas: ${missing.join(", ")}`);
   }
 
@@ -118,18 +127,29 @@ export async function compareInsurers(
     `${input.productType} exclusoes limitacoes nao cobertura`,
   ];
 
+  console.log(`[compare:${trace}] step2 semantic search ${queries.length} queries x ${idsMap.size} insurers...`);
+  const t2 = Date.now();
   const allResults = [];
+  let queryCount = 0;
   for (const name of input.insurerNames) {
     const ids = idsMap.get(name) ?? [];
     for (const id of ids) {
       for (const q of queries) {
-        const r = await semanticSearch(q, { insurerId: id, topK: 3 });
-        allResults.push(...r);
+        try {
+          const r = await semanticSearch(q, { insurerId: id, topK: 3 });
+          allResults.push(...r);
+          queryCount++;
+        } catch (err) {
+          console.error(`[compare:${trace}] step2 semanticSearch FAIL q="${q.slice(0, 40)}" insurerId=${id}: ${(err as Error).message}`);
+          throw err;
+        }
       }
     }
   }
+  console.log(`[compare:${trace}] step2 done in ${Date.now() - t2}ms — ${queryCount} queries, ${allResults.length} raw results`);
 
   if (allResults.length === 0) {
+    console.error(`[compare:${trace}] step2 ZERO results — idsBreakdown=${JSON.stringify(idsBreakdown)}`);
     throw new Error("Nao encontrei dados suficientes para comparar.");
   }
 
@@ -140,10 +160,23 @@ export async function compareInsurers(
     seen.add(r.id);
     return true;
   });
+  console.log(`[compare:${trace}] step3 dedup ${allResults.length} -> ${uniqResults.length} unique`);
 
   // 4. Build context
-  const enrichment = await loadEnrichment(uniqResults);
-  const { contextText, sources } = buildContext(uniqResults, enrichment);
+  console.log(`[compare:${trace}] step4 buildContext...`);
+  const t4 = Date.now();
+  let contextText: string;
+  let sources;
+  try {
+    const enrichment = await loadEnrichment(uniqResults);
+    const built = buildContext(uniqResults, enrichment);
+    contextText = built.contextText;
+    sources = built.sources;
+  } catch (err) {
+    console.error(`[compare:${trace}] step4 FAIL: ${(err as Error).message}`);
+    throw err;
+  }
+  console.log(`[compare:${trace}] step4 done in ${Date.now() - t4}ms — contextText.length=${contextText.length} sources=${sources.length}`);
 
   // 5. LLM call — Gemini direto (Wave A.2). Anthropic SDK saiu da chain em prod
   // por saldo morto; callGeminiJson usa responseMimeType=application/json e
@@ -158,20 +191,30 @@ Retorne JSON estruturado com as dimensoes comparativas.`;
 
   const systemPrompt = SYSTEM_PROMPT.replace("{context}", contextText);
 
-  const completion = await callGeminiJson(systemPrompt, userMessage, {
-    model: COMPARE_MODEL,
-    temperature: 0.2,
-    maxOutputTokens: 3000,
-  });
+  console.log(`[compare:${trace}] step5 callGeminiJson model=${COMPARE_MODEL} systemLen=${systemPrompt.length} userLen=${userMessage.length}`);
+  const t5 = Date.now();
+  let completion;
+  try {
+    completion = await callGeminiJson(systemPrompt, userMessage, {
+      model: COMPARE_MODEL,
+      temperature: 0.2,
+      maxOutputTokens: 3000,
+    });
+  } catch (err) {
+    console.error(`[compare:${trace}] step5 FAIL after ${Date.now() - t5}ms: ${(err as Error).message}`);
+    throw err;
+  }
+  console.log(`[compare:${trace}] step5 done in ${Date.now() - t5}ms — responseLen=${completion.text.length} model=${completion.model}`);
 
   const parsed = extractJson<{
     dimensions?: CompareDimension[];
     summary?: string;
   }>(completion.text);
   if (!parsed) {
-    console.error("[compare] JSON parse failed. Raw:", completion.text.slice(0, 800));
+    console.error(`[compare:${trace}] step6 JSON parse failed. Raw:`, completion.text.slice(0, 800));
     throw new Error("LLM retornou resposta invalida.");
   }
+  console.log(`[compare:${trace}] step6 parsed OK dimensions=${(parsed.dimensions ?? []).length} hasSummary=${!!parsed.summary}`);
 
   return {
     insurerNames: input.insurerNames,
