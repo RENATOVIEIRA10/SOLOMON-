@@ -1,9 +1,20 @@
 /**
- * WhatsApp Conversation Session Manager
+ * WhatsApp Conversation Session Manager (Wave B — persistent).
  *
- * In-memory session store keyed by phone number.
- * TTL: 30 minutes of inactivity. Expired sessions are cleaned up periodically.
+ * Sessao curta por phone (TTL 30 min). Persistida em public.whatsapp_sessions
+ * para sobreviver a cold start serverless da Vercel — antes era Map em
+ * memoria e toda mensagem do mesmo corretor entrava como conversa nova.
+ *
+ * TTL eh validado em leitura (lazy): se a row esta stale (updated_at > 30min),
+ * tratamos messages como vazias mas preservamos brokerId — assim o lookup por
+ * phone nao precisa repetir a cada hora.
+ *
+ * Concorrencia: o fluxo real e sequencial por phone (1 webhook -> 1 handler ->
+ * 3 calls em serie). Race entre 2 mensagens simultaneas do mesmo numero pode
+ * perder ate uma entrada — aceitavel pra MVP, nao corrompe nada.
  */
+
+import { createServiceClient } from '@/lib/supabase'
 
 const SESSION_TTL_MS = 30 * 60 * 1000 // 30 minutes
 const MAX_MESSAGES_PER_SESSION = 20
@@ -15,76 +26,111 @@ export interface Session {
   brokerId?: string
 }
 
-/** In-memory session store */
-const sessions = new Map<string, Session>()
+interface DbRow {
+  phone: string
+  broker_id: string | null
+  messages: Array<{ role: 'user' | 'assistant'; content: string }> | null
+  updated_at: string
+}
+
+function rowToSession(row: DbRow): Session {
+  return {
+    phone: row.phone,
+    messages: Array.isArray(row.messages) ? row.messages : [],
+    lastActivity: new Date(row.updated_at).getTime(),
+    brokerId: row.broker_id ?? undefined,
+  }
+}
+
+function isExpired(lastActivity: number): boolean {
+  return Date.now() - lastActivity > SESSION_TTL_MS
+}
 
 /**
- * Get or create a session for the given phone number.
- * Expired sessions are recreated fresh.
+ * Le a sessao do banco. Se nao existir, devolve uma session "fresca"
+ * (sem gravar — addMessage/setBrokerId fazem o write). Se a row existir
+ * mas estiver expirada, zeramos messages mas preservamos brokerId.
  */
-export function getSession(phone: string): Session {
-  const existing = sessions.get(phone)
+export async function getSession(phone: string): Promise<Session> {
+  const supabase = createServiceClient()
+  const { data, error } = await supabase
+    .from('whatsapp_sessions')
+    .select('phone, broker_id, messages, updated_at')
+    .eq('phone', phone)
+    .maybeSingle()
 
-  if (existing) {
-    // Check TTL
-    if (Date.now() - existing.lastActivity > SESSION_TTL_MS) {
-      // Session expired — start fresh but keep brokerId
-      const fresh: Session = {
-        phone,
-        messages: [],
-        lastActivity: Date.now(),
-        brokerId: existing.brokerId,
-      }
-      sessions.set(phone, fresh)
-      return fresh
+  if (error) {
+    console.error('[whatsapp/session] getSession query failed:', error.message)
+    return { phone, messages: [], lastActivity: Date.now() }
+  }
+
+  if (!data) {
+    return { phone, messages: [], lastActivity: Date.now() }
+  }
+
+  const session = rowToSession(data as DbRow)
+  if (isExpired(session.lastActivity)) {
+    return {
+      phone,
+      messages: [],
+      lastActivity: Date.now(),
+      brokerId: session.brokerId,
     }
-    return existing
   }
-
-  // New session
-  const session: Session = {
-    phone,
-    messages: [],
-    lastActivity: Date.now(),
-  }
-  sessions.set(phone, session)
   return session
 }
 
 /**
- * Add a message to a session and update lastActivity.
- * Trims old messages to keep context window manageable.
+ * Append a message (truncado a MAX_MESSAGES_PER_SESSION ultimas) e atualiza
+ * updated_at. Read-modify-write — aceitavel pelo padrao sequencial do canal.
  */
-export function addMessage(phone: string, role: 'user' | 'assistant', content: string): void {
-  const session = getSession(phone)
-  session.messages.push({ role, content })
-  session.lastActivity = Date.now()
+export async function addMessage(
+  phone: string,
+  role: 'user' | 'assistant',
+  content: string
+): Promise<void> {
+  const supabase = createServiceClient()
+  const current = await getSession(phone)
+  const messages = [...current.messages, { role, content }].slice(-MAX_MESSAGES_PER_SESSION)
 
-  // Keep only the last N messages for context window
-  if (session.messages.length > MAX_MESSAGES_PER_SESSION) {
-    session.messages = session.messages.slice(-MAX_MESSAGES_PER_SESSION)
+  const { error } = await supabase
+    .from('whatsapp_sessions')
+    .upsert(
+      {
+        phone,
+        broker_id: current.brokerId ?? null,
+        messages,
+        updated_at: new Date().toISOString(),
+      } as never,
+      { onConflict: 'phone' }
+    )
+
+  if (error) {
+    console.error('[whatsapp/session] addMessage upsert failed:', error.message)
   }
 }
 
 /**
- * Set the broker ID for a session (after phone lookup).
+ * Persiste o broker_id na sessao apos lookup por phone. Preserva messages
+ * existentes — usa read-modify-write pra evitar zerar a coluna no upsert.
  */
-export function setBrokerId(phone: string, brokerId: string): void {
-  const session = getSession(phone)
-  session.brokerId = brokerId
-}
+export async function setBrokerId(phone: string, brokerId: string): Promise<void> {
+  const supabase = createServiceClient()
+  const current = await getSession(phone)
 
-/**
- * Clear all expired sessions. Call periodically.
- */
-export function clearExpiredSessions(): void {
-  const now = Date.now()
-  for (const [phone, session] of sessions) {
-    if (now - session.lastActivity > SESSION_TTL_MS) {
-      sessions.delete(phone)
-    }
+  const { error } = await supabase
+    .from('whatsapp_sessions')
+    .upsert(
+      {
+        phone,
+        broker_id: brokerId,
+        messages: current.messages,
+        updated_at: new Date().toISOString(),
+      } as never,
+      { onConflict: 'phone' }
+    )
+
+  if (error) {
+    console.error('[whatsapp/session] setBrokerId upsert failed:', error.message)
   }
 }
-
-// Run cleanup every 5 minutes
-setInterval(clearExpiredSessions, 5 * 60 * 1000).unref()

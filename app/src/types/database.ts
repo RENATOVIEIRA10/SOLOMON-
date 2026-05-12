@@ -1210,6 +1210,47 @@ export type Database = {
           },
         ]
       }
+      whatsapp_sessions: {
+        Row: {
+          broker_id: string | null
+          created_at: string
+          last_insurer: string | null
+          last_intent: string | null
+          last_product: string | null
+          messages: Json
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          broker_id?: string | null
+          created_at?: string
+          last_insurer?: string | null
+          last_intent?: string | null
+          last_product?: string | null
+          messages?: Json
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          broker_id?: string | null
+          created_at?: string
+          last_insurer?: string | null
+          last_intent?: string | null
+          last_product?: string | null
+          messages?: Json
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_sessions_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
