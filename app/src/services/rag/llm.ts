@@ -294,6 +294,14 @@ export interface GeminiJsonOptions {
   maxOutputTokens?: number
   /** Default 25s — Gemini Flash JSON com contexto grande pode levar 15-20s. */
   timeoutMs?: number
+  /**
+   * Wave A.4: thinking budget do Gemini 2.5. 0 desativa o raciocinio interno
+   * (ganha tokens de output, perde sutileza). Default: undefined = padrao do
+   * modelo. Compare usa 0 porque o JSON eh deterministico-template e o thinking
+   * estava consumindo 600-1000 tokens da quota, truncando o output em
+   * finishReason=MAX_TOKENS.
+   */
+  thinkingBudget?: number
 }
 
 /**
@@ -322,16 +330,21 @@ export async function callGeminiJson(
 
   const url = `${GEMINI_BASE_URL}/${model}:generateContent?key=${apiKey}`
 
+  const generationConfig: Record<string, unknown> = {
+    temperature,
+    maxOutputTokens,
+    responseMimeType: 'application/json',
+  }
+  if (typeof options.thinkingBudget === 'number') {
+    generationConfig.thinkingConfig = { thinkingBudget: options.thinkingBudget }
+  }
+
   const body = {
     systemInstruction: { parts: [{ text: systemPrompt }] },
     contents: [
       { role: 'user', parts: [{ text: userMessage }] },
     ],
-    generationConfig: {
-      temperature,
-      maxOutputTokens,
-      responseMimeType: 'application/json',
-    },
+    generationConfig,
   }
 
   const controller = new AbortController()
@@ -354,9 +367,25 @@ export async function callGeminiJson(
   }
 
   const data = await response.json()
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  const candidate = data?.candidates?.[0]
+  const text = candidate?.content?.parts?.[0]?.text
+  const finishReason = candidate?.finishReason
+
+  // Wave A.4: log estruturado pra diagnosticar truncamento (MAX_TOKENS) vs
+  // outras falhas. thoughtsTokenCount aparece em Gemini 2.5+ com reasoning.
+  console.log(
+    `[gemini-json] model=${model} finishReason=${finishReason} ` +
+      `promptTokens=${data?.usageMetadata?.promptTokenCount ?? 0} ` +
+      `outputTokens=${data?.usageMetadata?.candidatesTokenCount ?? 0} ` +
+      `thoughtsTokens=${data?.usageMetadata?.thoughtsTokenCount ?? 0} ` +
+      `responseLen=${text?.length ?? 0}`
+  )
+
   if (!text) {
-    throw new Error('Gemini JSON returned empty response')
+    throw new Error(
+      `Gemini JSON returned empty response (finishReason=${finishReason}). ` +
+        `Aumente maxOutputTokens ou reduza thinkingBudget.`
+    )
   }
 
   const tokensUsed =
