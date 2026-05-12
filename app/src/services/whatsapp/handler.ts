@@ -26,7 +26,7 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
     return []
   }
 
-  const session = getSession(msg.from)
+  const session = await getSession(msg.from)
   const text = msg.body.trim()
 
   // 1. Look up broker by phone
@@ -38,7 +38,7 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
 
   // Cache broker ID in session
   if (!session.brokerId) {
-    setBrokerId(msg.from, broker.id)
+    await setBrokerId(msg.from, broker.id)
   }
 
   // 2. Parse special commands (still needed before limit check to know if quota applies)
@@ -61,13 +61,18 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
   }
 
   // 5. Call RAG engine
-  addMessage(msg.from, 'user', text)
+  // Append local pra evitar round-trip extra ao banco — depois persiste async.
+  const history = [
+    ...session.messages,
+    { role: 'user' as const, content: text },
+  ].slice(-6)
+  await addMessage(msg.from, 'user', text)
 
   try {
     const result = await ask(text, {
       brokerId: broker.id,
       channel: 'whatsapp',
-      conversationHistory: session.messages.slice(-6), // last 3 exchanges
+      conversationHistory: history, // last 3 exchanges
     })
 
     // 5. Format response with citations + optional low-confidence warning
@@ -79,7 +84,7 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
         `\nValide no PDF oficial antes de usar com cliente.` +
         `\nResponda */feedback* com nota 1-5 para ajudar a melhorar.`
     }
-    addMessage(msg.from, 'assistant', result.answer)
+    await addMessage(msg.from, 'assistant', result.answer)
 
     // 6. Increment query counter
     await incrementQueries(broker.id)
