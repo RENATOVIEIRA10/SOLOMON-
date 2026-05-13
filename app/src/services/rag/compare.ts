@@ -123,7 +123,9 @@ export async function compareInsurers(
     const ids = idsMap.get(name) ?? [];
     for (const id of ids) {
       for (const q of queries) {
-        const r = await semanticSearch(q, { insurerId: id, topK: 3 });
+        // Phase 3A G2: comparison is always verbal → restrict to conditions_pdf.
+        // rate_table_pdf chunks (avg ~285 chars, numeric) leak otherwise.
+        const r = await semanticSearch(q, { insurerId: id, topK: 3, sourceType: 'conditions_pdf' });
         allResults.push(...r);
       }
     }
