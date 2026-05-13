@@ -46,11 +46,23 @@
  * creating a server-side function in Gate G1. The threshold default (0.7) matches the plan.
  */
 
-import 'dotenv/config'
+import { config as loadDotenv } from 'dotenv'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
+const OUTPUT_DIR = path.resolve(SCRIPT_DIR, '../../../docs/audit-runs')
+
+// Next.js convention: secrets live in app/.env.local (gitignored). We load it
+// explicitly because the dotenv default file (`.env`) is not what this repo uses.
+const envPath = path.resolve(SCRIPT_DIR, '../../.env.local')
+const dotenvResult = loadDotenv({ path: envPath })
+if (process.env.RAG_AUDIT_DEBUG_ENV) {
+  // Diagnostic: print the names of the keys dotenv parsed (NEVER the values).
+  console.error(`[debug] dotenv loaded ${envPath}: keys=${Object.keys(dotenvResult.parsed ?? {}).join(',')}`)
+}
 
 const TARGET_INSURERS = [
   'MAG Seguros',
@@ -61,8 +73,6 @@ const TARGET_INSURERS = [
 ] as const
 
 const JACCARD_THRESHOLD = Number(process.env.JACCARD_THRESHOLD ?? '0.7')
-const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url))
-const OUTPUT_DIR = path.resolve(SCRIPT_DIR, '../../../docs/audit-runs')
 
 type Strategy =
   | 'EXACT_NORMALIZED'

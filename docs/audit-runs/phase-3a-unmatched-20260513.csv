@@ -1,0 +1,23 @@
+chunk_id,insurer_name,insurer_id,product_name_chunk,reason
+# Representative rows: 1 per distinct (insurer, product_name_chunk) of the 7.668 addressable chunks.
+# Full per-chunk dump skipped — every chunk in the 5 target insurers is unmatched for the same root cause:
+# the catalog `public.products` is either empty (MAG/Azos/MetLife) or contains a non-life portfolio
+# (MAPFRE: 30 PGBL + 30 VGBL; Caixa: 2 previdência products). See report at phase-3a-g1-report-20260513.md.
+72b1a546-6f70-4688-8ec8-3f8fa86de811,Azos,dfb52b5b-93e0-46a5-8f82-ca29490b6c88,Especialista Fevereiro 2023,Azos catalog rows = 0 (no candidates)
+59493328-5273-4129-8285-bb902bc4de17,Azos,dfb52b5b-93e0-46a5-8f82-ca29490b6c88,Especialista Marco 2025,Azos catalog rows = 0 (no candidates)
+25673025-5aa7-470a-ac98-1f31c489482f,Azos,dfb52b5b-93e0-46a5-8f82-ca29490b6c88,Individual Julho 2021,Azos catalog rows = 0 (no candidates)
+b8b28307-6823-4a75-a20d-4c961d88327f,Azos,dfb52b5b-93e0-46a5-8f82-ca29490b6c88,Individual Junho 2021,Azos catalog rows = 0 (no candidates)
+1388c288-b3f4-4828-a647-54d8febbc811,Azos,dfb52b5b-93e0-46a5-8f82-ca29490b6c88,Individual Junho 2022,Azos catalog rows = 0 (no candidates)
+385b58da-09bf-40e0-b5e6-60340d0ac1b2,Azos,dfb52b5b-93e0-46a5-8f82-ca29490b6c88,Individual Marco 2021,Azos catalog rows = 0 (no candidates)
+0fc8f2d8-a194-4001-9ce2-a8c5400fb62e,MAG Seguros,2f9b2aa3-51ac-45ae-a3d2-f99d8720f273,Guia de Vendas por Cobertura MAR/2025,MAG catalog rows = 0 (no candidates)
+f906ffb3-ef50-4515-8ca4-62e75316e0f9,MAG Seguros,2f9b2aa3-51ac-45ae-a3d2-f99d8720f273,Guia de Vendas por Cobertura v02 (Mar/2025),MAG catalog rows = 0 (no candidates)
+065ed6a5-6111-4648-be83-2a129f385940,MAG Seguros,2f9b2aa3-51ac-45ae-a3d2-f99d8720f273,Vida Inteira 3082/3083,MAG catalog rows = 0 (no candidates)
+d34ec4b6-8882-4e93-8a83-bca29f18d651,MAPFRE Seguros,48fc53c5-7201-4175-9030-68aa54944b3a,Regulamento de Assistência a Pessoas (.pdf),MAPFRE catalog = 60 PGBL/VGBL (non-life) — 0 candidates after exact + Jaccard@0.7
+8918a081-509a-4e59-8714-8b949f4b58af,MAPFRE Seguros,48fc53c5-7201-4175-9030-68aa54944b3a,Vida em Grupo,MAPFRE catalog = 60 PGBL/VGBL (non-life) — 0 candidates after exact + Jaccard@0.7
+582dd5c5-8dbe-4aea-b13c-32fadc4015cf,MAPFRE Seguros,48fc53c5-7201-4175-9030-68aa54944b3a,Vida Empresa,MAPFRE catalog = 60 PGBL/VGBL (non-life) — 0 candidates after exact + Jaccard@0.7
+86627c7b-4a11-4081-befd-44d96a2a228b,MAPFRE Seguros,48fc53c5-7201-4175-9030-68aa54944b3a,Vida Individual,MAPFRE catalog = 60 PGBL/VGBL (non-life) — 0 candidates after exact + Jaccard@0.7
+d6b1ce88-02fd-4e1d-815d-e917d4a21a71,MAPFRE Seguros,48fc53c5-7201-4175-9030-68aa54944b3a,Vida Individual Bilhete,MAPFRE catalog = 60 PGBL/VGBL (non-life) — 0 candidates after exact + Jaccard@0.7
+8883fe6f-ea2e-4914-bc1b-5af5ee6d1150,MAPFRE Seguros,48fc53c5-7201-4175-9030-68aa54944b3a,Vida Voce Multiflex,MAPFRE catalog = 60 PGBL/VGBL (non-life) — 0 candidates after exact + Jaccard@0.7
+d5118651-fa66-4f90-8805-f8eda12aa921,MetLife,de69235a-3cb0-4229-a5d4-389b0b5e4697,Vida Segura,MetLife catalog rows = 0 (no candidates)
+24abed6a-1c13-43b4-98ab-eac2ca170db2,MetLife,de69235a-3cb0-4229-a5d4-389b0b5e4697,Vida Segura (atualizado),MetLife catalog rows = 0 (no candidates)
+86f05ec1-158f-4e87-aac6-f1a943caa67a,MetLife,de69235a-3cb0-4229-a5d4-389b0b5e4697,Vida Total,MetLife catalog rows = 0 (no candidates)
