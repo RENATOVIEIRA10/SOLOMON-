@@ -289,6 +289,7 @@ def run_ragas(dataset, out_dir: Path, judge_override: str | None = None, suffix:
         context_recall,
         faithfulness,
     )
+    from ragas.run_config import RunConfig
 
     from metrics import build_evaluator_llm, build_evaluator_embeddings
 
@@ -298,6 +299,17 @@ def run_ragas(dataset, out_dir: Path, judge_override: str | None = None, suffix:
     try:
         llm = build_evaluator_llm()
         embeddings = build_evaluator_embeddings()
+        # Serial judging: the default RunConfig (max_workers=16) saturates the
+        # Gemini free-tier rate limit and every job hits the 180s timeout
+        # (run 20260513_163331 produced 237 TimeoutErrors -> all-NaN scores).
+        # max_workers=1 trades wall time for staying inside the free quota.
+        # Override via RAGAS_MAX_WORKERS if a paid judge tier is available.
+        ragas_run_config = RunConfig(
+            max_workers=int(os.environ.get("RAGAS_MAX_WORKERS", "1")),
+            timeout=int(os.environ.get("RAGAS_TIMEOUT", "300")),
+            max_retries=3,
+            max_wait=90,
+        )
         result = evaluate(
             dataset=dataset,
             metrics=[
@@ -309,6 +321,7 @@ def run_ragas(dataset, out_dir: Path, judge_override: str | None = None, suffix:
             ],
             llm=llm,
             embeddings=embeddings,
+            run_config=ragas_run_config,
         )
     finally:
         if judge_override:
