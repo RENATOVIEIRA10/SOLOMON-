@@ -12,7 +12,9 @@
     "phase2:azure-di:chunker:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-chunker.test.ts",
     "phase2:azure-di:gate:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-gate.test.ts",
     "phase2:azure-di:product-resolver:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-product-resolver.test.ts",
-    "phase2:azure-di:product-resolver:preview": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-product-resolver-preview.ts"
+    "phase2:azure-di:product-resolver:preview": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-product-resolver-preview.ts",
+    "phase2:azure-di:shadow-indexer": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-shadow-indexer.ts",
+    "phase2:azure-di:shadow-indexer:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-shadow-indexer.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
