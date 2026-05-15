@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "phase2:azure-di:shadow": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-shadow.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
