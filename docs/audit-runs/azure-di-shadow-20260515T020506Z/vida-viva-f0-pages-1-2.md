@@ -1,0 +1,69 @@
+Bradesco
+Vida Viva
+
+Versão 2024 - Canal Corretor
+
+bradesco
+vida e previdência
+Com Você. Sempre.
+
+<!-- PageBreak -->
+
+Bradesco
+Vida Viva
+
+
+<figure>
+
+bradesco
+vida e previdência
+
+</figure>
+
+
+# SUMÁRIO
+
+1\. OBJETIVO
+
+2\. DEFINIÇÕES
+
+3\. CONTRATAÇÃO
+
+
+## 4. COBERTURAS
+
+
+### 4.1. COBERTURAS BÁSICAS
+
+4.1.1. MORTE
+
+4.1.2. MORTE ACIDENTAL
+
+
+### 4.2. COBERTURAS ADICIONAIS
+
+4.2.1. INVALIDEZ PERMANENTE TOTAL OU PARCIAL POR ACIDENTE
+
+4.2.2. INVALIDEZ PERMANENTE TOTAL OU PARCIAL POR ACIDENTE MAJORADA
+(para Médicos, Dentistas ou Veterinários)
+
+4.2.3. DOENÇAS GRAVES
+
+4.2.4. DOENÇAS GRAVES AMPLIADA
+
+4.2.5. DIAGNÓSTICO DEFINITIVO DE CÂNCER
+
+4.2.6. DISPENSA DO PRÊMIO POR DESEMPREGO INVOLUNTÁRIO
+
+4.2.7. DIARIA POR INCAPACIDADE TEMPORÁRIA
+
+4.2.8. DIÁRIA POR INTERNAÇÃO HOSPITALAR
+
+4.2.9. DESPESAS MÉDICAS, HOSPITALARES E ODONTOLÓGICAS POR ACIDENTE
+
+4.2.10. PERDA DE RENDA POR DESEMPREGO INVOLUNTÁRIO
+
+4.2.11. MORTE EM ACIDENTE AÉREO
+
+<!-- PageFooter="Seguro de Vida Individual" -->
+<!-- PageNumber="2" -->
