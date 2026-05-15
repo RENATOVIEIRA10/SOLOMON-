@@ -421,13 +421,22 @@ function f0Interpretation(outcomes: ProbeOutcome[]): string {
   if (!firstTwo?.ok) {
     return 'BLOCKED: pages 1-2 failed. Validate endpoint/key/resource provisioning before any pilot.'
   }
-  if (threePage?.ok) {
-    return 'F0_LIMIT_NOT_OBSERVED: pages 1-3 succeeded. Resource may not be F0, or the current service behavior differs from the documented F0 PDF/TIFF limit.'
+  if (!threePage) {
+    return 'UNKNOWN: three-page probe was not executed.'
   }
-  if (threePage && !threePage.ok) {
-    return 'F0_LIMIT_OBSERVED: pages 1-2 succeeded and pages 1-3 failed. Pilot must use two-page PDFs/recortes, or approve S0 for longer PDFs.'
+  if (!threePage.ok) {
+    return 'F0_LIMIT_OBSERVED: pages 1-2 succeeded and pages 1-3 returned an error. Pilot must use two-page PDFs/recortes, or approve S0 for longer PDFs.'
   }
-  return 'UNKNOWN: three-page probe was not executed.'
+  // F0 enforces the page cap silently: the pages=1-3 request returns HTTP 200
+  // but the service yields no more pages than the pages=1-2 request. HTTP
+  // success alone is not proof the page span was honored — compare the actual
+  // page counts.
+  const twoPageCount = firstTwo.summary?.pageCount ?? 0
+  const threePageCount = threePage.summary?.pageCount ?? 0
+  if (threePageCount <= twoPageCount) {
+    return `F0_LIMIT_OBSERVED: pages 1-3 succeeded but returned only ${threePageCount} page(s), same as the 1-2 probe — F0 caps the page span silently. Pilot must use two-page PDFs/recortes, or approve S0 for longer PDFs.`
+  }
+  return `F0_LIMIT_NOT_OBSERVED: pages 1-3 returned ${threePageCount} pages. Resource may not be F0, or the service behavior differs from the documented F0 PDF/TIFF limit.`
 }
 
 async function writeReport(
