@@ -329,10 +329,35 @@ async function loadCatalog(
 }
 
 interface PostWriteProbe {
+  /**
+   * REAL leak: rows that carry the shadow signature
+   * (`metadata.shadow = true`) AND are visible to the read path
+   * (`valid_until IS NULL`). MUST be zero. Any non-zero is a contract
+   * violation that requires investigation.
+   */
   shadowLeakCount: number
+  /**
+   * Active legacy prod rows for the same (insurer, source_url). These
+   * are pre-existing rows from the old ingestion pipeline — informational
+   * only. The shadow indexer does NOT touch them (different content_hash
+   * prefix, no UPDATE/DELETE).
+   *
+   * NOT a leak. Computed as: rows with `valid_until IS NULL` minus the
+   * shadow-leak count, so a sudden spike here can also be flagged.
+   */
+  activeLegacyProdCount: number
+  /**
+   * Shadow rows written by this slice — `valid_until = sentinel`. Should
+   * equal the accepted-chunk count produced by the pipeline.
+   */
   upsertedCount: number
 }
 
+/**
+ * Counts rows visible to the read path that ALSO carry the shadow
+ * signature. This is the only metric that names "leak". On a clean
+ * run it MUST be zero.
+ */
 async function probeShadowLeak(
   client: SupabaseClient<Database>,
   insurerId: string,
@@ -344,11 +369,29 @@ async function probeShadowLeak(
     .eq('insurer_id', insurerId)
     .eq('source_url', sourceUrl)
     .is('valid_until', null)
+    .eq('metadata->>shadow', 'true')
   if (error) throw error
-  // We're looking for rows that match shadow signature (insurer+url) but are
-  // ALSO active (valid_until IS NULL). On a clean shadow run that count
-  // should be zero — any non-zero indicates leak (or a pre-existing prod row
-  // for that URL, which would be a separate concern flagged in the report).
+  return count ?? 0
+}
+
+/**
+ * Counts all rows visible to the read path for the same (insurer, url),
+ * regardless of shadow flag. Subtracting {@link probeShadowLeak} gives
+ * the legacy-prod baseline — pre-existing rows from the old pipeline
+ * that this slice does not touch. Informational, not a leak metric.
+ */
+async function probeActiveRowsForUrl(
+  client: SupabaseClient<Database>,
+  insurerId: string,
+  sourceUrl: string
+): Promise<number> {
+  const { count, error } = await client
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('insurer_id', insurerId)
+    .eq('source_url', sourceUrl)
+    .is('valid_until', null)
+  if (error) throw error
   return count ?? 0
 }
 
@@ -498,11 +541,26 @@ function renderReport(args: {
   }
 
   if (args.postWrite) {
+    const pw = args.postWrite
     lines.push('## Post-write probe')
     lines.push('')
-    lines.push(`- shadow rows leaked into read path (valid_until IS NULL for this url+insurer): ${args.postWrite.shadowLeakCount}`)
-    lines.push(`- upserted shadow rows (sentinel valid_until for this url+insurer): ${args.postWrite.upsertedCount}`)
+    lines.push('| metric | count | meaning |')
+    lines.push('|---|---:|---|')
+    lines.push(
+      `| shadow leak (\`metadata.shadow=true\` AND \`valid_until IS NULL\`) | **${pw.shadowLeakCount}** | MUST be 0. Any non-zero is a contract violation. |`
+    )
+    lines.push(
+      `| active legacy prod rows (\`valid_until IS NULL\` minus shadow leak) | ${pw.activeLegacyProdCount} | pre-existing rows from the old pipeline, untouched by this slice. Informational. NOT a leak. |`
+    )
+    lines.push(
+      `| upserted shadow rows (\`valid_until = sentinel\`) | ${pw.upsertedCount} | rows written by this run. Should equal accepted-chunk count. |`
+    )
     lines.push('')
+    if (pw.shadowLeakCount > 0) {
+      lines.push('> :warning: **Shadow leak detected.** A row with `metadata.shadow=true` is')
+      lines.push('> currently visible to the read path. Investigate before continuing.')
+      lines.push('')
+    }
   }
 
   if (args.writeError) {
@@ -617,15 +675,16 @@ async function main(): Promise<void> {
     try {
       assertRowsAreInert(build.rows, SHADOW_HASH_PREFIX)
       await upsertRows(client, build.rows)
-      const shadowLeakCount = await probeShadowLeak(client, insurer.id, opts.url)
-      const upsertedCount = await countUpsertedShadow(
-        client,
-        insurer.id,
-        opts.url,
-        SHADOW_VALID_UNTIL_SENTINEL
+      const [shadowLeakCount, activeRowsForUrl, upsertedCount] = await Promise.all([
+        probeShadowLeak(client, insurer.id, opts.url),
+        probeActiveRowsForUrl(client, insurer.id, opts.url),
+        countUpsertedShadow(client, insurer.id, opts.url, SHADOW_VALID_UNTIL_SENTINEL),
+      ])
+      const activeLegacyProdCount = Math.max(0, activeRowsForUrl - shadowLeakCount)
+      postWrite = { shadowLeakCount, activeLegacyProdCount, upsertedCount }
+      console.log(
+        `post-write: upserted=${upsertedCount} shadow-leak=${shadowLeakCount} active-legacy-prod=${activeLegacyProdCount}`
       )
-      postWrite = { shadowLeakCount, upsertedCount }
-      console.log(`post-write: upserted=${upsertedCount} leak-into-read-path=${shadowLeakCount}`)
     } catch (err) {
       writeError = err instanceof Error ? err.message : String(err)
       console.error(`write FAIL: ${writeError}`)
