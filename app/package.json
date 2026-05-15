@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "phase2:azure-di:shadow": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-shadow.ts",
-    "phase2:azure-di:client:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-client.test.ts"
+    "phase2:azure-di:client:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-client.test.ts",
+    "phase2:azure-di:chunker:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-chunker.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
