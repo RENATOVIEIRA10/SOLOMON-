@@ -1,0 +1,86 @@
+[
+  {
+    "id": "5eb881f0-d36e-41aa-95b2-ace19502e181",
+    "name": "ACIDENTES PESSOAIS COLETIVO MODULAR E EVENTOS",
+    "code": "168 e 169",
+    "susep_process": "15414.900004/2016-71",
+    "terms_url": null
+  },
+  {
+    "id": "60d7111f-baf4-47a6-98e2-b923d74db7b5",
+    "name": "ACIDENTES PESSOAIS PASSAGEIROS",
+    "code": "78",
+    "susep_process": "15414.901681/2017-97",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-empresarial/Condi%C3%A7%C3%B5es%20Gerais%20Acidentes%20Pessoais%20Passageiro_Dez-25.pdf"
+  },
+  {
+    "id": "35b4d131-1765-4128-b0ee-afc38a8cc93f",
+    "name": "DOENÇAS TROPICAIS",
+    "code": "182",
+    "susep_process": "15414.617792/2020-13",
+    "terms_url": null
+  },
+  {
+    "id": "042f4ed5-9e62-4647-bad7-2c17843a4c7b",
+    "name": "PRUDENTIAL CAPITAL GLOBAL",
+    "code": "1",
+    "susep_process": "15414.633272/2019-14",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-empresarial/condicoes-gerais-e-especiais-capital-global_11-2024.pdf"
+  },
+  {
+    "id": "02d44157-ef17-4c46-ac40-bba258519f3b",
+    "name": "RENDA FAMILIAR",
+    "code": "FIPortG",
+    "susep_process": "15414.900814/2013-84",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-individual/condicoes-gerais-renda-familiar.pdf"
+  },
+  {
+    "id": "886832b3-19a6-4f70-8270-f2e2f0f61e90",
+    "name": "TEMPORÁRIO",
+    "code": "TMPortG",
+    "susep_process": "15414.900782/2013-17",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-individual/condicoes-gerais-seguro-temporario.pdf"
+  },
+  {
+    "id": "2c3459a1-522d-4894-bdda-1c2c8ac278de",
+    "name": "TEMPORÁRIO DECRESCENTE",
+    "code": "DTPortG",
+    "susep_process": "15414.900793/2013-05",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-individual/condicoes-gerais-seguro-temporario-decrescente.pdf"
+  },
+  {
+    "id": "e133d5e5-4f90-4419-a438-10b2d443cbb2",
+    "name": "TEMPORÁRIO PREFERENCIAL",
+    "code": "TPPortG",
+    "susep_process": "15414.900426/2015-65",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-individual/condicoes-gerais-seguro-temporario-preferencial.pdf"
+  },
+  {
+    "id": "a02c6b0f-c67b-4405-b587-2992854d7be6",
+    "name": "VG CORPORATE E VG EXPRESS",
+    "code": "163 e 164",
+    "susep_process": "15414.901611/2017-39",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-empresarial/condicoes-gerais-seguro-vida-em-grupo-corporate-ate-30-09-18.pdf"
+  },
+  {
+    "id": "d91783a7-fa17-4b6c-836f-8cfb7753b53e",
+    "name": "VIAGEM",
+    "code": "22 e 23",
+    "susep_process": "15414.900091/2016-66",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-empresarial/condicoes-gerais-seguro-viagem-corporativo-nacional-internacional.pdf"
+  },
+  {
+    "id": "9c758800-9408-4c56-bcad-81113af61799",
+    "name": "VIDA INTEIRA",
+    "code": "WLPortG",
+    "susep_process": "15414.900141/2013-62",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-individual/condicoes-gerais-vida-inteira.pdf"
+  },
+  {
+    "id": "59ca99bc-f8c3-4fe1-9906-1bce0b3e9fe6",
+    "name": "VIDA INTEIRA MAIS",
+    "code": "WDportG",
+    "susep_process": "15414.900197/2015-89",
+    "terms_url": "https://www.prudential.com.br/content/dam/prudential/condicoes-gerais/vida-individual/condicoes-gerais-vida-inteira-mais.pdf"
+  }
+]
