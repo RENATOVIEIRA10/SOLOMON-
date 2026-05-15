@@ -191,7 +191,9 @@ function compareToGolden(label: string, chunks: SemanticChunk[]): void {
     return
   }
 
-  const existing = readFileSync(goldenPath, 'utf8')
+  // Normalize line endings — git autocrlf can flip the on-disk file to CRLF
+  // on Windows checkouts while the renderer always emits LF.
+  const existing = readFileSync(goldenPath, 'utf8').replace(/\r\n/g, '\n')
   if (existing === rendered) {
     console.log(`  ok  matches golden ${path.basename(goldenPath)}`)
     passed++
