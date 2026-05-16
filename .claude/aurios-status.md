@@ -25,12 +25,15 @@
 | 001 | Validar rag_exclude filter + rotate secrets + CI build | PENDENTE | — | — |
 | 002 | Dashboard admin + baseline Ragas automatizado | PENDENTE | — | — |
 | 003 | Suite de testes unitários (extractors, RAG pipeline) | PENDENTE | — | — |
+| Ops-001 | Stop hook light para Claude Code (operacional, não-produto) | FECHADO | `feat(ops): stop-hook light` | 2026-05-16 |
 
 ---
 
 ## Ciclo fechado mais recente
 
-Nenhum ciclo fechado ainda sob governança formal. Histórico anterior:
+**Ops-001 — Stop hook light (2026-05-16):** `app/scripts/claude-stop-hook-light.sh` + `.claude/settings.json` local do repo. Princípio: hook não decide produto, só impede "feito sem prova". Validado bloqueio (TRUNCATE TABLE no diff → exit 1) e liberação (tsc full → exit 0). Evidência em `docs/audit-runs/2026-05-16-stop-hook-light-setup.md`. PR: ops/stop-hook-light. Issue #36.
+
+Nenhum ciclo de produto fechado ainda sob governança formal. Histórico anterior:
 - Ciclos de desenvolvimento ad-hoc até 2026-04-22 (schema baseline `20260422180000`)
 - Frontend v1.0 entregue 2026-04-17
 - Benchmark Kimi vs Haiku concluído 2026-04-22 (decisão: manter Haiku no WhatsApp)
