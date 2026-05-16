@@ -476,6 +476,12 @@ async function probeActiveRowsForUrl(
   return count ?? 0
 }
 
+/**
+ * Counts shadow rows for this (insurer, url) at the sentinel `valid_until`
+ * AND with `metadata.hash_scheme='url-aware-v1'`. The hash_scheme filter
+ * keeps v3 orphans (from the pre-fix release) out of this metric so
+ * `classifyWriteStatus` works correctly during the v3→v4 transition.
+ */
 async function countUpsertedShadow(
   client: SupabaseClient<Database>,
   insurerId: string,
@@ -488,6 +494,7 @@ async function countUpsertedShadow(
     .eq('insurer_id', insurerId)
     .eq('source_url', sourceUrl)
     .eq('valid_until', sentinel)
+    .eq('metadata->>hash_scheme', 'url-aware-v1')
   if (error) throw error
   return count ?? 0
 }
@@ -597,15 +604,39 @@ async function runFinalReadPathProbe(
       skipped: 'no active embedding available to probe with',
     }
   }
-  const rpc = client.rpc as unknown as (
-    fn: string,
-    args: Record<string, unknown>
-  ) => Promise<{ data: Array<{ id: string }> | null; error: { message: string } | null }>
-  const { data, error } = await rpc('match_documents', {
-    query_embedding: queryEmbedding,
-    match_threshold: threshold,
-    match_count: topK,
-  })
+  // Cast through `unknown` because `match_documents` is a user-defined
+  // RPC not present in the generated Database type. Call as a METHOD on
+  // `client` so `this` stays bound to the Supabase client (the earlier
+  // version stored client.rpc into a local and lost `this`, which threw
+  // "Cannot read properties of undefined (reading 'rest')").
+  type RpcResponse = {
+    data: Array<{ id: string }> | null
+    error: { message: string } | null
+  }
+  let rpcResp: RpcResponse
+  try {
+    rpcResp = (await (
+      client.rpc as unknown as (
+        this: SupabaseClient<Database>,
+        fn: string,
+        args: Record<string, unknown>
+      ) => Promise<RpcResponse>
+    ).call(client, 'match_documents', {
+      query_embedding: queryEmbedding,
+      match_threshold: threshold,
+      match_count: topK,
+    })) as RpcResponse
+  } catch (err) {
+    return {
+      totalReturned: 0,
+      shadowReturned: 0,
+      nonNullValidUntilReturned: 0,
+      threshold,
+      topK,
+      skipped: `match_documents threw: ${err instanceof Error ? err.message : String(err)}`,
+    }
+  }
+  const { data, error } = rpcResp
   if (error) {
     return {
       totalReturned: 0,

@@ -32,6 +32,8 @@
  *     and upserting accepted rows.
  */
 
+import { createHash } from 'node:crypto'
+
 import type { Json, TablesInsert } from '@/types/database'
 
 import {
@@ -56,8 +58,49 @@ import {
 } from './product-resolver'
 import type { LayoutAnalyzeResult } from './types'
 
-/** Prefix stamped on every shadow-row `content_hash`. */
-export const SHADOW_HASH_PREFIX = 'shadow-v3:' as const
+/**
+ * Prefix stamped on every shadow-row `content_hash`.
+ *
+ * Version history:
+ *   - `shadow-v3:` (initial 3B.5 release): hash was just the chunker's
+ *     content-only sha256. Cross-PDF boilerplate at the SAME chunk_index
+ *     collided on the `documents_content_hash_chunk_index_key` UNIQUE
+ *     constraint, and upsert silently overwrote `source_url`. Discovered
+ *     in the first --batch --limit 5 run: vida-inteira chunk_index=1 and
+ *     seguro-temporario chunk_index=2 share hash `b7d79450…` for the
+ *     boilerplate "Estas condições gerais compõem o contrato…".
+ *   - `shadow-v4:` (this patch): the post-prefix hash mixes `sourceUrl`
+ *     into the digest, so two PDFs never produce the same shadow
+ *     content_hash for byte-identical chunks. See {@link
+ *     computeShadowContentHash}.
+ *
+ * Existing v3 rows in production stay in place as inert orphans (the
+ * contract is "no DELETE"). New runs write v4 rows; subsequent reruns
+ * of the same PDF re-hit the same v4 (hash, chunk_index) tuple → upsert
+ * UPDATE → idempotent.
+ */
+export const SHADOW_HASH_PREFIX = 'shadow-v4:' as const
+
+/**
+ * Stamp on `metadata.hash_scheme` so downstream auditors can tell v4
+ * rows apart from v3 orphans without parsing the prefix.
+ */
+export const SHADOW_HASH_SCHEME = 'url-aware-v1' as const
+
+/**
+ * Hash function for shadow rows. URL-aware so two PDFs sharing
+ * boilerplate at the same chunk_index do not collide on the GLOBAL
+ * `(content_hash, chunk_index)` UNIQUE constraint.
+ *
+ * Idempotent for the SAME (sourceUrl, chunkHash) pair — re-running the
+ * same PDF reproduces the same shadow hash bit-for-bit.
+ */
+export function computeShadowContentHash(
+  sourceUrl: string,
+  chunkContentHash: string
+): string {
+  return createHash('sha256').update(`${sourceUrl}::${chunkContentHash}`).digest('hex')
+}
 
 /**
  * Non-null sentinel written to `valid_until` on every shadow row. The
@@ -189,6 +232,11 @@ export function assertRowsAreInert(
         `shadow row[${i}] metadata.parser is "${String(meta.parser)}" (expected "${SEMANTIC_CHUNKER_PARSER}")`
       )
     }
+    if (meta.hash_scheme !== SHADOW_HASH_SCHEME) {
+      throw new Error(
+        `shadow row[${i}] metadata.hash_scheme is "${String(meta.hash_scheme)}" (expected "${SHADOW_HASH_SCHEME}")`
+      )
+    }
     if (row.source_type !== SHADOW_SOURCE_TYPE) {
       throw new Error(
         `shadow row[${i}] source_type "${row.source_type}" violates the documents_source_type_check constraint`
@@ -273,6 +321,7 @@ function toShadowRow(
     ...chunk.metadata,
     shadow: true,
     parser: SEMANTIC_CHUNKER_PARSER,
+    hash_scheme: SHADOW_HASH_SCHEME,
     insurer_id: input.insurerId,
     insurer_name: input.insurerName,
     product_id: productId,
@@ -290,7 +339,7 @@ function toShadowRow(
     source_url: input.sourceUrl,
     chunk_index: chunk.metadata.chunk_index,
     content: chunk.content,
-    content_hash: `${hashPrefix}${chunk.content_hash}`,
+    content_hash: `${hashPrefix}${computeShadowContentHash(input.sourceUrl, chunk.content_hash)}`,
     pdf_hash: input.pdfHash ?? null,
     embedding: null,
     valid_until: sentinel,

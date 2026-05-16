@@ -3,16 +3,20 @@
  *
  * Standalone tsx, exit code 0/1. No network, no DB, no credentials.
  *
- * Three layers:
+ * Four layers:
  *   1. Insurer-guard unit tests (Azos/MAG must be refused, Prudential
  *      variants must pass).
  *   2. Pipeline integration over the Bradesco + Prudential fixtures —
  *      verifying that for a Prudential-named run with the real catalog,
  *      every accepted chunk produces an inert row carrying the sentinel
- *      `valid_until`, the `shadow-v3:` hash prefix, `metadata.shadow=true`,
- *      and a null embedding.
+ *      `valid_until`, the `shadow-v4:` hash prefix, `metadata.shadow=true`,
+ *      `metadata.hash_scheme='url-aware-v1'`, and a null embedding.
  *   3. Idempotency check: re-running buildShadowRows on the same input
  *      produces row-equal output (same hashes, same metadata, same counts).
+ *   4. URL-aware hash invariant: two distinct URLs analyzing the SAME
+ *      layout fixture (i.e. byte-identical chunks) produce DISTINCT
+ *      shadow content_hashes. Guards against the cross-PDF boilerplate
+ *      collision that triggered the v3→v4 prefix bump.
  *
  * Run from app/:
  *   npm run phase2:azure-di:shadow-indexer:test
@@ -24,12 +28,14 @@ import path from 'node:path'
 import { SEMANTIC_CHUNKER_PARSER } from '../../src/services/azure-di/chunker'
 import {
   SHADOW_HASH_PREFIX,
+  SHADOW_HASH_SCHEME,
   SHADOW_SOURCE_TYPE,
   SHADOW_VALID_UNTIL_SENTINEL,
   ShadowIndexerGuardError,
   assertPrudentialOnly,
   assertRowsAreInert,
   buildShadowRows,
+  computeShadowContentHash,
 } from '../../src/services/azure-di/shadow-indexer'
 import type { ProductCatalogRow } from '../../src/services/azure-di/product-resolver'
 import type { LayoutAnalyzeResult } from '../../src/services/azure-di/types'
@@ -120,6 +126,7 @@ function runPipelineIntegration(): void {
   let allSentinel = true
   let allShadowFlag = true
   let allHashPrefix = true
+  let allHashScheme = true
   let allNullEmbedding = true
   let allConditionsPdf = true
   let allProductId = true
@@ -128,6 +135,7 @@ function runPipelineIntegration(): void {
     const meta = row.metadata as Record<string, unknown> | null
     if (!meta || meta.shadow !== true) allShadowFlag = false
     if (!meta || meta.parser !== SEMANTIC_CHUNKER_PARSER) allShadowFlag = false
+    if (!meta || meta.hash_scheme !== SHADOW_HASH_SCHEME) allHashScheme = false
     if (!row.content_hash.startsWith(SHADOW_HASH_PREFIX)) allHashPrefix = false
     if (row.embedding !== null) allNullEmbedding = false
     if (row.source_type !== SHADOW_SOURCE_TYPE) allConditionsPdf = false
@@ -135,7 +143,8 @@ function runPipelineIntegration(): void {
   }
   ok('every row valid_until = sentinel', allSentinel)
   ok('every row metadata.shadow=true & parser=v3', allShadowFlag)
-  ok('every row content_hash prefixed shadow-v3:', allHashPrefix)
+  ok(`every row content_hash prefixed ${SHADOW_HASH_PREFIX}`, allHashPrefix)
+  ok(`every row metadata.hash_scheme=${SHADOW_HASH_SCHEME}`, allHashScheme)
   ok('every row embedding=null', allNullEmbedding)
   ok('every row source_type=conditions_pdf', allConditionsPdf)
   ok('every row product_id set (resolver hit)', allProductId)
@@ -201,6 +210,7 @@ function runAzosMagBlocked(): void {
 
 function runAssertRowsAreInertNegativePaths(): void {
   console.log('\n## assertRowsAreInert negative paths')
+  const baseMeta = { shadow: true, parser: SEMANTIC_CHUNKER_PARSER, hash_scheme: SHADOW_HASH_SCHEME }
   const baseRow = {
     insurer_id: 'i',
     product_id: 'p',
@@ -212,7 +222,7 @@ function runAssertRowsAreInertNegativePaths(): void {
     pdf_hash: null,
     embedding: null,
     valid_until: SHADOW_VALID_UNTIL_SENTINEL,
-    metadata: { shadow: true, parser: SEMANTIC_CHUNKER_PARSER },
+    metadata: baseMeta,
   }
   ok('passes a well-formed row', !throwsAny(() => assertRowsAreInert([baseRow])))
   ok(
@@ -230,13 +240,81 @@ function runAssertRowsAreInertNegativePaths(): void {
   ok(
     'fails when metadata.shadow != true',
     throwsAny(() =>
-      assertRowsAreInert([{ ...baseRow, metadata: { shadow: false, parser: SEMANTIC_CHUNKER_PARSER } }])
+      assertRowsAreInert([{ ...baseRow, metadata: { ...baseMeta, shadow: false } }])
+    )
+  )
+  ok(
+    'fails when metadata.hash_scheme missing',
+    throwsAny(() =>
+      assertRowsAreInert([
+        { ...baseRow, metadata: { shadow: true, parser: SEMANTIC_CHUNKER_PARSER } as unknown as typeof baseMeta },
+      ])
     )
   )
   ok(
     'fails when source_type != conditions_pdf',
     throwsAny(() => assertRowsAreInert([{ ...baseRow, source_type: 'manual' }]))
   )
+}
+
+function runUrlAwareHashTests(): void {
+  console.log('\n## URL-aware hash (cross-PDF collision guard)')
+  // Layer A: function-level invariants on computeShadowContentHash.
+  const urlA = 'https://prudential.com.br/x.pdf'
+  const urlB = 'https://prudential.com.br/y.pdf'
+  const contentHash = 'b7d79450a05425f2b18e341292080a29cfdf42b3'
+  ok(
+    'same (url, content) → same hash (idempotency)',
+    computeShadowContentHash(urlA, contentHash) === computeShadowContentHash(urlA, contentHash)
+  )
+  ok(
+    'different urls + identical content → different hashes',
+    computeShadowContentHash(urlA, contentHash) !== computeShadowContentHash(urlB, contentHash)
+  )
+  ok(
+    'different content + same url → different hashes',
+    computeShadowContentHash(urlA, contentHash) !==
+      computeShadowContentHash(urlA, contentHash + 'X')
+  )
+
+  // Layer B: end-to-end, same fixture analyzed for two different URLs.
+  // Their accepted shadow rows must have disjoint content_hash sets at
+  // every chunk_index — guaranteeing the GLOBAL unique constraint cannot
+  // produce silent cross-URL overwrites.
+  const layout = loadLayoutFixture('prudential-ap-passageiros-p1-3')
+  const catalog = loadPrudentialCatalog()
+  const a = buildShadowRows({
+    layout,
+    insurerId: 'i',
+    insurerName: 'Prudential do Brasil',
+    sourceUrl: 'https://prudential.com.br/A.pdf',
+    productCatalog: catalog,
+  })
+  const b = buildShadowRows({
+    layout,
+    insurerId: 'i',
+    insurerName: 'Prudential do Brasil',
+    sourceUrl: 'https://prudential.com.br/B.pdf',
+    productCatalog: catalog,
+  })
+  ok('same row count for both URLs', a.rows.length === b.rows.length)
+
+  let allDistinctHashes = true
+  let allSameChunkIndex = true
+  for (let i = 0; i < a.rows.length; i++) {
+    if (a.rows[i].content_hash === b.rows[i].content_hash) allDistinctHashes = false
+    if (a.rows[i].chunk_index !== b.rows[i].chunk_index) allSameChunkIndex = false
+  }
+  ok('row[i].chunk_index equal across the two URLs', allSameChunkIndex)
+  ok('row[i].content_hash differs across the two URLs (no collision)', allDistinctHashes)
+
+  // Sanity: chunker output is byte-identical for both runs (so the
+  // collision-protection is doing the work, not divergent chunking).
+  let sameContent = true
+  for (let i = 0; i < a.rows.length; i++) {
+    if (a.rows[i].content !== b.rows[i].content) sameContent = false
+  }
+  ok('row[i].content is byte-identical (chunker is deterministic)', sameContent)
 }
 
 function throwsAny(fn: () => void): boolean {
@@ -255,6 +333,7 @@ function main(): void {
   runIdempotency()
   runAzosMagBlocked()
   runAssertRowsAreInertNegativePaths()
+  runUrlAwareHashTests()
   console.log(`\n${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)
 }
