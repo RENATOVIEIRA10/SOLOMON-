@@ -158,6 +158,34 @@ function runPipelineIntegration(): void {
     console.error(`  unexpected throw: ${(err as Error).message}`)
   }
   ok('assertRowsAreInert passes on real rows', !thrown)
+
+  // Optional `pageSpan` input must round-trip into metadata.page_span. The
+  // CLI passes `1-N` so future audits can attribute coexisting v4 rows
+  // to the run that produced them.
+  const withSpan = buildShadowRows({
+    layout,
+    insurerId: 'insurer-prudential-uuid',
+    insurerName: 'Prudential do Brasil',
+    sourceUrl: PRUDENTIAL_AP_PASSAGEIROS_URL,
+    productCatalog: catalog,
+    pageSpan: '1-3',
+  })
+  ok(
+    'every row metadata.page_span = "1-3" when pageSpan passed',
+    withSpan.rows.every((r) => {
+      const m = r.metadata as Record<string, unknown> | null
+      return m?.page_span === '1-3'
+    })
+  )
+  // No pageSpan → null in metadata. (Field is still present so future
+  // queries can filter on it without dropping pre-fix rows by accident.)
+  ok(
+    'metadata.page_span = null when pageSpan omitted',
+    result.rows.every((r) => {
+      const m = r.metadata as Record<string, unknown> | null
+      return m !== null && m.page_span === null
+    })
+  )
 }
 
 function runIdempotency(): void {

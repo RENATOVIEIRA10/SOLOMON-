@@ -141,6 +141,13 @@ export interface BuildShadowRowsInput {
   validUntilSentinel?: string
   /** `content_hash` prefix. Defaults to {@link SHADOW_HASH_PREFIX}. */
   hashPrefix?: string
+  /**
+   * Optional page-span string (e.g. `"1-5"`) that the CLI passed to
+   * Azure DI for this run. Stamped on `metadata.page_span` so future
+   * audits can tell two coexisting v4 rows for the same URL apart by
+   * the run that produced them. Optional and never affects inertness.
+   */
+  pageSpan?: string
 }
 
 /** Per-PDF summary returned alongside the rows. */
@@ -322,6 +329,7 @@ function toShadowRow(
     shadow: true,
     parser: SEMANTIC_CHUNKER_PARSER,
     hash_scheme: SHADOW_HASH_SCHEME,
+    page_span: input.pageSpan ?? null,
     insurer_id: input.insurerId,
     insurer_name: input.insurerName,
     product_id: productId,
