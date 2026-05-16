@@ -476,6 +476,12 @@ async function probeActiveRowsForUrl(
   return count ?? 0
 }
 
+/**
+ * Counts shadow rows for this (insurer, url) at the sentinel `valid_until`
+ * AND with `metadata.hash_scheme='url-aware-v1'`. The hash_scheme filter
+ * keeps v3 orphans (from the pre-fix release) out of this metric so
+ * `classifyWriteStatus` works correctly during the v3→v4 transition.
+ */
 async function countUpsertedShadow(
   client: SupabaseClient<Database>,
   insurerId: string,
@@ -488,6 +494,7 @@ async function countUpsertedShadow(
     .eq('insurer_id', insurerId)
     .eq('source_url', sourceUrl)
     .eq('valid_until', sentinel)
+    .eq('metadata->>hash_scheme', 'url-aware-v1')
   if (error) throw error
   return count ?? 0
 }
