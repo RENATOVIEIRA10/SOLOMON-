@@ -20,19 +20,38 @@ export interface ManifestEntry {
 }
 
 /**
- * Per-doc lifecycle status. Includes the three "ran successfully"
- * outcomes that all map to a non-leak shadow write, plus the two
- * pre-pipeline short-circuit states and the two error states.
+ * Per-doc lifecycle status. Disjoint set: a doc lands in exactly one.
+ *
+ * Success (write happened, no leak):
+ *   FRESH            pre=0, post=accepted
+ *   IDEMPOTENT_HIT   pre=accepted, post=accepted
+ *   OVERWRITE        0<pre<accepted, post=accepted
+ *   ORPHAN_SUPERSET  post>accepted, leak=0
+ *                    (this run's accepted rows are in DB AND extra
+ *                    inert rows from prior runs at a different page
+ *                    span persist alongside them. Benign — they have
+ *                    sentinel valid_until and never reach the read
+ *                    path. Reported as telemetry, not a stop signal.)
+ *
+ * Short-circuit (no write attempted):
+ *   PLANNED          dry-run
+ *   SKIPPED_RESUME   --resume found pre>0
+ *   PIPELINE_ONLY    --live without --write
+ *
+ * Failure (hard stop):
+ *   AZURE_ERROR      pipeline failed during analyze/build
+ *   WRITE_ERROR      post<accepted, OR leak>0, OR upsert/probe threw
  */
 export type DocStatus =
-  | 'PLANNED' // dry-run; doc would be processed if --live were set
-  | 'SKIPPED_RESUME' // --resume + pre-shadow count > 0
-  | 'PIPELINE_ONLY' // --live without --write
-  | 'FRESH' // --write success; pre-shadow == 0 → post == accepted
-  | 'IDEMPOTENT_HIT' // --write success; pre-shadow == accepted; delta == 0
-  | 'OVERWRITE' // --write success; pre-shadow > 0 but != accepted; post == accepted
-  | 'AZURE_ERROR' // pipeline failed during analyze/build
-  | 'WRITE_ERROR' // assertRowsAreInert / upsert / probe failed
+  | 'PLANNED'
+  | 'SKIPPED_RESUME'
+  | 'PIPELINE_ONLY'
+  | 'FRESH'
+  | 'IDEMPOTENT_HIT'
+  | 'OVERWRITE'
+  | 'ORPHAN_SUPERSET'
+  | 'AZURE_ERROR'
+  | 'WRITE_ERROR'
 
 /** Per-doc record persisted in the batch report. */
 export interface DocResult {
@@ -52,6 +71,14 @@ export interface DocResult {
   preShadowCount?: number
   /** Shadow rows at sentinel after this run upserted. */
   upsertedCount?: number
+  /**
+   * `max(0, post - accepted)` — inert shadow rows alive for this URL
+   * beyond what this run produced. Non-zero when prior runs at a
+   * different `--max-pages` left v4 rows whose `chunk_index` we did
+   * not revisit. Benign: rows are still at sentinel `valid_until`.
+   * Surfaced for auditability.
+   */
+  extraInertShadowRows?: number
   /** `metadata.shadow=true` AND `valid_until IS NULL` — MUST be 0. */
   shadowLeak?: number
   /** `valid_until IS NULL` minus shadow leak — pre-existing legacy prod rows. */
@@ -67,6 +94,8 @@ export interface BatchAggregate {
   docsFresh: number
   docsIdempotent: number
   docsOverwrite: number
+  /** docs whose write was clean but DB has extra inert v4 rows beyond accepted. Benign. */
+  docsOrphanSuperset: number
   docsAzureError: number
   docsWriteError: number
   docsUnresolved: number
@@ -76,24 +105,34 @@ export interface BatchAggregate {
   totalQuarantined: number
   totalShadowUpserted: number
   totalShadowLeaks: number
+  /** Sum of `extraInertShadowRows` across all docs — telemetry, never a hard stop. */
+  totalExtraInertShadow: number
   estimatedCostUsd: number
 }
 
 /**
- * Classifies the outcome of a single --write run from the pre-count,
- * accepted-count, and post-count. Pure.
+ * Classifies the outcome of a single --write run. Pure.
  *
- *   pre == 0, post == accepted        → FRESH
- *   pre == accepted, post == accepted → IDEMPOTENT_HIT
- *   pre > 0, pre != accepted, post == accepted → OVERWRITE
- *   anything where post != accepted   → WRITE_ERROR
+ *   leak > 0                          → WRITE_ERROR (catastrophic)
+ *   post < accepted                   → WRITE_ERROR (some rows didn't land)
+ *   post > accepted, leak == 0        → ORPHAN_SUPERSET (benign telemetry:
+ *                                       this run's rows are all in DB
+ *                                       plus extra inert orphans from a
+ *                                       prior run at a different page span)
+ *   post == accepted, pre == 0        → FRESH
+ *   post == accepted, pre == accepted → IDEMPOTENT_HIT
+ *   post == accepted, 0 < pre < accepted → OVERWRITE
  */
 export function classifyWriteStatus(
   preShadowCount: number,
   acceptedCount: number,
-  postShadowCount: number
+  postShadowCount: number,
+  shadowLeakCount: number = 0
 ): DocStatus {
-  if (postShadowCount !== acceptedCount) return 'WRITE_ERROR'
+  if (shadowLeakCount > 0) return 'WRITE_ERROR'
+  if (postShadowCount < acceptedCount) return 'WRITE_ERROR'
+  if (postShadowCount > acceptedCount) return 'ORPHAN_SUPERSET'
+  // post === accepted
   if (preShadowCount === 0) return 'FRESH'
   if (preShadowCount === acceptedCount) return 'IDEMPOTENT_HIT'
   return 'OVERWRITE'
@@ -108,6 +147,7 @@ export function emptyAggregate(): BatchAggregate {
     docsFresh: 0,
     docsIdempotent: 0,
     docsOverwrite: 0,
+    docsOrphanSuperset: 0,
     docsAzureError: 0,
     docsWriteError: 0,
     docsUnresolved: 0,
@@ -117,16 +157,15 @@ export function emptyAggregate(): BatchAggregate {
     totalQuarantined: 0,
     totalShadowUpserted: 0,
     totalShadowLeaks: 0,
+    totalExtraInertShadow: 0,
     estimatedCostUsd: 0,
   }
 }
 
 /**
  * Tallies a list of {@link DocResult}s into a {@link BatchAggregate}.
- * Status categories are disjoint (a doc lands in exactly one of
- * SKIPPED_RESUME, FRESH, IDEMPOTENT_HIT, OVERWRITE, AZURE_ERROR,
- * WRITE_ERROR, or PLANNED). `docsRan` counts everything except
- * SKIPPED_RESUME and PLANNED.
+ * Status categories are disjoint (a doc lands in exactly one).
+ * `docsRan` counts everything except SKIPPED_RESUME and PLANNED.
  */
 export function tallyAggregate(results: readonly DocResult[]): BatchAggregate {
   const agg = emptyAggregate()
@@ -146,11 +185,13 @@ export function tallyAggregate(results: readonly DocResult[]): BatchAggregate {
     if (r.status === 'FRESH') agg.docsFresh += 1
     if (r.status === 'IDEMPOTENT_HIT') agg.docsIdempotent += 1
     if (r.status === 'OVERWRITE') agg.docsOverwrite += 1
+    if (r.status === 'ORPHAN_SUPERSET') agg.docsOrphanSuperset += 1
     if (r.status === 'AZURE_ERROR') agg.docsAzureError += 1
     if (r.status === 'WRITE_ERROR') agg.docsWriteError += 1
     if (r.resolved === false) agg.docsUnresolved += 1
     if (r.pages !== undefined) agg.totalPages += r.pages
     if (r.chunks !== undefined) agg.totalChunks += r.chunks
+    if (r.extraInertShadowRows !== undefined) agg.totalExtraInertShadow += r.extraInertShadowRows
     if (r.accepted !== undefined) agg.totalAccepted += r.accepted
     if (r.quarantined !== undefined) agg.totalQuarantined += r.quarantined
     if (r.upsertedCount !== undefined) agg.totalShadowUpserted += r.upsertedCount
@@ -245,9 +286,9 @@ export function renderBatchReport(args: BatchRenderInput): string {
   lines.push('## Per-doc results')
   lines.push('')
   lines.push(
-    '| # | source_url | legacy chunks | pages | chunks | accepted | quarantined | product | upserted | leak | active legacy | status |'
+    '| # | source_url | legacy chunks | pages | chunks | accepted_current_run | quarantined | product | v4_sentinel_rows_for_url | extra_inert | leak | active legacy | status |'
   )
-  lines.push('|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---|')
+  lines.push('|---:|---|---:|---:|---:|---:|---:|---|---:|---:|---:|---:|---|')
   args.results.forEach((r, i) => {
     const product =
       r.resolved === undefined
@@ -256,10 +297,41 @@ export function renderBatchReport(args: BatchRenderInput): string {
           ? r.productName ?? '?'
           : `_unresolved (${r.unresolvedReason ?? '?'})_`
     lines.push(
-      `| ${i + 1} | \`${shortenUrl(r.sourceUrl)}\` | ${r.legacyChunkCount} | ${r.pages ?? '-'} | ${r.chunks ?? '-'} | ${r.accepted ?? '-'} | ${r.quarantined ?? '-'} | ${product} | ${r.upsertedCount ?? '-'} | ${r.shadowLeak ?? '-'} | ${r.activeLegacyProd ?? '-'} | ${r.status} |`
+      `| ${i + 1} | \`${shortenUrl(r.sourceUrl)}\` | ${r.legacyChunkCount} | ${r.pages ?? '-'} | ${r.chunks ?? '-'} | ${r.accepted ?? '-'} | ${r.quarantined ?? '-'} | ${product} | ${r.upsertedCount ?? '-'} | ${r.extraInertShadowRows ?? '-'} | ${r.shadowLeak ?? '-'} | ${r.activeLegacyProd ?? '-'} | ${r.status} |`
     )
   })
   lines.push('')
+  const orphanSupersets = args.results.filter((r) => r.status === 'ORPHAN_SUPERSET')
+  if (orphanSupersets.length > 0) {
+    lines.push('### ORPHAN_SUPERSET notes')
+    lines.push('')
+    lines.push(
+      '> Benign: this run\'s accepted rows are in DB; DB also has extra inert v4 rows from'
+    )
+    lines.push(
+      "> a prior run at a different `--max-pages`. The chunker's `chunk_index` depends on"
+    )
+    lines.push(
+      '> the Azure DI layout, which changes with page span — so the same text can land at'
+    )
+    lines.push(
+      '> different chunk_indices across runs, producing distinct `(content_hash,'
+    )
+    lines.push(
+      '> chunk_index)` tuples that all coexist. All rows are at sentinel `valid_until`'
+    )
+    lines.push(
+      '> and never reach the read path. Not a stop signal. `metadata.page_span` on each'
+    )
+    lines.push('> row tells you which run produced it.')
+    lines.push('')
+    for (const r of orphanSupersets) {
+      lines.push(
+        `- \`${r.sourceUrl}\` -- accepted=${r.accepted}, v4_sentinel_rows_for_url=${r.upsertedCount}, extra_inert=${r.extraInertShadowRows}`
+      )
+    }
+    lines.push('')
+  }
 
   const errored = args.results.filter((r) => r.errorMessage)
   if (errored.length > 0) {
@@ -281,6 +353,7 @@ export function renderBatchReport(args: BatchRenderInput): string {
   lines.push(`| docs FRESH (pre=0) | ${args.aggregate.docsFresh} |`)
   lines.push(`| docs IDEMPOTENT_HIT | ${args.aggregate.docsIdempotent} |`)
   lines.push(`| docs OVERWRITE | ${args.aggregate.docsOverwrite} |`)
+  lines.push(`| docs ORPHAN_SUPERSET (benign) | ${args.aggregate.docsOrphanSuperset} |`)
   lines.push(`| docs AZURE_ERROR | ${args.aggregate.docsAzureError} |`)
   lines.push(`| docs WRITE_ERROR | ${args.aggregate.docsWriteError} |`)
   lines.push(`| docs unresolved | ${args.aggregate.docsUnresolved} |`)
@@ -288,7 +361,8 @@ export function renderBatchReport(args: BatchRenderInput): string {
   lines.push(`| total chunks | ${args.aggregate.totalChunks} |`)
   lines.push(`| total accepted | ${args.aggregate.totalAccepted} |`)
   lines.push(`| total quarantined | ${args.aggregate.totalQuarantined} |`)
-  lines.push(`| total shadow upserted | ${args.aggregate.totalShadowUpserted} |`)
+  lines.push(`| total v4 shadow rows upserted | ${args.aggregate.totalShadowUpserted} |`)
+  lines.push(`| total extra inert shadow (benign) | ${args.aggregate.totalExtraInertShadow} |`)
   lines.push(`| **total shadow leaks** | **${args.aggregate.totalShadowLeaks}** |`)
   lines.push(
     `| estimated Azure cost (USD, @ $${AZURE_DI_LAYOUT_S0_USD_PER_PAGE_ESTIMATE}/page) | $${args.aggregate.estimatedCostUsd.toFixed(2)} |`

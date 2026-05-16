@@ -40,15 +40,50 @@ function ok(label: string, cond: boolean, detail?: string): void {
 
 function runClassifyTests(): void {
   console.log('\n## classifyWriteStatus')
-  ok('pre=0, post=accepted → FRESH', classifyWriteStatus(0, 5, 5) === 'FRESH')
+  // Success path: post == accepted, no leak.
+  ok('pre=0, post=accepted, leak=0 → FRESH', classifyWriteStatus(0, 5, 5, 0) === 'FRESH')
   ok(
-    'pre=accepted, post=accepted → IDEMPOTENT_HIT',
-    classifyWriteStatus(5, 5, 5) === 'IDEMPOTENT_HIT'
+    'pre=accepted, post=accepted, leak=0 → IDEMPOTENT_HIT',
+    classifyWriteStatus(5, 5, 5, 0) === 'IDEMPOTENT_HIT'
   )
-  ok('pre=3, accepted=5, post=5 → OVERWRITE', classifyWriteStatus(3, 5, 5) === 'OVERWRITE')
-  ok('post ≠ accepted → WRITE_ERROR', classifyWriteStatus(0, 5, 4) === 'WRITE_ERROR')
-  ok('pre=2, accepted=5, post=4 → WRITE_ERROR', classifyWriteStatus(2, 5, 4) === 'WRITE_ERROR')
-  ok('accepted=0, post=0 (empty pipeline, idempotent vacuum)', classifyWriteStatus(0, 0, 0) === 'FRESH')
+  ok(
+    'pre=3, accepted=5, post=5, leak=0 → OVERWRITE',
+    classifyWriteStatus(3, 5, 5, 0) === 'OVERWRITE'
+  )
+  ok(
+    'accepted=0, post=0 (empty pipeline vacuum) → FRESH',
+    classifyWriteStatus(0, 0, 0, 0) === 'FRESH'
+  )
+
+  // ORPHAN_SUPERSET: post > accepted, leak=0 (benign).
+  ok(
+    'pre=0, accepted=4, post=6, leak=0 → ORPHAN_SUPERSET (the vida-e-saude case)',
+    classifyWriteStatus(0, 4, 6, 0) === 'ORPHAN_SUPERSET'
+  )
+  ok(
+    'pre=4, accepted=4, post=6, leak=0 → ORPHAN_SUPERSET (idempotent intersection with orphan superset)',
+    classifyWriteStatus(4, 4, 6, 0) === 'ORPHAN_SUPERSET'
+  )
+
+  // WRITE_ERROR: post < accepted.
+  ok('post < accepted → WRITE_ERROR', classifyWriteStatus(0, 5, 4, 0) === 'WRITE_ERROR')
+  ok(
+    'pre=2, accepted=5, post=4 → WRITE_ERROR',
+    classifyWriteStatus(2, 5, 4, 0) === 'WRITE_ERROR'
+  )
+
+  // WRITE_ERROR: leak > 0 overrides every other classification (catastrophic).
+  ok(
+    'leak>0, post=accepted → WRITE_ERROR (leak overrides)',
+    classifyWriteStatus(0, 5, 5, 1) === 'WRITE_ERROR'
+  )
+  ok(
+    'leak>0, post>accepted → WRITE_ERROR (leak overrides ORPHAN_SUPERSET)',
+    classifyWriteStatus(0, 4, 6, 2) === 'WRITE_ERROR'
+  )
+
+  // Backward-compat: default leak=0 still works for callers that omit it.
+  ok('signature default leak=0 → FRESH', classifyWriteStatus(0, 5, 5) === 'FRESH')
 }
 
 function makeDoc(overrides: Partial<DocResult>): DocResult {
@@ -159,38 +194,59 @@ function runTallyTests(): void {
       legacyChunkCount: 10,
       status: 'PLANNED', // dry-run placeholder
     }),
+    // ORPHAN_SUPERSET: benign — write was clean (post>=accepted), but DB has
+    // extra inert v4 rows from a previous run at a different page span.
+    // Mirrors the vida-e-saude case discovered in the first --batch --limit 5 run.
+    makeDoc({
+      sourceUrl: 'https://x/8',
+      legacyChunkCount: 248,
+      status: 'ORPHAN_SUPERSET',
+      pages: 5,
+      chunks: 6,
+      accepted: 4,
+      quarantined: 2,
+      resolved: false,
+      unresolvedReason: 'fuzzy_below_threshold',
+      preShadowCount: 2,
+      upsertedCount: 6,
+      extraInertShadowRows: 2,
+      shadowLeak: 0,
+      activeLegacyProd: 248,
+    }),
   ]
 
   const a = tallyAggregate(results)
 
   ok('docsPlanned = total entries', a.docsPlanned === results.length)
   ok('docsSkippedResume = 1', a.docsSkippedResume === 1)
-  ok('docsRan excludes PLANNED and SKIPPED_RESUME', a.docsRan === 5, `got ${a.docsRan}`)
+  ok('docsRan excludes PLANNED and SKIPPED_RESUME', a.docsRan === 6, `got ${a.docsRan}`)
   ok('docsFresh = 1', a.docsFresh === 1)
   ok('docsIdempotent = 1', a.docsIdempotent === 1)
   ok('docsOverwrite = 1', a.docsOverwrite === 1)
+  ok('docsOrphanSuperset = 1', a.docsOrphanSuperset === 1)
   ok('docsAzureError = 1', a.docsAzureError === 1)
   ok('docsWriteError = 1', a.docsWriteError === 1)
-  ok('docsUnresolved = 1 (only doc with resolved=false)', a.docsUnresolved === 1)
-  ok('totalPages = 5+3+4+5 = 17', a.totalPages === 17, `got ${a.totalPages}`)
-  ok('totalChunks = 6+5+4+4 = 19', a.totalChunks === 19)
-  ok('totalAccepted = 4+5+3+4 = 16', a.totalAccepted === 16)
-  ok('totalQuarantined = 2+0+1+0 = 3', a.totalQuarantined === 3)
-  ok('totalShadowUpserted = 4+5+3+0 = 12', a.totalShadowUpserted === 12)
-  ok('totalShadowLeaks = 0+0+0 = 0', a.totalShadowLeaks === 0)
-  const expectedCost = Math.round(17 * AZURE_DI_LAYOUT_S0_USD_PER_PAGE_ESTIMATE * 100) / 100
+  ok('docsUnresolved = 2 (overwrite + orphan_superset rows have resolved=false)', a.docsUnresolved === 2)
+  ok('totalPages = 5+3+4+5+5 = 22', a.totalPages === 22, `got ${a.totalPages}`)
+  ok('totalChunks = 6+5+4+4+6 = 25', a.totalChunks === 25)
+  ok('totalAccepted = 4+5+3+4+4 = 20', a.totalAccepted === 20)
+  ok('totalQuarantined = 2+0+1+0+2 = 5', a.totalQuarantined === 5)
+  ok('totalShadowUpserted = 4+5+3+0+6 = 18', a.totalShadowUpserted === 18)
+  ok('totalShadowLeaks = 0', a.totalShadowLeaks === 0)
+  ok('totalExtraInertShadow = 0+...+2 = 2', a.totalExtraInertShadow === 2)
+  const expectedCost = Math.round(22 * AZURE_DI_LAYOUT_S0_USD_PER_PAGE_ESTIMATE * 100) / 100
   ok(`estimatedCostUsd = ${expectedCost}`, a.estimatedCostUsd === expectedCost)
 
-  // Counter disjointness: FRESH + IDEMPOTENT + OVERWRITE + AZURE_ERROR + WRITE_ERROR + SKIPPED + PLANNED == docsPlanned
-  const buckets =
+  // Counter disjointness: every "ran" doc lands in exactly one of the 6
+  // result buckets.
+  const ranBuckets =
     a.docsFresh +
     a.docsIdempotent +
     a.docsOverwrite +
+    a.docsOrphanSuperset +
     a.docsAzureError +
-    a.docsWriteError +
-    a.docsSkippedResume
-  // PLANNED is the only category not summed above; in this fixture there's 1 PLANNED row.
-  ok('disjoint buckets cover docsRan + skipped', buckets === a.docsRan + a.docsSkippedResume)
+    a.docsWriteError
+  ok('disjoint result buckets equal docsRan', ranBuckets === a.docsRan)
 }
 
 function runTallyLeakTest(): void {
@@ -255,6 +311,63 @@ function runRenderSmokeTest(): void {
   ok('renders MUST be 0 callout for probe', md.includes('MUST be 0'))
   ok('renders estimated cost line', md.includes('estimated Azure cost'))
   ok('renders FRESH status', md.includes('| FRESH |'))
+  ok('renders new per-doc column accepted_current_run', md.includes('accepted_current_run'))
+  ok('renders new per-doc column v4_sentinel_rows_for_url', md.includes('v4_sentinel_rows_for_url'))
+  ok('renders new per-doc column extra_inert', md.includes('extra_inert'))
+  ok('renders new aggregate counter docs ORPHAN_SUPERSET', md.includes('docs ORPHAN_SUPERSET'))
+  ok(
+    'renders new aggregate counter total extra inert shadow',
+    md.includes('total extra inert shadow')
+  )
+}
+
+function runRenderOrphanSupersetSectionTest(): void {
+  console.log('\n## renderBatchReport (ORPHAN_SUPERSET section)')
+  const results: DocResult[] = [
+    makeDoc({
+      sourceUrl: 'https://prudential.com.br/vida-e-saude.pdf',
+      legacyChunkCount: 248,
+      status: 'ORPHAN_SUPERSET',
+      pages: 5,
+      chunks: 6,
+      accepted: 4,
+      quarantined: 2,
+      resolved: false,
+      unresolvedReason: 'fuzzy_below_threshold',
+      preShadowCount: 2,
+      upsertedCount: 6,
+      extraInertShadowRows: 2,
+      shadowLeak: 0,
+      activeLegacyProd: 248,
+    }),
+  ]
+  const md = renderBatchReport({
+    generatedAt: '2026-05-16T00:00:00.000Z',
+    mode: 'live-write',
+    insurer: { id: 'iid', name: 'Prudential do Brasil' },
+    catalogSize: 12,
+    preflights: [],
+    endpointMasked: 'https://***.cognitiveservices.azure.com',
+    pageSpan: '1-5',
+    minChunks: 5,
+    resume: false,
+    manifest: [{ source_url: results[0].sourceUrl, legacy_chunk_count: 248 }],
+    results,
+    aggregate: tallyAggregate(results),
+    finalProbe: {
+      threshold: 0.0,
+      topK: 50,
+      totalReturned: 40,
+      shadowReturned: 0,
+      nonNullValidUntilReturned: 0,
+    },
+  })
+  ok('renders ORPHAN_SUPERSET in per-doc table', md.includes('| ORPHAN_SUPERSET |'))
+  ok('renders ORPHAN_SUPERSET notes header', md.includes('### ORPHAN_SUPERSET notes'))
+  ok('notes explain benign nature', md.includes('Benign'))
+  ok('notes explain page-span cause', md.includes('--max-pages'))
+  ok('notes point at metadata.page_span', md.includes('metadata.page_span'))
+  ok('notes list the affected URL', md.includes('vida-e-saude.pdf'))
 }
 
 function runRenderSkippedProbeTest(): void {
@@ -294,6 +407,7 @@ function main(): void {
   runTallyTests()
   runTallyLeakTest()
   runRenderSmokeTest()
+  runRenderOrphanSupersetSectionTest()
   runRenderSkippedProbeTest()
   console.log(`\n${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)

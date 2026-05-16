@@ -745,6 +745,7 @@ async function processOneDocument(args: ProcessOneDocArgs): Promise<DocResult> {
       insurerName: insurer.name,
       sourceUrl: manifestEntry.source_url,
       productCatalog: catalog,
+      pageSpan,
     })
   } catch (err) {
     result.status = 'AZURE_ERROR'
@@ -790,9 +791,15 @@ async function processOneDocument(args: ProcessOneDocArgs): Promise<DocResult> {
       ),
     ])
     result.upsertedCount = postUpserted
+    result.extraInertShadowRows = Math.max(0, postUpserted - build.summary.acceptedCount)
     result.shadowLeak = shadowLeakCount
     result.activeLegacyProd = Math.max(0, activeRowsForUrl - shadowLeakCount)
-    result.status = classifyWriteStatus(preShadowCount, build.summary.acceptedCount, postUpserted)
+    result.status = classifyWriteStatus(
+      preShadowCount,
+      build.summary.acceptedCount,
+      postUpserted,
+      shadowLeakCount
+    )
   } catch (err) {
     result.status = 'WRITE_ERROR'
     result.errorMessage = err instanceof Error ? err.message : String(err)
@@ -857,7 +864,7 @@ async function runBatch(args: {
       manifestEntry: entry,
     })
     console.log(
-      `  status=${r.status} pages=${r.pages ?? '-'} accepted=${r.accepted ?? '-'} upserted=${r.upsertedCount ?? '-'} leak=${r.shadowLeak ?? '-'}`
+      `  status=${r.status} pages=${r.pages ?? '-'} accepted=${r.accepted ?? '-'} upserted=${r.upsertedCount ?? '-'} extra_inert=${r.extraInertShadowRows ?? '-'} leak=${r.shadowLeak ?? '-'}`
     )
     results.push(r)
   }
@@ -1152,6 +1159,7 @@ async function main(): Promise<void> {
       sourceUrl: singleUrl,
       productCatalog: catalog,
       productNameHint: opts.productHint,
+      pageSpan,
     })
     console.log(
       `pipeline: pages=${build.summary.pageCount} chunks=${build.summary.chunkCount} accepted=${build.summary.acceptedCount} quarantined=${build.summary.quarantinedCount}`
