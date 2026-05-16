@@ -75,6 +75,20 @@ export interface EmbeddingTargetRow {
 }
 
 /**
+ * Returns true iff two ISO-8601 strings represent the same instant.
+ * The sentinel constant uses the Zulu suffix (`...Z`), but PostgREST
+ * round-trips `timestamptz` values as `...+00:00`. Both parse to the
+ * same `Date.getTime()`, and that is what the guard compares.
+ */
+function isSentinelInstant(value: string | null | undefined): boolean {
+  if (typeof value !== 'string' || value.length === 0) return false
+  const a = new Date(value).getTime()
+  const b = new Date(SHADOW_VALID_UNTIL_SENTINEL).getTime()
+  if (!Number.isFinite(a) || !Number.isFinite(b)) return false
+  return a === b
+}
+
+/**
  * Throws if `row` is anything other than a v4 Prudential shadow row
  * with `embedding IS NULL`. This is the last defensive gate before
  * the CLI issues an UPDATE.
@@ -85,7 +99,7 @@ export function assertEmbeddingTargetIsShadow(row: EmbeddingTargetRow): void {
       `row ${row.id} already has an embedding — idempotency would write twice`
     )
   }
-  if (row.valid_until !== SHADOW_VALID_UNTIL_SENTINEL) {
+  if (!isSentinelInstant(row.valid_until)) {
     throw new Error(
       `row ${row.id} has valid_until=${String(row.valid_until)} (expected sentinel ${SHADOW_VALID_UNTIL_SENTINEL}) — refusing to embed a non-shadow row`
     )

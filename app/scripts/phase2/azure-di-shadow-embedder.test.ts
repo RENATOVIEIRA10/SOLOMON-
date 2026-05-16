@@ -144,8 +144,26 @@ function runAssertTargetTests(): void {
 
   // Positive path
   ok(
-    'passes a well-formed shadow row',
+    'passes a well-formed shadow row (Zulu sentinel)',
     !throwsAny(() => assertEmbeddingTargetIsShadow(makeShadowRow()))
+  )
+  // Postgres timestamptz round-trips the sentinel as `+00:00` — same
+  // instant, different ISO-8601 spelling. Must pass.
+  ok(
+    'accepts valid_until in Postgres "+00:00" format (same instant)',
+    !throwsAny(() =>
+      assertEmbeddingTargetIsShadow(
+        makeShadowRow({ valid_until: '1970-01-01T00:00:00+00:00' })
+      )
+    )
+  )
+  ok(
+    'accepts valid_until with milliseconds and offset (same instant)',
+    !throwsAny(() =>
+      assertEmbeddingTargetIsShadow(
+        makeShadowRow({ valid_until: '1970-01-01T00:00:00.000+00:00' })
+      )
+    )
   )
 
   // Negative paths — every contract bit independently rejects.
@@ -158,9 +176,21 @@ function runAssertTargetTests(): void {
     throwsAny(() => assertEmbeddingTargetIsShadow(makeShadowRow({ valid_until: null })))
   )
   ok(
-    'rejects valid_until != sentinel',
+    'rejects valid_until != sentinel (different instant)',
     throwsAny(() =>
       assertEmbeddingTargetIsShadow(makeShadowRow({ valid_until: '2030-01-01T00:00:00Z' }))
+    )
+  )
+  ok(
+    'rejects valid_until even 1ms off the sentinel',
+    throwsAny(() =>
+      assertEmbeddingTargetIsShadow(makeShadowRow({ valid_until: '1970-01-01T00:00:00.001Z' }))
+    )
+  )
+  ok(
+    'rejects valid_until = garbage string',
+    throwsAny(() =>
+      assertEmbeddingTargetIsShadow(makeShadowRow({ valid_until: 'not-a-date' }))
     )
   )
   ok(
