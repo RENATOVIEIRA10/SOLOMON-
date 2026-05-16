@@ -37,7 +37,9 @@ import {
   SHADOW_EVAL_QUESTIONS,
   scoreQuestion,
   tallyCategoryAggregates,
+  tallyControlAggregate,
   type CategoryAggregate,
+  type ControlAggregate,
   type QuestionComparison,
   type RetrievedChunk,
   type ShadowEvalQuestion,
@@ -217,12 +219,25 @@ function formatDelta(x: number): string {
   return `${sign}${(x * 100).toFixed(1)}pp`
 }
 
+function renderPerQuestionRow(c: QuestionComparison, idx: number): string {
+  const notes: string[] = []
+  if (c.shadow.matchedTokens.length === c.question.expectedTokens.length) {
+    notes.push('shadow: all expected tokens found')
+  }
+  if (c.legacy.matchedTokens.length === c.question.expectedTokens.length) {
+    notes.push('legacy: all expected tokens found')
+  }
+  if (c.deltaCp < 0 || c.deltaCr < 0) notes.push('shadow regressed')
+  return `| ${idx} | ${c.question.id} | ${c.question.category} | ${formatPct(c.legacy.keywordPrecision)} | ${formatPct(c.shadow.keywordPrecision)} | ${formatDelta(c.deltaCp)} | ${formatPct(c.legacy.keywordRecall)} | ${formatPct(c.shadow.keywordRecall)} | ${formatDelta(c.deltaCr)} | ${c.legacy.chunkCount} | ${c.shadow.chunkCount} | ${notes.join('; ')} |`
+}
+
 function renderReport(args: {
   generatedAt: string
   opts: CliOptions
   insurer: { id: string; name: string }
   comparisons: readonly QuestionComparison[]
   aggregates: readonly CategoryAggregate[]
+  controlAggregate: ControlAggregate | null
 }): string {
   const lines: string[] = []
   lines.push('# Phase 2 PR 3B slice 3B.6.3 — legacy vs shadow eval report')
@@ -236,6 +251,9 @@ function renderReport(args: {
   lines.push('- Same query embedding dispatched to both functions per question.')
   lines.push('- **No LLM judge.** CP / CR here are deterministic keyword-overlap proxies — see methodology below.')
   lines.push('- No production read path import. No edit of match_documents/answer.ts/compare.ts.')
+  lines.push(
+    '- Slice 3B.7.1: questions tagged `scope: conditions | control_rate_table`. Only `conditions` feed the stop signal.'
+  )
   lines.push('')
   lines.push('## Inputs')
   lines.push('')
@@ -256,42 +274,60 @@ function renderReport(args: {
   lines.push('directional signal. Full Ragas (LLM judge) is gated as slice 3B.6.4.')
   lines.push('')
 
-  lines.push('## Per-question results')
+  // --- In-scope (conditions) per-question ---
+  const inScope = args.comparisons.filter((c) => c.question.scope === 'conditions')
+  const control = args.comparisons.filter((c) => c.question.scope === 'control_rate_table')
+  lines.push(`## Per-question results — in-scope conditions_pdf (N=${inScope.length})`)
+  lines.push('')
+  lines.push('These questions DRIVE the stop signal: their answers live in `conditions_pdf`, so')
+  lines.push('the shadow corpus is structurally capable of retrieving them.')
   lines.push('')
   lines.push(
     '| # | Q | category | Legacy CP | Shadow CP | Δ CP | Legacy CR | Shadow CR | Δ CR | legacy chunks | shadow chunks | notes |'
   )
   lines.push('|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|')
-  args.comparisons.forEach((c, i) => {
-    const notes: string[] = []
-    if (c.shadow.matchedTokens.length === c.question.expectedTokens.length) {
-      notes.push('shadow: all expected tokens found')
-    }
-    if (c.legacy.matchedTokens.length === c.question.expectedTokens.length) {
-      notes.push('legacy: all expected tokens found')
-    }
-    if (c.deltaCp < 0 || c.deltaCr < 0) notes.push('**shadow regressed**')
-    lines.push(
-      `| ${i + 1} | ${c.question.id} | ${c.question.category} | ${formatPct(c.legacy.keywordPrecision)} | ${formatPct(c.shadow.keywordPrecision)} | ${formatDelta(c.deltaCp)} | ${formatPct(c.legacy.keywordRecall)} | ${formatPct(c.shadow.keywordRecall)} | ${formatDelta(c.deltaCr)} | ${c.legacy.chunkCount} | ${c.shadow.chunkCount} | ${notes.join('; ')} |`
-    )
+  inScope.forEach((c, i) => {
+    lines.push(renderPerQuestionRow(c, i + 1))
   })
   lines.push('')
 
+  // --- Control (rate_table) per-question ---
+  if (control.length > 0) {
+    lines.push(`## Per-question results — control rate_table_pdf (N=${control.length})`)
+    lines.push('')
+    lines.push('Informational only. These answers live in `rate_table_pdf` and the shadow corpus')
+    lines.push('is `conditions_pdf`-only by contract. Shadow is **not expected** to score and')
+    lines.push('these rows **never feed the stop signal**.')
+    lines.push('')
+    lines.push(
+      '| # | Q | category | Legacy CP | Shadow CP | Δ CP | Legacy CR | Shadow CR | Δ CR | legacy chunks | shadow chunks | notes |'
+    )
+    lines.push('|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|')
+    control.forEach((c, i) => {
+      lines.push(renderPerQuestionRow(c, i + 1))
+    })
+    lines.push('')
+  }
+
+  // --- Per-question token detail (unchanged section; both scopes) ---
   lines.push('## Per-question token detail')
   lines.push('')
   for (const c of args.comparisons) {
-    lines.push(`### ${c.question.id} — ${c.question.category}`)
+    lines.push(`### ${c.question.id} — ${c.question.category} (${c.question.scope})`)
     lines.push('')
     lines.push(`> ${c.question.question}`)
     lines.push('')
     lines.push(`- expected tokens (${c.question.expectedTokens.length}): \`[${c.question.expectedTokens.join(', ')}]\``)
     lines.push(`- legacy matched: \`[${c.legacy.matchedTokens.join(', ')}]\` (${c.legacy.matchedTokens.length}/${c.question.expectedTokens.length})`)
     lines.push(`- shadow matched: \`[${c.shadow.matchedTokens.join(', ')}]\` (${c.shadow.matchedTokens.length}/${c.question.expectedTokens.length})`)
-    if (c.question.notes) lines.push(`- token rationale: ${c.question.notes}`)
+    if (c.question.notes) lines.push(`- rationale: ${c.question.notes}`)
     lines.push('')
   }
 
-  lines.push('## Category aggregates')
+  // --- Aggregates ---
+  lines.push('## Category aggregates — in-scope conditions_pdf only')
+  lines.push('')
+  lines.push('These aggregates DRIVE the stop signal.')
   lines.push('')
   lines.push('| category | Qs | Legacy CP | Shadow CP | Δ CP | Legacy CR | Shadow CR | Δ CR | shadow regressed? |')
   lines.push('|---|---:|---:|---:|---:|---:|---:|---:|---|')
@@ -302,14 +338,30 @@ function renderReport(args: {
   }
   lines.push('')
 
+  if (args.controlAggregate) {
+    const ca = args.controlAggregate
+    lines.push('## Control aggregate — rate_table_pdf (informational only, never a stop signal)')
+    lines.push('')
+    lines.push('| scope | Qs | Legacy CP | Shadow CP | Δ CP | Legacy CR | Shadow CR | Δ CR | reading |')
+    lines.push('|---|---:|---:|---:|---:|---:|---:|---:|---|')
+    const reading =
+      ca.deltaCp < 0 || ca.deltaCr < 0
+        ? 'expected: shadow loses by design (corpus is conditions_pdf-only)'
+        : 'shadow tied or beat legacy on rate questions — unexpected; check curation'
+    lines.push(
+      `| ${ca.scope} | ${ca.questionCount} | ${formatPct(ca.legacyCp)} | ${formatPct(ca.shadowCp)} | ${formatDelta(ca.deltaCp)} | ${formatPct(ca.legacyCr)} | ${formatPct(ca.shadowCr)} | ${formatDelta(ca.deltaCr)} | ${reading} |`
+    )
+    lines.push('')
+  }
+
   const anyRegressed = args.aggregates.some((a) => a.shadowRegressed)
-  lines.push('## Stop signal (CEO criterion: shadow CP < legacy CP OR shadow CR < legacy CR)')
+  lines.push('## Stop signal (CEO criterion: shadow CP < legacy CP OR shadow CR < legacy CR — IN-SCOPE only)')
   lines.push('')
   if (anyRegressed) {
-    lines.push('> :warning: **STRATEGIC STOP** — shadow regressed on at least one category aggregate.')
+    lines.push('> :warning: **STRATEGIC STOP** — shadow regressed on at least one in-scope category aggregate.')
     lines.push('> The harness exits with code 1. Investigate before any promotion discussion.')
   } else {
-    lines.push('> :white_check_mark: shadow did NOT regress on any category aggregate. Exit code 0.')
+    lines.push('> :white_check_mark: shadow did NOT regress on any in-scope category aggregate. Exit code 0.')
   }
   lines.push('')
 
@@ -320,6 +372,7 @@ function renderReport(args: {
   lines.push('- No LLM judge; metric is the deterministic keyword-overlap proxy described above.')
   lines.push('- No promotion. `valid_until` stays at the sentinel. No DELETE.')
   lines.push('- Prudential-only insurer guard via `assertPrudentialOnly`.')
+  lines.push('- Stop signal restricted to `scope=conditions` aggregates per slice 3B.7.1.')
   return lines.join('\n')
 }
 
@@ -378,10 +431,16 @@ async function main(): Promise<void> {
   })
 
   const aggregates = tallyCategoryAggregates(comparisons)
+  const controlAggregate = tallyControlAggregate(comparisons)
 
   for (const a of aggregates) {
     console.log(
-      `\nagg ${a.category} (${a.questionCount} Qs): CP ${formatPct(a.legacyCp)} → ${formatPct(a.shadowCp)} (${formatDelta(a.deltaCp)}), CR ${formatPct(a.legacyCr)} → ${formatPct(a.shadowCr)} (${formatDelta(a.deltaCr)})${a.shadowRegressed ? '  [shadow regressed]' : ''}`
+      `\nagg ${a.category} in-scope (${a.questionCount} Qs): CP ${formatPct(a.legacyCp)} → ${formatPct(a.shadowCp)} (${formatDelta(a.deltaCp)}), CR ${formatPct(a.legacyCr)} → ${formatPct(a.shadowCr)} (${formatDelta(a.deltaCr)})${a.shadowRegressed ? '  [shadow regressed]' : ''}`
+    )
+  }
+  if (controlAggregate) {
+    console.log(
+      `\nagg control_rate_table (${controlAggregate.questionCount} Qs, informational): CP ${formatPct(controlAggregate.legacyCp)} → ${formatPct(controlAggregate.shadowCp)} (${formatDelta(controlAggregate.deltaCp)}), CR ${formatPct(controlAggregate.legacyCr)} → ${formatPct(controlAggregate.shadowCr)} (${formatDelta(controlAggregate.deltaCr)})  [never feeds stop signal]`
     )
   }
 
@@ -391,6 +450,7 @@ async function main(): Promise<void> {
     insurer,
     comparisons,
     aggregates,
+    controlAggregate,
   })
   const reportPath = path.join(outDir, 'shadow-eval-report.md')
   await writeFile(reportPath, report, 'utf8')
@@ -399,7 +459,7 @@ async function main(): Promise<void> {
   const anyRegressed = aggregates.some((a) => a.shadowRegressed)
   if (anyRegressed) {
     console.error(
-      '\nSTRATEGIC STOP: shadow regressed on at least one category aggregate. See report for details.'
+      '\nSTRATEGIC STOP: shadow regressed on at least one in-scope category aggregate. See report for details.'
     )
     process.exit(1)
   }
