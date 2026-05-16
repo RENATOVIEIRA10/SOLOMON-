@@ -23,8 +23,10 @@ import {
   normalize,
   scoreQuestion,
   tallyCategoryAggregates,
+  tallyControlAggregate,
   type QuestionComparison,
   type RetrievedChunk,
+  type ShadowEvalQuestionScope,
 } from '../../src/services/azure-di/shadow-eval-metrics'
 
 let passed = 0
@@ -150,6 +152,7 @@ function makeComparison(args: {
   legacyCr: number
   shadowCp: number
   shadowCr: number
+  scope?: ShadowEvalQuestionScope
 }): QuestionComparison {
   return {
     question: {
@@ -157,6 +160,7 @@ function makeComparison(args: {
       category: args.category,
       question: 'q',
       expectedTokens: ['x'],
+      scope: args.scope ?? 'conditions',
     },
     legacy: { chunkCount: 0, keywordPrecision: args.legacyCp, keywordRecall: args.legacyCr, matchedTokens: [] },
     shadow: { chunkCount: 0, keywordPrecision: args.shadowCp, keywordRecall: args.shadowCr, matchedTokens: [] },
@@ -249,6 +253,204 @@ function runQuestionsShapeTests(): void {
     'no duplicate ids',
     new Set(SHADOW_EVAL_QUESTIONS.map((q) => q.id)).size === SHADOW_EVAL_QUESTIONS.length
   )
+  // --- slice 3B.7.1: scope invariants ---
+  ok(
+    'every question has scope set',
+    SHADOW_EVAL_QUESTIONS.every(
+      (q) => q.scope === 'conditions' || q.scope === 'control_rate_table'
+    )
+  )
+  const controlIds = SHADOW_EVAL_QUESTIONS.filter((q) => q.scope === 'control_rate_table')
+    .map((q) => q.id)
+    .sort()
+  ok(
+    'control_rate_table scope = [Q38, Q39] exactly',
+    JSON.stringify(controlIds) === JSON.stringify(['Q38', 'Q39']),
+    `got ${controlIds.join(',')}`
+  )
+  const conditionsIds = SHADOW_EVAL_QUESTIONS.filter((q) => q.scope === 'conditions')
+    .map((q) => q.id)
+    .sort()
+  ok(
+    'conditions scope = [Q16, Q17, Q26, Q31, Q32, Q36, Q37]',
+    JSON.stringify(conditionsIds) ===
+      JSON.stringify(['Q16', 'Q17', 'Q26', 'Q31', 'Q32', 'Q36', 'Q37']),
+    `got ${conditionsIds.join(',')}`
+  )
+}
+
+function runStopSignalScopingTests(): void {
+  console.log('\n## stop signal scoping (slice 3B.7.1)')
+
+  // Case 1: only control regressed → no stop signal
+  {
+    const cs = [
+      makeComparison({
+        id: 'Q-cond',
+        category: 'comparison',
+        scope: 'conditions',
+        legacyCp: 0.5,
+        legacyCr: 0.5,
+        shadowCp: 0.7,
+        shadowCr: 0.7,
+      }),
+      makeComparison({
+        id: 'Q38',
+        category: 'comparison',
+        scope: 'control_rate_table',
+        legacyCp: 1.0,
+        legacyCr: 1.0,
+        shadowCp: 0.0,
+        shadowCr: 0.0,
+      }),
+    ]
+    const aggs = tallyCategoryAggregates(cs)
+    const compAgg = aggs.find((a) => a.category === 'comparison')!
+    ok(
+      'control regression alone does NOT flip shadowRegressed',
+      compAgg.shadowRegressed === false
+    )
+    ok(
+      'control question excluded from in-scope question count',
+      compAgg.questionCount === 1
+    )
+    ok(
+      'aggregates compute means only over conditions',
+      Math.abs(compAgg.shadowCp - 0.7) < 1e-9 && Math.abs(compAgg.legacyCp - 0.5) < 1e-9
+    )
+  }
+
+  // Case 2: conditions regressed → stop signal fires regardless of control
+  {
+    const cs = [
+      makeComparison({
+        id: 'Q-cond',
+        category: 'comparison',
+        scope: 'conditions',
+        legacyCp: 0.5,
+        legacyCr: 0.5,
+        shadowCp: 0.3,
+        shadowCr: 0.5,
+      }),
+      makeComparison({
+        id: 'Q38',
+        category: 'comparison',
+        scope: 'control_rate_table',
+        legacyCp: 0.0,
+        legacyCr: 0.0,
+        shadowCp: 1.0,
+        shadowCr: 1.0,
+      }),
+    ]
+    const aggs = tallyCategoryAggregates(cs)
+    const compAgg = aggs.find((a) => a.category === 'comparison')!
+    ok(
+      'conditions regression flips shadowRegressed',
+      compAgg.shadowRegressed === true
+    )
+  }
+
+  // Case 3: only control questions → aggregate is empty, no stop
+  {
+    const cs = [
+      makeComparison({
+        id: 'Q38',
+        category: 'comparison',
+        scope: 'control_rate_table',
+        legacyCp: 1.0,
+        legacyCr: 1.0,
+        shadowCp: 0.0,
+        shadowCr: 0.0,
+      }),
+    ]
+    const aggs = tallyCategoryAggregates(cs)
+    ok(
+      'all-control batch leaves both category aggregates empty + non-regressed',
+      aggs.every((a) => a.questionCount === 0 && !a.shadowRegressed)
+    )
+  }
+}
+
+function runControlAggregateTests(): void {
+  console.log('\n## tallyControlAggregate')
+
+  // No control questions → null
+  {
+    const cs = [
+      makeComparison({
+        id: 'Q1',
+        category: 'comparison',
+        scope: 'conditions',
+        legacyCp: 0.5,
+        legacyCr: 0.5,
+        shadowCp: 0.7,
+        shadowCr: 0.7,
+      }),
+    ]
+    ok('no control questions → null', tallyControlAggregate(cs) === null)
+  }
+
+  // 2 control questions → averaged correctly
+  {
+    const cs = [
+      makeComparison({
+        id: 'Q38',
+        category: 'comparison',
+        scope: 'control_rate_table',
+        legacyCp: 1.0,
+        legacyCr: 1.0,
+        shadowCp: 0.0,
+        shadowCr: 0.0,
+      }),
+      makeComparison({
+        id: 'Q39',
+        category: 'comparison',
+        scope: 'control_rate_table',
+        legacyCp: 0.8,
+        legacyCr: 0.6,
+        shadowCp: 0.0,
+        shadowCr: 0.0,
+      }),
+    ]
+    const ctrl = tallyControlAggregate(cs)
+    ok('control aggregate not null when 2 control questions', ctrl !== null)
+    if (ctrl) {
+      ok('control questionCount = 2', ctrl.questionCount === 2)
+      ok('control legacy CP = 0.9 mean', Math.abs(ctrl.legacyCp - 0.9) < 1e-9)
+      ok('control shadow CP = 0.0', ctrl.shadowCp === 0)
+      ok('control deltaCp is negative (shadow loses on rate)', ctrl.deltaCp < 0)
+      ok('control aggregate carries scope tag', ctrl.scope === 'control_rate_table')
+    }
+  }
+
+  // Mixed batch: control aggregate ignores conditions questions
+  {
+    const cs = [
+      makeComparison({
+        id: 'Q-cond',
+        category: 'comparison',
+        scope: 'conditions',
+        legacyCp: 0.5,
+        legacyCr: 0.5,
+        shadowCp: 0.7,
+        shadowCr: 0.7,
+      }),
+      makeComparison({
+        id: 'Q38',
+        category: 'comparison',
+        scope: 'control_rate_table',
+        legacyCp: 1.0,
+        legacyCr: 1.0,
+        shadowCp: 0.0,
+        shadowCr: 0.0,
+      }),
+    ]
+    const ctrl = tallyControlAggregate(cs)
+    ok(
+      'control aggregate has Q count = 1 (excludes conditions)',
+      ctrl?.questionCount === 1
+    )
+  }
 }
 
 function main(): void {
@@ -258,6 +460,8 @@ function main(): void {
   runFindMatchedTokensTests()
   runScoreQuestionTests()
   runTallyAggregatesTests()
+  runStopSignalScopingTests()
+  runControlAggregateTests()
   runQuestionsShapeTests()
   console.log(`\n${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)

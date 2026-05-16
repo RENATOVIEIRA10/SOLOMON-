@@ -31,6 +31,23 @@ export interface RetrievedChunk {
   content: string
 }
 
+/**
+ * Which corpus a question is supposed to retrieve from.
+ *
+ *   `conditions`         — answer lives in conditions_pdf clauses; both
+ *                          legacy and shadow CAN retrieve it. These
+ *                          questions drive the strategic stop signal.
+ *   `control_rate_table` — answer lives in rate_table_pdf rows. Legacy
+ *                          can retrieve it via the structured rate path;
+ *                          shadow is conditions_pdf-only by contract and
+ *                          is NOT expected to score. Reported as a
+ *                          sanity check; NEVER feeds the stop signal.
+ *
+ * The split was introduced in slice 3B.7.1 after PR #33's strategic stop
+ * surfaced Q38 / Q39 as architecturally out-of-scope for the shadow set.
+ */
+export type ShadowEvalQuestionScope = 'conditions' | 'control_rate_table'
+
 /** A question the harness measures. The `expectedTokens` are the proxy "gold". */
 export interface ShadowEvalQuestion {
   id: string
@@ -43,7 +60,13 @@ export interface ShadowEvalQuestion {
    * explicit so reviewers can audit each one.
    */
   expectedTokens: readonly string[]
-  /** Free-text rationale for the expectedTokens set. */
+  /**
+   * Whether this question is `conditions` (drives stop signal) or
+   * `control_rate_table` (informational sanity check). Slice 3B.7.1
+   * makes this required.
+   */
+  scope: ShadowEvalQuestionScope
+  /** Free-text rationale for the expectedTokens set + scope choice. */
   notes?: string
 }
 
@@ -156,16 +179,29 @@ export function scoreQuestion(
   }
 }
 
+function mean(xs: number[]): number {
+  if (xs.length === 0) return 0
+  return xs.reduce((a, b) => a + b, 0) / xs.length
+}
+
 /**
  * Rolls per-question comparisons up into per-category aggregates and a
  * boolean `shadowRegressed` flag per category. Pure.
+ *
+ * **Slice 3B.7.1 semantics**: only questions whose
+ * {@link ShadowEvalQuestion.scope} is `'conditions'` feed the
+ * aggregates and the stop signal. `'control_rate_table'` questions
+ * are reported separately via {@link tallyControlAggregate} as an
+ * informational sanity check — they NEVER set `shadowRegressed`.
  */
 export function tallyCategoryAggregates(
   comparisons: readonly QuestionComparison[]
 ): CategoryAggregate[] {
   const cats: Array<'comparison' | 'concept'> = ['comparison', 'concept']
   return cats.map((category) => {
-    const subset = comparisons.filter((c) => c.question.category === category)
+    const subset = comparisons.filter(
+      (c) => c.question.category === category && c.question.scope === 'conditions'
+    )
     if (subset.length === 0) {
       return {
         category,
@@ -179,7 +215,6 @@ export function tallyCategoryAggregates(
         shadowRegressed: false,
       }
     }
-    const mean = (xs: number[]): number => xs.reduce((a, b) => a + b, 0) / xs.length
     const legacyCp = mean(subset.map((c) => c.legacy.keywordPrecision))
     const legacyCr = mean(subset.map((c) => c.legacy.keywordRecall))
     const shadowCp = mean(subset.map((c) => c.shadow.keywordPrecision))
@@ -201,6 +236,46 @@ export function tallyCategoryAggregates(
 }
 
 /**
+ * Informational rollup of questions with `scope='control_rate_table'`.
+ * Never feeds the strategic stop signal — shadow is expected to lose
+ * here because rate questions live in `rate_table_pdf` which the
+ * shadow set does not cover.
+ *
+ * Returns `null` when the harness has zero control questions.
+ */
+export interface ControlAggregate {
+  scope: 'control_rate_table'
+  questionCount: number
+  legacyCp: number
+  legacyCr: number
+  shadowCp: number
+  shadowCr: number
+  deltaCp: number
+  deltaCr: number
+}
+
+export function tallyControlAggregate(
+  comparisons: readonly QuestionComparison[]
+): ControlAggregate | null {
+  const subset = comparisons.filter((c) => c.question.scope === 'control_rate_table')
+  if (subset.length === 0) return null
+  const legacyCp = mean(subset.map((c) => c.legacy.keywordPrecision))
+  const legacyCr = mean(subset.map((c) => c.legacy.keywordRecall))
+  const shadowCp = mean(subset.map((c) => c.shadow.keywordPrecision))
+  const shadowCr = mean(subset.map((c) => c.shadow.keywordRecall))
+  return {
+    scope: 'control_rate_table',
+    questionCount: subset.length,
+    legacyCp,
+    legacyCr,
+    shadowCp,
+    shadowCr,
+    deltaCp: shadowCp - legacyCp,
+    deltaCr: shadowCr - legacyCr,
+  }
+}
+
+/**
  * The 9 Prudential-impacted Ragas questions selected for the harness.
  * Six `comparison` + three `concept` per `docs/phase-2-pr3b-plan.md` §3.
  * Each question carries an explicit `expectedTokens` set so the proxy
@@ -211,83 +286,92 @@ export function tallyCategoryAggregates(
  * a chance at answering the question well".
  */
 export const SHADOW_EVAL_QUESTIONS: readonly ShadowEvalQuestion[] = [
-  // --- concept (3) ---
+  // --- concept (3) — all conditions scope ---
   {
     id: 'Q16',
     category: 'concept',
+    scope: 'conditions',
     question:
       'Qual o periodo de carencia para suicidio no Seguro Vida Inteira da Prudential?',
     expectedTokens: ['carencia', 'suicidio', '2 anos', 'vida inteira'],
     notes:
-      'Julio-validated ground_truth: "2 anos a contar da contratacao". Tokens cover the right clause (carencia + suicidio) and the right product (vida inteira) plus the literal period.',
+      'Julio-validated ground_truth: "2 anos a contar da contratacao". Tokens cover the right clause (carencia + suicidio) and the right product (vida inteira) plus the literal period. Scope=conditions: clause lives in conditions_pdf.',
   },
   {
     id: 'Q17',
     category: 'concept',
+    scope: 'conditions',
     question: 'O Seguro Temporario da Prudential tem renovacao automatica?',
     expectedTokens: ['temporario', 'renovacao', 'vigencia', 'apolice'],
     notes:
-      'Julio-validated: renovacao depends on whether temporario is cobertura base or opcional. Tokens span product (temporario) and the clause topic (renovacao/vigencia).',
+      'Julio-validated: renovacao depends on whether temporario is cobertura base or opcional. Tokens span product (temporario) and the clause topic (renovacao/vigencia). Scope=conditions.',
   },
   {
     id: 'Q26',
     category: 'concept',
+    scope: 'conditions',
     question:
       'Qual o numero minimo de vidas para contratar o VG Corporate da Prudential?',
     expectedTokens: ['vg corporate', 'vg express', '500 vidas'],
     notes:
-      'Julio-validated: VG Corporate >500 vidas, VG Express 2-500. Tokens are the two product names plus the threshold.',
+      'Julio-validated: VG Corporate >500 vidas, VG Express 2-500. Tokens are the two product names plus the threshold. Scope=conditions.',
   },
-  // --- comparison (6) ---
+  // --- comparison (6) — Q31/32/36/37 conditions, Q38/Q39 control_rate_table ---
   {
     id: 'Q31',
     category: 'comparison',
+    scope: 'conditions',
     question:
       'Comparar premio Seguro Temporario Prudential TM10 (capital 500k) versus Bradesco Tranquilidade Familiar.',
     expectedTokens: ['tm10', 'temporario', 'capital', 'premio'],
     notes:
-      'Q31 hits conditions-text for Temporario TM10 product naming + capital/premio (the answer cites a Prudential per-1000 rate). Bradesco-side has no tables imported, expected.',
+      'Q31 hits conditions-text for Temporario TM10 product naming + capital/premio (the answer cites a Prudential per-1000 rate). Bradesco-side has no tables imported, expected. Scope=conditions: the conditions retrieval is what we want to measure.',
   },
   {
     id: 'Q32',
     category: 'comparison',
+    scope: 'conditions',
     question:
       'Compare Seguro Doencas Graves Plus da Prudential (DDR5G) com outras seguradoras.',
     expectedTokens: ['ddr5g', 'doencas graves', 'prudential'],
     notes:
-      'Q32: the chunker must surface DDR5G clauses or doencas graves clauses. Other-insurer tables are not imported, so we score Prudential-side only.',
+      'Q32: the chunker must surface DDR5G clauses or doencas graves clauses. Other-insurer tables are not imported, so we score Prudential-side only. Scope=conditions.',
   },
   {
     id: 'Q36',
     category: 'comparison',
+    scope: 'conditions',
     question:
       'Como Prudential Renda Familiar compara ao Bradesco Tranquilidade Familiar?',
     expectedTokens: ['renda familiar', 'renda mensal', 'morte', 'beneficiario'],
     notes:
-      'Q36: comparison between two renda-mensal products. Tokens are the Prudential product name + the clause concepts (renda mensal, morte do provedor, beneficiario).',
+      'Q36: comparison between two renda-mensal products. Tokens are the Prudential product name + the clause concepts (renda mensal, morte do provedor, beneficiario). Scope=conditions.',
   },
   {
     id: 'Q37',
     category: 'comparison',
+    scope: 'conditions',
     question: 'Prudential Vida Inteira WL10G vs WL00G, mulher 35 anos.',
     expectedTokens: ['wl10g', 'wl00g', 'vida inteira', 'capital remido'],
     notes:
-      'Q37: distinguishes two Vida Inteira variants by code. Tokens cover both codes and the explanatory concept (capital remido).',
+      'Q37: distinguishes two Vida Inteira variants by code. Tokens cover both codes and the explanatory concept (capital remido). Scope=conditions: the differentiator (capital remido em 10 anos) is a conditions concept.',
   },
   {
     id: 'Q38',
     category: 'comparison',
+    scope: 'control_rate_table',
     question: 'Prudential Seguro Cirurgia CIB5G vs CIB5H, qual mais barato?',
     expectedTokens: ['cib5g', 'cib5h', 'cirurgia'],
     notes:
-      'Q38: control question — already scores CP=1.0 in the legacy baseline because it hits the structured rate path. Shadow should match, not regress.',
+      'Q38: pure rate question (ground_truth: 20,4928 vs 20,2133 per_1000_annual). Legacy hits this via the structured rate_table_pdf path; shadow is conditions_pdf-only by contract and CANNOT score by design. Reclassified to control_rate_table in slice 3B.7.1; informational only — never feeds the stop signal.',
   },
   {
     id: 'Q39',
     category: 'comparison',
+    scope: 'control_rate_table',
     question: 'Prudential Temporario TM10, TM15 e TM20 para homem 35 anos.',
     expectedTokens: ['tm10', 'tm15', 'tm20', 'temporario'],
     notes:
-      'Q39: distinguishes 3 temporario term variants. Tokens are the codes plus the product name.',
+      'Q39: pure rate question (3 rate values for 3 temporario term variants). Same shape as Q38 — rate_table_pdf scope. Reclassified to control_rate_table in slice 3B.7.1; informational only.',
   },
 ]
