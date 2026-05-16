@@ -60,6 +60,14 @@ import {
   buildShadowRows,
   type BuildShadowRowsResult,
 } from '../../src/services/azure-di/shadow-indexer'
+import {
+  renderBatchReport,
+  tallyAggregate,
+  classifyWriteStatus,
+  type DocResult,
+  type FinalReadPathProbe,
+  type ManifestEntry,
+} from '../../src/services/azure-di/shadow-indexer-batch'
 import type { ProductCatalogRow } from '../../src/services/azure-di/product-resolver'
 import type { Database, TablesInsert } from '../../src/types/database'
 
@@ -87,7 +95,24 @@ const MIGRATION_MATCH_DOCUMENTS = path.join(
 const READ_PATH_ANSWER = path.join('src', 'services', 'rag', 'answer.ts')
 
 interface CliOptions {
-  url: string
+  /** Single-doc URL. Mutually exclusive with `batch`. */
+  url?: string
+  /** Batch mode: auto-discovers Prudential URLs from Supabase. */
+  batch: boolean
+  /** Cap on docs processed in batch mode. */
+  limit?: number
+  /**
+   * Minimum legacy-prod chunk count for a URL to enter the batch manifest.
+   * Filters single-chunk anomalies. Default {@link DEFAULT_MIN_CHUNKS}.
+   */
+  minChunks: number
+  /**
+   * Batch mode: skip URLs that already have shadow rows at the sentinel.
+   * (single-doc mode is always idempotent via upsert, regardless of this flag).
+   */
+  resume: boolean
+  /** Persist each `azure-layout-result.json` to outDir. Default: ON in single, OFF in batch. */
+  saveLayouts: boolean
   insurerMatch: string
   productHint?: string
   maxPages: number
@@ -98,6 +123,8 @@ interface CliOptions {
   write: boolean
 }
 
+const DEFAULT_MIN_CHUNKS = 5
+
 function parseArgs(argv: string[]): CliOptions {
   const opts: Partial<CliOptions> = {
     insurerMatch: DEFAULT_INSURER_MATCH,
@@ -107,8 +134,12 @@ function parseArgs(argv: string[]): CliOptions {
     outRoot: DEFAULT_OUT_ROOT,
     live: false,
     write: false,
+    batch: false,
+    minChunks: DEFAULT_MIN_CHUNKS,
+    resume: false,
   }
   let dryRunSeen = false
+  let saveLayoutsSeen: boolean | undefined
 
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
@@ -124,8 +155,22 @@ function parseArgs(argv: string[]): CliOptions {
       opts.write = true
     } else if (arg === '--allow-cost-blast') {
       opts.allowCostBlast = true
+    } else if (arg === '--batch') {
+      opts.batch = true
+    } else if (arg === '--resume') {
+      opts.resume = true
+    } else if (arg === '--save-layouts') {
+      saveLayoutsSeen = true
+    } else if (arg === '--no-save-layouts') {
+      saveLayoutsSeen = false
     } else if (arg === '--url' && next) {
       opts.url = next
+      i++
+    } else if (arg === '--limit' && next) {
+      opts.limit = Number(next)
+      i++
+    } else if (arg === '--min-chunks' && next) {
+      opts.minChunks = Number(next)
       i++
     } else if (arg === '--insurer-match' && next) {
       opts.insurerMatch = next
@@ -147,7 +192,24 @@ function parseArgs(argv: string[]): CliOptions {
     }
   }
 
-  if (!opts.url) throw new Error('--url is required')
+  if (!opts.url && !opts.batch) {
+    throw new Error('Either --url <pdf> or --batch is required')
+  }
+  if (opts.url && opts.batch) {
+    throw new Error('--url and --batch are mutually exclusive')
+  }
+  if (!opts.batch && opts.resume) {
+    throw new Error('--resume is only valid with --batch (single --url is always idempotent via upsert)')
+  }
+  if (!opts.batch && opts.limit !== undefined) {
+    throw new Error('--limit is only valid with --batch')
+  }
+  if (opts.limit !== undefined && (!Number.isInteger(opts.limit) || opts.limit < 1)) {
+    throw new Error('--limit must be a positive integer')
+  }
+  if (!Number.isInteger(opts.minChunks) || (opts.minChunks ?? 0) < 1) {
+    throw new Error('--min-chunks must be a positive integer')
+  }
   if (!Number.isInteger(opts.maxPages) || (opts.maxPages ?? 0) < 1) {
     throw new Error('--max-pages must be a positive integer')
   }
@@ -162,25 +224,44 @@ function parseArgs(argv: string[]): CliOptions {
   if (dryRunSeen && (opts.live || opts.write)) {
     throw new Error('--dry-run conflicts with --live/--write')
   }
+  // Default for saveLayouts: ON in single mode (preserves prior behavior),
+  // OFF in batch mode (keeps the run directory lean over 20+ PDFs).
+  opts.saveLayouts = saveLayoutsSeen ?? !opts.batch
   return opts as CliOptions
 }
 
 function printUsage(): void {
   console.log(`Azure DI shadow indexer (PR 3B slice 3B.5, Prudential-only)
 
+Two modes:
+  Single:  --url <pdf>
+  Batch:   --batch        (auto-discovers Prudential URLs from Supabase)
+
 Usage:
-  npm run phase2:azure-di:shadow-indexer -- --url <pdf> [--dry-run|--live [--write]]
+  npm run phase2:azure-di:shadow-indexer -- --url <pdf>  [--dry-run|--live [--write]]
+  npm run phase2:azure-di:shadow-indexer -- --batch      [--limit N] [--resume]
+                                                          [--dry-run|--live [--write]]
 
-Required:
-  --url <pdf_url>        Prudential PDF to ingest
+Required (one of):
+  --url <pdf_url>        Single Prudential PDF
+  --batch                Auto-discover Prudential URLs from active conditions_pdf
 
-Optional:
-  --insurer-match <s>    ilike substring (default "${DEFAULT_INSURER_MATCH}")
+Single-mode-only:
   --product-hint <s>     Hint for the product resolver
-  --max-pages <n>        Hard cost cap (default ${DEFAULT_MAX_PAGES}, >${COST_BLAST_THRESHOLD} needs --allow-cost-blast)
+
+Batch-mode-only:
+  --limit <n>            Cap on docs processed
+  --min-chunks <n>       Filter URLs with < n active legacy chunks (default ${DEFAULT_MIN_CHUNKS})
+  --resume               Skip URLs that already have shadow rows at the sentinel
+
+Shared:
+  --insurer-match <s>    ilike substring (default "${DEFAULT_INSURER_MATCH}")
+  --max-pages <n>        Per-doc page cap (default ${DEFAULT_MAX_PAGES}, >${COST_BLAST_THRESHOLD} needs --allow-cost-blast)
   --allow-cost-blast     Permit --max-pages above the ${COST_BLAST_THRESHOLD}-page guard
   --api-version <v>      Azure DI api-version (default ${DEFAULT_API_VERSION})
   --out-root <dir>       Report root (default ${DEFAULT_OUT_ROOT})
+  --save-layouts         Force-save per-doc azure-layout-result.json (default: on in single, off in batch)
+  --no-save-layouts      Force-skip per-doc layout artifact (default: off in single, on in batch)
   --dry-run              No Azure call, no DB write (default mode)
   --live                 Call Azure DI; no DB write
   --live --write         Call Azure DI; preflight; upsert inert rows
@@ -433,6 +514,365 @@ async function upsertRows(
   }
 }
 
+// --- batch-mode I/O helpers ---
+
+/**
+ * Pages through `documents` for the given insurer and groups by source_url,
+ * filtering to active conditions_pdf rows. Returns the manifest sorted by
+ * legacy-chunk count desc, with URLs below `minChunks` filtered out.
+ */
+async function discoverPrudentialManifest(
+  client: SupabaseClient<Database>,
+  insurerId: string,
+  minChunks: number
+): Promise<ManifestEntry[]> {
+  const PAGE = 1000
+  const counts = new Map<string, number>()
+  let from = 0
+  for (;;) {
+    const { data, error } = await client
+      .from('documents')
+      .select('source_url')
+      .eq('source_type', 'conditions_pdf')
+      .eq('insurer_id', insurerId)
+      .is('valid_until', null)
+      .range(from, from + PAGE - 1)
+    if (error) throw error
+    if (!data || data.length === 0) break
+    for (const row of data) {
+      const url = (row.source_url ?? '').trim()
+      if (url.length === 0) continue
+      counts.set(url, (counts.get(url) ?? 0) + 1)
+    }
+    if (data.length < PAGE) break
+    from += PAGE
+  }
+  const entries: ManifestEntry[] = []
+  for (const [source_url, legacy_chunk_count] of counts) {
+    if (legacy_chunk_count >= minChunks) entries.push({ source_url, legacy_chunk_count })
+  }
+  entries.sort((a, b) => b.legacy_chunk_count - a.legacy_chunk_count)
+  return entries
+}
+
+/**
+ * Picks any active `conditions_pdf` row's embedding for the insurer, to
+ * use as the query vector in the final `match_documents` RPC probe.
+ * Returns `null` if no such row exists.
+ */
+async function pickActiveEmbedding(
+  client: SupabaseClient<Database>,
+  insurerId: string
+): Promise<string | null> {
+  const { data, error } = await client
+    .from('documents')
+    .select('embedding')
+    .eq('insurer_id', insurerId)
+    .is('valid_until', null)
+    .not('embedding', 'is', null)
+    .limit(1)
+  if (error || !data || data.length === 0) return null
+  return (data[0].embedding as string | null) ?? null
+}
+
+/**
+ * Final sanity check: calls `match_documents` with a real Prudential
+ * embedding at threshold 0.0 / top_k 50, then classifies the returned
+ * ids. Both `shadowReturned` and `nonNullValidUntilReturned` MUST be 0.
+ */
+async function runFinalReadPathProbe(
+  client: SupabaseClient<Database>,
+  insurerId: string
+): Promise<FinalReadPathProbe> {
+  const threshold = 0.0
+  const topK = 50
+  const queryEmbedding = await pickActiveEmbedding(client, insurerId)
+  if (!queryEmbedding) {
+    return {
+      totalReturned: 0,
+      shadowReturned: 0,
+      nonNullValidUntilReturned: 0,
+      threshold,
+      topK,
+      skipped: 'no active embedding available to probe with',
+    }
+  }
+  const rpc = client.rpc as unknown as (
+    fn: string,
+    args: Record<string, unknown>
+  ) => Promise<{ data: Array<{ id: string }> | null; error: { message: string } | null }>
+  const { data, error } = await rpc('match_documents', {
+    query_embedding: queryEmbedding,
+    match_threshold: threshold,
+    match_count: topK,
+  })
+  if (error) {
+    return {
+      totalReturned: 0,
+      shadowReturned: 0,
+      nonNullValidUntilReturned: 0,
+      threshold,
+      topK,
+      skipped: `match_documents error: ${error.message}`,
+    }
+  }
+  const ids = (data ?? []).map((r) => r.id)
+  if (ids.length === 0) {
+    return { totalReturned: 0, shadowReturned: 0, nonNullValidUntilReturned: 0, threshold, topK }
+  }
+  const { data: classify, error: e3 } = await client
+    .from('documents')
+    .select('id, valid_until, metadata')
+    .in('id', ids)
+  if (e3 || !classify) {
+    return {
+      totalReturned: ids.length,
+      shadowReturned: 0,
+      nonNullValidUntilReturned: 0,
+      threshold,
+      topK,
+      skipped: `classify error: ${e3?.message ?? 'unknown'}`,
+    }
+  }
+  let shadowReturned = 0
+  let nonNullValidUntilReturned = 0
+  for (const r of classify) {
+    if (r.valid_until !== null) nonNullValidUntilReturned += 1
+    const meta = (r.metadata as Record<string, unknown> | null) ?? null
+    if (meta && meta.shadow === true) shadowReturned += 1
+  }
+  return { totalReturned: ids.length, shadowReturned, nonNullValidUntilReturned, threshold, topK }
+}
+
+interface ProcessOneDocArgs {
+  client: SupabaseClient<Database>
+  azureClient: AzureDiLayoutClient
+  insurer: { id: string; name: string }
+  catalog: readonly ProductCatalogRow[]
+  pageSpan: string
+  opts: CliOptions
+  outDir: string
+  manifestEntry: ManifestEntry
+}
+
+/**
+ * Runs the slice-3B.5 pipeline for one URL: optional resume short-circuit,
+ * Azure DI analyze + buildShadowRows, optional --write with assertRowsAreInert
+ * + upsert + 3 post-write probes. Returns a {@link DocResult} that never
+ * throws — errors surface as `AZURE_ERROR` or `WRITE_ERROR` status.
+ */
+async function processOneDocument(args: ProcessOneDocArgs): Promise<DocResult> {
+  const {
+    client,
+    azureClient,
+    insurer,
+    catalog,
+    pageSpan,
+    opts,
+    outDir,
+    manifestEntry,
+  } = args
+  const result: DocResult = {
+    sourceUrl: manifestEntry.source_url,
+    legacyChunkCount: manifestEntry.legacy_chunk_count,
+    status: 'PLANNED',
+  }
+
+  if (opts.resume) {
+    const preCount = await countUpsertedShadow(
+      client,
+      insurer.id,
+      manifestEntry.source_url,
+      SHADOW_VALID_UNTIL_SENTINEL
+    )
+    if (preCount > 0) {
+      result.status = 'SKIPPED_RESUME'
+      result.preShadowCount = preCount
+      return result
+    }
+  }
+
+  if (!opts.live) {
+    result.status = 'PLANNED'
+    return result
+  }
+
+  let build: BuildShadowRowsResult
+  try {
+    const layout = await azureClient.analyzeUrlSource(manifestEntry.source_url, {
+      pages: pageSpan,
+    })
+    if (opts.saveLayouts) {
+      const safe = manifestEntry.source_url.replace(/[^a-zA-Z0-9]+/g, '_').slice(-80)
+      const layoutPath = path.join(outDir, 'layouts', `${safe}.json`)
+      await mkdir(path.dirname(layoutPath), { recursive: true })
+      await writeFile(layoutPath, JSON.stringify(layout, null, 2), 'utf8')
+    }
+    build = buildShadowRows({
+      layout,
+      insurerId: insurer.id,
+      insurerName: insurer.name,
+      sourceUrl: manifestEntry.source_url,
+      productCatalog: catalog,
+    })
+  } catch (err) {
+    result.status = 'AZURE_ERROR'
+    result.errorMessage = err instanceof Error ? err.message : String(err)
+    return result
+  }
+  result.pages = build.summary.pageCount
+  result.chunks = build.summary.chunkCount
+  result.accepted = build.summary.acceptedCount
+  result.quarantined = build.summary.quarantinedCount
+  result.resolved = !build.resolution.productUnresolved
+  result.productId = build.resolution.productUnresolved ? null : build.resolution.productId ?? null
+  result.productName = build.resolution.productUnresolved
+    ? null
+    : build.resolution.productName ?? null
+  if (build.resolution.productUnresolved) {
+    result.unresolvedReason = build.resolution.unresolvedReason
+  }
+
+  if (!opts.write) {
+    result.status = 'PIPELINE_ONLY'
+    return result
+  }
+
+  try {
+    const preShadowCount = await countUpsertedShadow(
+      client,
+      insurer.id,
+      manifestEntry.source_url,
+      SHADOW_VALID_UNTIL_SENTINEL
+    )
+    result.preShadowCount = preShadowCount
+    assertRowsAreInert(build.rows, SHADOW_HASH_PREFIX)
+    await upsertRows(client, build.rows)
+    const [shadowLeakCount, activeRowsForUrl, postUpserted] = await Promise.all([
+      probeShadowLeak(client, insurer.id, manifestEntry.source_url),
+      probeActiveRowsForUrl(client, insurer.id, manifestEntry.source_url),
+      countUpsertedShadow(
+        client,
+        insurer.id,
+        manifestEntry.source_url,
+        SHADOW_VALID_UNTIL_SENTINEL
+      ),
+    ])
+    result.upsertedCount = postUpserted
+    result.shadowLeak = shadowLeakCount
+    result.activeLegacyProd = Math.max(0, activeRowsForUrl - shadowLeakCount)
+    result.status = classifyWriteStatus(preShadowCount, build.summary.acceptedCount, postUpserted)
+  } catch (err) {
+    result.status = 'WRITE_ERROR'
+    result.errorMessage = err instanceof Error ? err.message : String(err)
+  }
+  return result
+}
+
+async function runBatch(args: {
+  client: SupabaseClient<Database>
+  insurer: { id: string; name: string }
+  catalog: readonly ProductCatalogRow[]
+  preflights: readonly PreflightOutcome[]
+  opts: CliOptions
+  outDir: string
+  endpoint: string | undefined
+  endpointMasked: string
+}): Promise<{ exitCode: number }> {
+  const { client, insurer, catalog, preflights, opts, outDir, endpoint, endpointMasked } = args
+  const mode: 'dry-run' | 'live' | 'live-write' = opts.write
+    ? 'live-write'
+    : opts.live
+      ? 'live'
+      : 'dry-run'
+  const pageSpan = `1-${opts.maxPages}`
+  const generatedAt = new Date().toISOString()
+
+  console.log('# batch mode')
+  const manifest = await discoverPrudentialManifest(client, insurer.id, opts.minChunks)
+  const limited = opts.limit !== undefined ? manifest.slice(0, opts.limit) : manifest
+  console.log(
+    `manifest: discovered=${manifest.length} min-chunks>=${opts.minChunks} after-limit=${limited.length}`
+  )
+
+  let azureClient: AzureDiLayoutClient | undefined
+  if (mode !== 'dry-run') {
+    if (!endpoint) {
+      throw new Error('AZURE_DI_ENDPOINT (or AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT) is unset')
+    }
+    azureClient = new AzureDiLayoutClient({ apiVersion: opts.apiVersion })
+  }
+
+  const results: DocResult[] = []
+  for (let i = 0; i < limited.length; i++) {
+    const entry = limited[i]
+    console.log(`\n[${i + 1}/${limited.length}] ${entry.source_url}`)
+    if (mode === 'dry-run') {
+      results.push({
+        sourceUrl: entry.source_url,
+        legacyChunkCount: entry.legacy_chunk_count,
+        status: 'PLANNED',
+      })
+      continue
+    }
+    const r = await processOneDocument({
+      client,
+      azureClient: azureClient!,
+      insurer,
+      catalog,
+      pageSpan,
+      opts,
+      outDir,
+      manifestEntry: entry,
+    })
+    console.log(
+      `  status=${r.status} pages=${r.pages ?? '-'} accepted=${r.accepted ?? '-'} upserted=${r.upsertedCount ?? '-'} leak=${r.shadowLeak ?? '-'}`
+    )
+    results.push(r)
+  }
+
+  const aggregate = tallyAggregate(results)
+  let finalProbe: FinalReadPathProbe | undefined
+  if (mode === 'live-write') {
+    finalProbe = await runFinalReadPathProbe(client, insurer.id)
+    console.log(
+      `\nfinal read-path probe: returned=${finalProbe.totalReturned} shadow=${finalProbe.shadowReturned} non_null_valid_until=${finalProbe.nonNullValidUntilReturned}${finalProbe.skipped ? ` skipped="${finalProbe.skipped}"` : ''}`
+    )
+  }
+
+  const report = renderBatchReport({
+    generatedAt,
+    mode,
+    insurer,
+    catalogSize: catalog.length,
+    preflights: [...preflights],
+    endpointMasked,
+    pageSpan,
+    minChunks: opts.minChunks,
+    limit: opts.limit,
+    resume: opts.resume,
+    manifest: limited,
+    results,
+    aggregate,
+    finalProbe,
+  })
+  const reportPath = path.join(outDir, 'shadow-indexer-batch-report.md')
+  await writeFile(reportPath, report, 'utf8')
+  console.log(`\nReport: ${reportPath}`)
+
+  let exitCode = 0
+  if (aggregate.totalShadowLeaks > 0) {
+    console.error(`FATAL: ${aggregate.totalShadowLeaks} shadow rows leaked into read path`)
+    exitCode = 1
+  }
+  if (aggregate.docsAzureError + aggregate.docsWriteError > 0) exitCode = 1
+  if (finalProbe && (finalProbe.shadowReturned > 0 || finalProbe.nonNullValidUntilReturned > 0)) {
+    console.error('FATAL: final read-path probe surfaced shadow rows')
+    exitCode = 1
+  }
+  return { exitCode }
+}
+
 function makeRunId(): string {
   return new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z')
 }
@@ -598,9 +1038,9 @@ async function main(): Promise<void> {
   const endpoint = envValue('AZURE_DI_ENDPOINT', 'AZURE_DOCUMENT_INTELLIGENCE_ENDPOINT')
   const endpointMasked = maskEndpoint(endpoint ?? '')
 
-  console.log(`# shadow-indexer mode=${mode}`)
+  console.log(`# shadow-indexer mode=${mode}${opts.batch ? ' (batch)' : ''}`)
   console.log(`outDir=${outDir}`)
-  console.log(`url=${opts.url}`)
+  if (opts.url) console.log(`url=${opts.url}`)
   console.log(`max-pages=${opts.maxPages}`)
   console.log(`azure-endpoint=${endpointMasked}`)
 
@@ -619,6 +1059,26 @@ async function main(): Promise<void> {
 
   const pageSpan = `1-${opts.maxPages}`
   const generatedAt = new Date().toISOString()
+
+  if (opts.batch) {
+    const { exitCode } = await runBatch({
+      client,
+      insurer,
+      catalog,
+      preflights,
+      opts,
+      outDir,
+      endpoint,
+      endpointMasked,
+    })
+    if (exitCode !== 0) process.exit(exitCode)
+    return
+  }
+
+  // --- single-URL flow below ---
+
+  if (!opts.url) throw new Error('internal: --url missing after parseArgs')
+  const singleUrl: string = opts.url
 
   if (mode === 'dry-run') {
     const report = renderReport({
@@ -647,16 +1107,18 @@ async function main(): Promise<void> {
   let azureError: string | undefined
 
   try {
-    const layout = await azureClient.analyzeUrlSource(opts.url, { pages: pageSpan })
-    const layoutPath = path.join(outDir, 'azure-layout-result.json')
-    await writeFile(layoutPath, JSON.stringify(layout, null, 2), 'utf8')
-    console.log(`saved layout=${layoutPath}`)
+    const layout = await azureClient.analyzeUrlSource(singleUrl, { pages: pageSpan })
+    if (opts.saveLayouts) {
+      const layoutPath = path.join(outDir, 'azure-layout-result.json')
+      await writeFile(layoutPath, JSON.stringify(layout, null, 2), 'utf8')
+      console.log(`saved layout=${layoutPath}`)
+    }
 
     build = buildShadowRows({
       layout,
       insurerId: insurer.id,
       insurerName: insurer.name,
-      sourceUrl: opts.url,
+      sourceUrl: singleUrl,
       productCatalog: catalog,
       productNameHint: opts.productHint,
     })
@@ -676,9 +1138,9 @@ async function main(): Promise<void> {
       assertRowsAreInert(build.rows, SHADOW_HASH_PREFIX)
       await upsertRows(client, build.rows)
       const [shadowLeakCount, activeRowsForUrl, upsertedCount] = await Promise.all([
-        probeShadowLeak(client, insurer.id, opts.url),
-        probeActiveRowsForUrl(client, insurer.id, opts.url),
-        countUpsertedShadow(client, insurer.id, opts.url, SHADOW_VALID_UNTIL_SENTINEL),
+        probeShadowLeak(client, insurer.id, singleUrl),
+        probeActiveRowsForUrl(client, insurer.id, singleUrl),
+        countUpsertedShadow(client, insurer.id, singleUrl, SHADOW_VALID_UNTIL_SENTINEL),
       ])
       const activeLegacyProdCount = Math.max(0, activeRowsForUrl - shadowLeakCount)
       postWrite = { shadowLeakCount, activeLegacyProdCount, upsertedCount }
