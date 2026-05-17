@@ -24,6 +24,7 @@ import {
   scoreQuestion,
   tallyCategoryAggregates,
   tallyControlAggregate,
+  tallyOutOfScopeCommercialAggregate,
   type QuestionComparison,
   type RetrievedChunk,
   type ShadowEvalQuestionScope,
@@ -253,11 +254,14 @@ function runQuestionsShapeTests(): void {
     'no duplicate ids',
     new Set(SHADOW_EVAL_QUESTIONS.map((q) => q.id)).size === SHADOW_EVAL_QUESTIONS.length
   )
-  // --- slice 3B.7.1: scope invariants ---
+  // --- slice 3B.7.1 + 3B.7.5: scope invariants ---
   ok(
     'every question has scope set',
     SHADOW_EVAL_QUESTIONS.every(
-      (q) => q.scope === 'conditions' || q.scope === 'control_rate_table'
+      (q) =>
+        q.scope === 'conditions' ||
+        q.scope === 'control_rate_table' ||
+        q.scope === 'out_of_scope_commercial'
     )
   )
   const controlIds = SHADOW_EVAL_QUESTIONS.filter((q) => q.scope === 'control_rate_table')
@@ -268,15 +272,50 @@ function runQuestionsShapeTests(): void {
     JSON.stringify(controlIds) === JSON.stringify(['Q38', 'Q39']),
     `got ${controlIds.join(',')}`
   )
+  const outOfScopeIds = SHADOW_EVAL_QUESTIONS.filter(
+    (q) => q.scope === 'out_of_scope_commercial'
+  )
+    .map((q) => q.id)
+    .sort()
+  ok(
+    'out_of_scope_commercial scope = [Q26] exactly (slice 3B.7.5)',
+    JSON.stringify(outOfScopeIds) === JSON.stringify(['Q26']),
+    `got ${outOfScopeIds.join(',')}`
+  )
   const conditionsIds = SHADOW_EVAL_QUESTIONS.filter((q) => q.scope === 'conditions')
     .map((q) => q.id)
     .sort()
   ok(
-    'conditions scope = [Q16, Q17, Q26, Q31, Q32, Q36, Q37]',
+    'conditions scope = [Q16, Q17, Q31, Q32, Q36, Q37] after Q26 reclassification',
     JSON.stringify(conditionsIds) ===
-      JSON.stringify(['Q16', 'Q17', 'Q26', 'Q31', 'Q32', 'Q36', 'Q37']),
+      JSON.stringify(['Q16', 'Q17', 'Q31', 'Q32', 'Q36', 'Q37']),
     `got ${conditionsIds.join(',')}`
   )
+  // --- slice 3B.7.5: Q37 token revision ---
+  const q37 = SHADOW_EVAL_QUESTIONS.find((q) => q.id === 'Q37')
+  ok('Q37 exists', q37 !== undefined)
+  if (q37) {
+    ok(
+      'Q37 expectedTokens drop wl10g (rate-table code)',
+      !q37.expectedTokens.includes('wl10g')
+    )
+    ok(
+      'Q37 expectedTokens drop wl00g (rate-table code)',
+      !q37.expectedTokens.includes('wl00g')
+    )
+    ok(
+      'Q37 expectedTokens drop capital remido (zero hits anywhere)',
+      !q37.expectedTokens.includes('capital remido')
+    )
+    ok(
+      'Q37 expectedTokens include modificado (WL10G differentiator)',
+      q37.expectedTokens.includes('modificado')
+    )
+    ok(
+      'Q37 expectedTokens include vida inteira (product family)',
+      q37.expectedTokens.includes('vida inteira')
+    )
+  }
 }
 
 function runStopSignalScopingTests(): void {
@@ -371,6 +410,91 @@ function runStopSignalScopingTests(): void {
   }
 }
 
+function runOutOfScopeCommercialAggregateTests(): void {
+  console.log('\n## tallyOutOfScopeCommercialAggregate (slice 3B.7.5)')
+
+  // No out-of-scope-commercial questions → null
+  {
+    const cs = [
+      makeComparison({
+        id: 'Q1',
+        category: 'concept',
+        scope: 'conditions',
+        legacyCp: 0.5,
+        legacyCr: 0.5,
+        shadowCp: 0.7,
+        shadowCr: 0.7,
+      }),
+      makeComparison({
+        id: 'Q38',
+        category: 'comparison',
+        scope: 'control_rate_table',
+        legacyCp: 1.0,
+        legacyCr: 1.0,
+        shadowCp: 0.0,
+        shadowCr: 0.0,
+      }),
+    ]
+    ok('no out-of-scope-commercial questions → null', tallyOutOfScopeCommercialAggregate(cs) === null)
+  }
+
+  // 1 out-of-scope-commercial question (the actual Q26 shape)
+  {
+    const cs = [
+      makeComparison({
+        id: 'Q26',
+        category: 'concept',
+        scope: 'out_of_scope_commercial',
+        legacyCp: 0.1,
+        legacyCr: 0.67,
+        shadowCp: 0.0,
+        shadowCr: 0.0,
+      }),
+    ]
+    const oa = tallyOutOfScopeCommercialAggregate(cs)
+    ok('out-of-scope aggregate exists', oa !== null)
+    if (oa) {
+      ok('out-of-scope scope tag is set', oa.scope === 'out_of_scope_commercial')
+      ok('Q count = 1', oa.questionCount === 1)
+      ok('mean legacy CP matches', Math.abs(oa.legacyCp - 0.1) < 1e-9)
+      ok('mean legacy CR matches', Math.abs(oa.legacyCr - 0.67) < 1e-9)
+      ok('shadow stays at 0', oa.shadowCp === 0 && oa.shadowCr === 0)
+      ok('delta is negative (legacy synthetic-header artifact)', oa.deltaCp < 0)
+    }
+  }
+
+  // Stop signal must IGNORE out_of_scope_commercial regressions
+  {
+    const cs = [
+      makeComparison({
+        id: 'Q-cond',
+        category: 'concept',
+        scope: 'conditions',
+        legacyCp: 0.5,
+        legacyCr: 0.5,
+        shadowCp: 0.7,
+        shadowCr: 0.7,
+      }),
+      makeComparison({
+        id: 'Q26',
+        category: 'concept',
+        scope: 'out_of_scope_commercial',
+        legacyCp: 1.0,
+        legacyCr: 1.0,
+        shadowCp: 0.0,
+        shadowCr: 0.0,
+      }),
+    ]
+    const aggs = tallyCategoryAggregates(cs)
+    const conceptAgg = aggs.find((a) => a.category === 'concept')!
+    ok(
+      'out_of_scope_commercial regression does NOT flip shadowRegressed',
+      conceptAgg.shadowRegressed === false
+    )
+    ok('out_of_scope question excluded from concept Q count', conceptAgg.questionCount === 1)
+  }
+}
+
 function runControlAggregateTests(): void {
   console.log('\n## tallyControlAggregate')
 
@@ -462,6 +586,7 @@ function main(): void {
   runTallyAggregatesTests()
   runStopSignalScopingTests()
   runControlAggregateTests()
+  runOutOfScopeCommercialAggregateTests()
   runQuestionsShapeTests()
   console.log(`\n${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)

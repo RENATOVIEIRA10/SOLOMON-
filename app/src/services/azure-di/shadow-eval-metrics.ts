@@ -34,19 +34,34 @@ export interface RetrievedChunk {
 /**
  * Which corpus a question is supposed to retrieve from.
  *
- *   `conditions`         — answer lives in conditions_pdf clauses; both
- *                          legacy and shadow CAN retrieve it. These
- *                          questions drive the strategic stop signal.
- *   `control_rate_table` — answer lives in rate_table_pdf rows. Legacy
- *                          can retrieve it via the structured rate path;
- *                          shadow is conditions_pdf-only by contract and
- *                          is NOT expected to score. Reported as a
- *                          sanity check; NEVER feeds the stop signal.
+ *   `conditions`              — answer lives in conditions_pdf clauses;
+ *                               both legacy and shadow CAN retrieve it.
+ *                               These questions drive the strategic stop
+ *                               signal.
+ *   `control_rate_table`      — answer lives in rate_table_pdf rows.
+ *                               Legacy can retrieve it via the structured
+ *                               rate path; shadow is conditions_pdf-only
+ *                               by contract and is NOT expected to score.
+ *                               Reported as sanity check; NEVER feeds the
+ *                               stop signal. (Introduced in slice 3B.7.1.)
+ *   `out_of_scope_commercial` — answer lives only in commercial / sales
+ *                               material (folheto, product manual, sales
+ *                               kit). NOT in any indexed PDF — neither
+ *                               conditions_pdf nor rate_table_pdf. Legacy
+ *                               may score artificially via synthetic
+ *                               metadata-header chunks that inject
+ *                               product-catalog data; shadow chunker does
+ *                               not. Reported for transparency; NEVER
+ *                               feeds the stop signal. (Introduced in
+ *                               slice 3B.7.5 after the Q26 audit.)
  *
- * The split was introduced in slice 3B.7.1 after PR #33's strategic stop
- * surfaced Q38 / Q39 as architecturally out-of-scope for the shadow set.
+ * The split exists so the strategic stop signal reflects only what the
+ * chunker can actually be measured on.
  */
-export type ShadowEvalQuestionScope = 'conditions' | 'control_rate_table'
+export type ShadowEvalQuestionScope =
+  | 'conditions'
+  | 'control_rate_table'
+  | 'out_of_scope_commercial'
 
 /** A question the harness measures. The `expectedTokens` are the proxy "gold". */
 export interface ShadowEvalQuestion {
@@ -188,11 +203,12 @@ function mean(xs: number[]): number {
  * Rolls per-question comparisons up into per-category aggregates and a
  * boolean `shadowRegressed` flag per category. Pure.
  *
- * **Slice 3B.7.1 semantics**: only questions whose
- * {@link ShadowEvalQuestion.scope} is `'conditions'` feed the
- * aggregates and the stop signal. `'control_rate_table'` questions
- * are reported separately via {@link tallyControlAggregate} as an
- * informational sanity check — they NEVER set `shadowRegressed`.
+ * **Slice 3B.7.1 + 3B.7.5 semantics**: only questions whose
+ * {@link ShadowEvalQuestion.scope} is `'conditions'` feed these
+ * aggregates and the stop signal. `'control_rate_table'` and
+ * `'out_of_scope_commercial'` questions are reported separately via
+ * {@link tallyControlAggregate} and {@link tallyOutOfScopeCommercialAggregate}
+ * as informational sanity checks — they NEVER set `shadowRegressed`.
  */
 export function tallyCategoryAggregates(
   comparisons: readonly QuestionComparison[]
@@ -276,6 +292,54 @@ export function tallyControlAggregate(
 }
 
 /**
+ * Informational rollup of questions with `scope='out_of_scope_commercial'`.
+ *
+ * These questions ask for facts that do not live in any indexed PDF —
+ * the ground truth is commercial / sales-kit material, not legal
+ * conditions. Legacy may score artificially because the legacy
+ * ingestion pipeline injects synthetic metadata-header chunks
+ * containing product-catalog data (product name, SUSEP, etc.). The
+ * new chunker does not inject synthetic chunks, so shadow has no
+ * such artifact and typically scores 0.
+ *
+ * NEVER feeds the strategic stop signal. Returns `null` when the
+ * harness has zero out-of-scope-commercial questions.
+ *
+ * Introduced in slice 3B.7.5 after the Q26 audit.
+ */
+export interface OutOfScopeCommercialAggregate {
+  scope: 'out_of_scope_commercial'
+  questionCount: number
+  legacyCp: number
+  legacyCr: number
+  shadowCp: number
+  shadowCr: number
+  deltaCp: number
+  deltaCr: number
+}
+
+export function tallyOutOfScopeCommercialAggregate(
+  comparisons: readonly QuestionComparison[]
+): OutOfScopeCommercialAggregate | null {
+  const subset = comparisons.filter((c) => c.question.scope === 'out_of_scope_commercial')
+  if (subset.length === 0) return null
+  const legacyCp = mean(subset.map((c) => c.legacy.keywordPrecision))
+  const legacyCr = mean(subset.map((c) => c.legacy.keywordRecall))
+  const shadowCp = mean(subset.map((c) => c.shadow.keywordPrecision))
+  const shadowCr = mean(subset.map((c) => c.shadow.keywordRecall))
+  return {
+    scope: 'out_of_scope_commercial',
+    questionCount: subset.length,
+    legacyCp,
+    legacyCr,
+    shadowCp,
+    shadowCr,
+    deltaCp: shadowCp - legacyCp,
+    deltaCr: shadowCr - legacyCr,
+  }
+}
+
+/**
  * The 9 Prudential-impacted Ragas questions selected for the harness.
  * Six `comparison` + three `concept` per `docs/phase-2-pr3b-plan.md` §3.
  * Each question carries an explicit `expectedTokens` set so the proxy
@@ -309,12 +373,12 @@ export const SHADOW_EVAL_QUESTIONS: readonly ShadowEvalQuestion[] = [
   {
     id: 'Q26',
     category: 'concept',
-    scope: 'conditions',
+    scope: 'out_of_scope_commercial',
     question:
       'Qual o numero minimo de vidas para contratar o VG Corporate da Prudential?',
     expectedTokens: ['vg corporate', 'vg express', '500 vidas'],
     notes:
-      'Julio-validated: VG Corporate >500 vidas, VG Express 2-500. Tokens are the two product names plus the threshold. Scope=conditions.',
+      'Audited in slice 3B.7.5 (docs/phase-2-pr3b7.5-q26-q37-token-audit.md). The Julio-validated ground truth (VG Corporate >500 vidas, VG Express 2-500) is PRODUCT-POSITIONING knowledge from commercial material — it does NOT live in any conditions_pdf or rate_table_pdf in the indexed Prudential corpus. Verified: "500 vidas" returns zero hits across all corpora; the only "vg corporate"/"vg express" hits are a synthetic metadata-header chunk legacy ingestion injects. Reclassified scope to out_of_scope_commercial so this question never feeds the stop signal. Kept in the harness for transparency about the legacy-ingestion artifact.',
   },
   // --- comparison (6) — Q31/32/36/37 conditions, Q38/Q39 control_rate_table ---
   {
@@ -352,9 +416,9 @@ export const SHADOW_EVAL_QUESTIONS: readonly ShadowEvalQuestion[] = [
     category: 'comparison',
     scope: 'conditions',
     question: 'Prudential Vida Inteira WL10G vs WL00G, mulher 35 anos.',
-    expectedTokens: ['wl10g', 'wl00g', 'vida inteira', 'capital remido'],
+    expectedTokens: ['vida inteira', 'modificado', 'vitalicia', 'pagamento'],
     notes:
-      'Q37: distinguishes two Vida Inteira variants by code. Tokens cover both codes and the explanatory concept (capital remido). Scope=conditions: the differentiator (capital remido em 10 anos) is a conditions concept.',
+      'Audited in slice 3B.7.5. Original tokens ["wl10g","wl00g","vida inteira","capital remido"] were rate-table-flavoured: wl10g/wl00g exist exclusively in rate_table_pdf (58/57 hits each, ZERO in conditions_pdf); "capital remido" returns zero hits across the entire Prudential corpus. Replaced with body-text-anchored conditions tokens: vida inteira (product family), modificado (the WL10G "modificado 30" variant differentiator), vitalicia (the WL00G permanent-life concept), pagamento (the economic differentiator — limited-payment vs ongoing). Scope=conditions: this question IS measurable on the new chunker.',
   },
   {
     id: 'Q38',
