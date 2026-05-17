@@ -20,6 +20,7 @@ import {
   SHADOW_EVAL_QUESTIONS,
   chunkContainsToken,
   findMatchedTokens,
+  getScoringText,
   normalize,
   scoreQuestion,
   tallyCategoryAggregates,
@@ -45,6 +46,14 @@ function ok(label: string, cond: boolean, detail?: string): void {
 
 function chunk(content: string, id = 'c-' + content.slice(0, 8)): RetrievedChunk {
   return { id, content }
+}
+
+function chunkWithMeta(
+  content: string,
+  meta: Record<string, unknown>,
+  id = 'c-' + (content.slice(0, 6) || 'meta')
+): RetrievedChunk {
+  return { id, content, metadata: meta }
 }
 
 function runNormalizeTests(): void {
@@ -89,6 +98,167 @@ function runChunkContainsTokenTests(): void {
   )
   ok('empty token returns false', !chunkContainsToken('any text', ''))
   ok('not found returns false', !chunkContainsToken('texto qualquer', 'wl10g'))
+}
+
+function runGetScoringTextTests(): void {
+  console.log('\n## getScoringText (slice 3B.7.6)')
+
+  ok(
+    'content only when no metadata',
+    getScoringText(chunk('Body text here')) === 'Body text here'
+  )
+  ok(
+    'content only when metadata null',
+    getScoringText({ id: 'x', content: 'Body', metadata: null }) === 'Body'
+  )
+  ok(
+    'content only when metadata is empty object',
+    getScoringText({ id: 'x', content: 'Body', metadata: {} }) === 'Body'
+  )
+  ok(
+    'appends metadata.section after content',
+    getScoringText(chunkWithMeta('Body', { section: 'Heading X' })) === 'Body\nHeading X'
+  )
+  ok(
+    'appends metadata.heading_path after content',
+    getScoringText({
+      id: 'a',
+      content: 'Body',
+      metadata: { heading_path: 'A > B > C' },
+    }) === 'Body\nA > B > C'
+  )
+  ok(
+    'appends metadata.section_title after content',
+    getScoringText({
+      id: 'a',
+      content: 'Body',
+      metadata: { section_title: 'Title' },
+    }) === 'Body\nTitle'
+  )
+  ok(
+    'combines all three heading fields in canonical order',
+    getScoringText({
+      id: 'a',
+      content: 'Body',
+      metadata: { section: 'S', heading_path: 'P', section_title: 'T' },
+    }) === 'Body\nS\nP\nT'
+  )
+  ok(
+    'handles empty content but populated section',
+    getScoringText(chunkWithMeta('', { section: 'Heading X' })) === 'Heading X'
+  )
+  ok(
+    'skips non-string metadata field values (defends runtime against producer drift)',
+    getScoringText({
+      id: 'a',
+      content: 'Body',
+      // Cast through unknown: TypeScript would block heading_path:number at compile
+      // time, but at runtime a producer could feed us anything. The metric MUST
+      // refuse to crash and MUST refuse to inject the bad value into the haystack.
+      metadata: {
+        section: null,
+        heading_path: 42 as unknown as string,
+        section_title: undefined as unknown as string,
+      },
+    }) === 'Body'
+  )
+}
+
+function runMetadataScoringTests(): void {
+  console.log('\n## metric considers metadata.section / heading_path / section_title (slice 3B.7.6)')
+
+  // CEO test 1: token found only in content passes
+  {
+    const score = scoreQuestion([chunk('Seguro Vida Inteira')], ['vida inteira'])
+    ok('token in content alone passes', score.keywordRecall === 1 && score.keywordPrecision === 1)
+  }
+
+  // CEO test 2: token found only in metadata.section passes
+  {
+    const chunks = [chunkWithMeta('Cobertura em caso de morte', { section: 'Seguro Vida Inteira > Carencias' })]
+    const score = scoreQuestion(chunks, ['vida inteira'])
+    ok('token in metadata.section alone passes', score.keywordRecall === 1 && score.keywordPrecision === 1)
+  }
+
+  // CEO test 3: token found only in heading_path passes
+  {
+    const chunks = [chunkWithMeta('Body text', { heading_path: 'A > Vida Inteira > B' })]
+    const score = scoreQuestion(chunks, ['vida inteira'])
+    ok('token in metadata.heading_path alone passes', score.keywordRecall === 1 && score.keywordPrecision === 1)
+  }
+
+  // CEO test 3b: token found only in section_title passes
+  {
+    const chunks = [chunkWithMeta('Body text', { section_title: 'Vida Inteira Modificado' })]
+    const score = scoreQuestion(chunks, ['vida inteira'])
+    ok('token in metadata.section_title alone passes', score.keywordRecall === 1 && score.keywordPrecision === 1)
+  }
+
+  // CEO test 4: token absent in both content AND metadata fails
+  {
+    const chunks = [chunkWithMeta('Outro produto qualquer', { section: 'Heading Z' })]
+    const score = scoreQuestion(chunks, ['vida inteira'])
+    ok(
+      'token absent in content AND metadata fails',
+      score.keywordRecall === 0 && score.keywordPrecision === 0
+    )
+  }
+
+  // Mixed: one chunk matches via content, another via section — both count for precision
+  {
+    const chunks = [
+      chunk('Conteúdo com vida inteira'),
+      chunkWithMeta('Outro texto', { section: 'Vida Inteira Modificado' }),
+      chunk('Texto sem token'),
+    ]
+    const score = scoreQuestion(chunks, ['vida inteira'])
+    ok(
+      'CP correctly counts 2 of 3 chunks (content + section)',
+      Math.abs(score.keywordPrecision - 2 / 3) < 1e-9,
+      `got ${score.keywordPrecision}`
+    )
+    ok('CR is 1.0 (token found in union)', score.keywordRecall === 1)
+  }
+
+  // Slice 3B.7.1 + 3B.7.5 invariants preserved: stop signal still restricted to conditions
+  {
+    const cs: QuestionComparison[] = [
+      makeComparison({
+        id: 'Q-cond',
+        category: 'concept',
+        scope: 'conditions',
+        legacyCp: 0.5,
+        legacyCr: 0.5,
+        shadowCp: 0.7,
+        shadowCr: 0.7,
+      }),
+      makeComparison({
+        id: 'Q-control',
+        category: 'comparison',
+        scope: 'control_rate_table',
+        legacyCp: 1,
+        legacyCr: 1,
+        shadowCp: 0,
+        shadowCr: 0,
+      }),
+      makeComparison({
+        id: 'Q-oos',
+        category: 'concept',
+        scope: 'out_of_scope_commercial',
+        legacyCp: 1,
+        legacyCr: 1,
+        shadowCp: 0,
+        shadowCr: 0,
+      }),
+    ]
+    const aggs = tallyCategoryAggregates(cs)
+    ok(
+      'stop signal still in-scope only after 3B.7.6 metric change',
+      aggs.every((a) => !a.shadowRegressed)
+    )
+    ok('control_rate_table still informational', tallyControlAggregate(cs) !== null)
+    ok('out_of_scope_commercial still informational', tallyOutOfScopeCommercialAggregate(cs) !== null)
+  }
 }
 
 function runFindMatchedTokensTests(): void {
@@ -581,6 +751,8 @@ function main(): void {
   console.log('# azure-di shadow-eval pure-helper test')
   runNormalizeTests()
   runChunkContainsTokenTests()
+  runGetScoringTextTests()
+  runMetadataScoringTests()
   runFindMatchedTokensTests()
   runScoreQuestionTests()
   runTallyAggregatesTests()

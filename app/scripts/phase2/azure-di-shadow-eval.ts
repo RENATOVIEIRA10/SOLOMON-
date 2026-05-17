@@ -159,7 +159,12 @@ async function loadInsurer(
 }
 
 type RpcResponse = {
-  data: Array<{ id: string; content: string; similarity: number }> | null
+  data: Array<{
+    id: string
+    content: string
+    similarity: number
+    metadata?: Record<string, unknown> | null
+  }> | null
   error: { message: string } | null
 }
 
@@ -171,6 +176,9 @@ async function callMatchFn(
   // Cast through unknown because both RPC functions are user-defined and
   // not present in the generated Database type. Call as a method on
   // `client` so `this` stays bound (mirror of the slice 3B.5 fix on PR #28).
+  //
+  // Slice 3B.7.6: forward `metadata` so the proxy metric can scan
+  // section/heading text alongside content via getScoringText().
   const rpc = client.rpc as unknown as (
     this: SupabaseClient<Database>,
     fnName: string,
@@ -178,7 +186,11 @@ async function callMatchFn(
   ) => Promise<RpcResponse>
   const resp = await rpc.call(client, fn, args)
   if (resp.error) throw new Error(`${fn} RPC error: ${resp.error.message}`)
-  return (resp.data ?? []).map((r) => ({ id: r.id, content: r.content }))
+  return (resp.data ?? []).map((r) => ({
+    id: r.id,
+    content: r.content,
+    metadata: r.metadata ?? null,
+  }))
 }
 
 interface PerQuestionRun {
