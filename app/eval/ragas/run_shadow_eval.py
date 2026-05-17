@@ -422,14 +422,32 @@ def main() -> None:
     print(f"report: {out_dir / 'REPORT.md'}")
 
     # Final stop-signal verdict on in-scope conditions only.
+    # CRITICAL: fail LOUD on NaN. A silently-passing NaN result hides the
+    # case where the judge errored (rate limit, parse fail, timeout) and
+    # the harness has no real comparison to report.
+    import math
     cond = aggregates["by_scope"].get("conditions")
-    if cond and (cond["delta_cp"] < 0 or cond["delta_cr"] < 0):
+    if not cond:
         print()
-        print(f"STOP SIGNAL: shadow regressed on in-scope conditions aggregate. "
+        sys.exit("STOP SIGNAL FAIL: no in-scope conditions rows aggregated.")
+    has_nan = any(
+        math.isnan(cond[k])
+        for k in ("legacy_cp", "legacy_cr", "shadow_cp", "shadow_cr", "delta_cp", "delta_cr")
+    )
+    if has_nan:
+        print()
+        print("STOP SIGNAL FAIL: aggregates contain NaN -- judge calls likely errored.")
+        print(f"  conditions agg: {cond}")
+        print("  Inspect ragas_per_row.csv for per-row scores; check log for judge errors.")
+        sys.exit(2)
+    if cond["delta_cp"] < 0 or cond["delta_cr"] < 0:
+        print()
+        print(f"STOP SIGNAL FIRES: shadow regressed on in-scope conditions aggregate. "
               f"delta_cp={cond['delta_cp']:+.3f} delta_cr={cond['delta_cr']:+.3f}")
         sys.exit(1)
     print()
-    print("STOP SIGNAL CLEAR: shadow neutral or better than legacy on in-scope conditions.")
+    print(f"STOP SIGNAL CLEAR: shadow neutral or better than legacy on in-scope conditions. "
+          f"delta_cp={cond['delta_cp']:+.3f} delta_cr={cond['delta_cr']:+.3f}")
 
 
 def render_report(rows: list[dict[str, Any]], df: Any, aggregates: dict[str, Any], cp_col: str, cr_col: str) -> str:
