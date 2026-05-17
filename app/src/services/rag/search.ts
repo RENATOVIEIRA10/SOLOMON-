@@ -8,7 +8,11 @@
 import { createServiceClient } from '@/lib/supabase'
 import { embedChunks } from '@/services/embeddings/embedder'
 import { RAG } from '@/config/constants'
-import { chooseRetrievalCorpus, type Corpus } from '@/config/corpus-routing'
+import {
+  chooseRetrievalCorpus,
+  shouldRunShadowPreview,
+  type Corpus,
+} from '@/config/corpus-routing'
 import {
   recordRetrievalTrace,
   type RetrievalSource,
@@ -175,6 +179,31 @@ export async function semanticSearchWithEmbedding(
     fallbackReason: null,
   })
 
+  // Slice 3C-c: fire-and-forget shadow preview alongside legacy serve.
+  // Runs the shadow RPC with the SAME args, traces it with mode='preview-only',
+  // and DISCARDS the result. The user-facing response continues unaffected;
+  // any failure here is logged and swallowed.
+  if (
+    shouldRunShadowPreview({
+      insurerNames: options?.insurerNames ?? [],
+      servedCorpus: corpus,
+    })
+  ) {
+    void runShadowPreview(supabase, {
+      query_embedding: JSON.stringify(queryEmbedding),
+      match_threshold: threshold,
+      match_count: topK,
+      filter_insurer_id: options?.insurerId ?? null,
+      filter_product_id: options?.productId ?? null,
+      filter_source_type: options?.sourceType ?? null,
+    }, traceCommon).catch((err) => {
+      console.warn(
+        '[rag/search] shadow preview launcher failed:',
+        err instanceof Error ? err.message : err
+      )
+    })
+  }
+
   if (!data || data.length === 0) {
     return []
   }
@@ -189,6 +218,105 @@ export async function semanticSearchWithEmbedding(
     product_id: (row.product_id as string) ?? null,
     insurer_id: (row.insurer_id as string) ?? null,
   }))
+}
+
+// ---------------------------------------------------------------------------
+// Slice 3C-c — shadow preview launcher
+// ---------------------------------------------------------------------------
+//
+// Runs match_shadow_documents alongside legacy on the same query embedding,
+// traces the result with mode='preview-only', and DISCARDS the chunks.
+// The shadow corpus is observed; nothing is served to the user.
+//
+// Contract:
+//  - Only called when shouldRunShadowPreview() returned true.
+//  - Returned Promise never rejects (try/catch wraps the entire body).
+//  - Timed independently of the legacy call (parallel observability).
+//  - Failure surfaces only via the trace row (fallbackReason='rpc_error')
+//    plus a console.warn. The caller's response is already in flight.
+
+type ShadowRpcArgs = {
+  query_embedding: string
+  match_threshold: number
+  match_count: number
+  filter_insurer_id: string | null
+  filter_product_id: string | null
+  filter_source_type: string | null
+}
+
+type ShadowTraceCommon = {
+  requestId?: string
+  insurerName: string | null
+  corpus: Corpus
+  source: RetrievalSource
+  question?: string
+}
+
+async function runShadowPreview(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  supabase: any,
+  rpcArgs: ShadowRpcArgs,
+  legacyTraceCommon: ShadowTraceCommon
+): Promise<void> {
+  const t0 = Date.now()
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const { data, error } = await (supabase.rpc as any)(
+      'match_shadow_documents',
+      rpcArgs
+    )
+    const latencyMs = Date.now() - t0
+    if (error) {
+      recordRetrievalTrace({
+        requestId: legacyTraceCommon.requestId,
+        insurerName: legacyTraceCommon.insurerName,
+        corpus: 'shadow',
+        mode: 'preview-only',
+        source: legacyTraceCommon.source,
+        question: legacyTraceCommon.question,
+        latencyMs,
+        chunksReturned: 0,
+        fallbackUsed: false,
+        fallbackReason: 'rpc_error',
+      })
+      console.warn(
+        '[rag/search] shadow preview RPC error (swallowed):',
+        error.message ?? error
+      )
+      return
+    }
+    const chunksReturned = Array.isArray(data) ? data.length : 0
+    recordRetrievalTrace({
+      requestId: legacyTraceCommon.requestId,
+      insurerName: legacyTraceCommon.insurerName,
+      corpus: 'shadow',
+      mode: 'preview-only',
+      source: legacyTraceCommon.source,
+      question: legacyTraceCommon.question,
+      latencyMs,
+      chunksReturned,
+      fallbackUsed: false,
+      fallbackReason: null,
+    })
+  } catch (err) {
+    const latencyMs = Date.now() - t0
+    recordRetrievalTrace({
+      requestId: legacyTraceCommon.requestId,
+      insurerName: legacyTraceCommon.insurerName,
+      corpus: 'shadow',
+      mode: 'preview-only',
+      source: legacyTraceCommon.source,
+      question: legacyTraceCommon.question,
+      latencyMs,
+      chunksReturned: 0,
+      fallbackUsed: false,
+      fallbackReason: 'rpc_error',
+    })
+    console.warn(
+      '[rag/search] shadow preview threw (swallowed):',
+      err instanceof Error ? err.message : err
+    )
+  }
 }
 
 // ---------------------------------------------------------------------------

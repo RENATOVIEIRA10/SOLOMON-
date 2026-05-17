@@ -19,6 +19,8 @@
  * prompt + validateCitation() (substring >=30 chars contra chunks reais).
  */
 
+import { randomUUID } from "node:crypto";
+
 import { semanticSearch, type SearchResult } from "./search";
 import { loadEnrichment } from "./answer";
 import { createServiceClient } from "@/lib/supabase";
@@ -129,11 +131,27 @@ export async function analyzePreSinistro(
   // (HIGH 3: era sequencial sem reordenar).
   const query = buildSearchQuery(input);
   const perInsurer = 8;
+  // Slice 3C-c: corpus-routing context. pre-sinistro is single-insurer
+  // per analysis -> eligible for shadow preview when input.insurerName
+  // is in SHADOW_PREVIEW_INSURERS.
+  const corpusCtx = {
+    insurerNames: [input.insurerName] as readonly string[],
+    requestId: randomUUID(),
+    question: query,
+    source: "pre-sinistro" as const,
+  };
   // Phase 3A G2: pre-sinistro queries are always verbal → restrict to
   // conditions_pdf. rate_table_pdf chunks would inject numeric noise that
   // poisons the verdict and the citation validation downstream.
   const settled = await Promise.all(
-    insurerIds.map((id) => semanticSearch(query, { insurerId: id, topK: perInsurer, sourceType: 'conditions_pdf' }))
+    insurerIds.map((id) =>
+      semanticSearch(query, {
+        ...corpusCtx,
+        insurerId: id,
+        topK: perInsurer,
+        sourceType: 'conditions_pdf',
+      })
+    )
   );
   let results: SearchResult[] = settled.flat();
 

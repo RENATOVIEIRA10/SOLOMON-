@@ -5,6 +5,8 @@
  * Flow: embed query -> search pgvector -> enrich -> build context -> LLM -> citations -> save
  */
 
+import { randomUUID } from 'node:crypto'
+
 import { createServiceClient } from '@/lib/supabase'
 import { embedQuery, rerankWithCohere, semanticSearch, semanticSearchWithEmbedding, type SearchResult } from './search'
 import { buildContext, type ContextBlock, type EnrichmentData } from './context-builder'
@@ -155,6 +157,19 @@ export async function ask(
   const compareIntent = mentionedInsurers.length === 1 && questionImpliesOtherInsurers(question)
   console.log(`[rag/ask] Mentioned insurers: ${mentionedInsurers.length > 0 ? mentionedInsurers.join(', ') : 'none (global search)'} | compareIntent=${compareIntent}`)
 
+  // Slice 3C-c: corpus-routing context threaded into every search.ts call.
+  // Used for: (a) chooseRetrievalCorpus serve decision (no-op while
+  // SHADOW_CORPUS_ALLOWLIST is empty), (b) shouldRunShadowPreview decision
+  // (fires when insurer is in SHADOW_PREVIEW_INSURERS and query is
+  // single-insurer), (c) per-request telemetry rows in retrieval_traces.
+  const corpusRequestId = randomUUID()
+  const corpusCtx = {
+    insurerNames: mentionedInsurers,
+    requestId: corpusRequestId,
+    question,
+    source: 'ask' as const,
+  }
+
   // 0a. Rate lookup fast-path: se a pergunta e sobre TAXA/PREMIO e temos
   // seguradora detectada, consulta insurer_rate_tables direto — bypass LLM.
   // Zero alucinacao em numeros: resposta vem de tabela estruturada com
@@ -256,6 +271,7 @@ export async function ask(
       let nameResults: SearchResult[] = []
       for (const id of ids) {
         const r = await semanticSearchWithEmbedding(queryEmbedding, {
+          ...corpusCtx,
           insurerId: id,
           topK: perInsurerFetch,
           sourceType: rateIntentDetected ? 'rate_table_pdf' : undefined,
@@ -271,6 +287,7 @@ export async function ask(
     // If targeted search found nothing, fall back to global
     if (searchResults.length === 0) {
       searchResults = await semanticSearch(expandedQuery, {
+        ...corpusCtx,
         insurerId: options?.insurerFilter,
         topK: RAG.fetchK,
       })
@@ -300,6 +317,7 @@ export async function ask(
   } else if (options?.insurerFilter) {
     // Caller forced a single-insurer filter — honor it without round-robin.
     searchResults = await semanticSearch(expandedQuery, {
+      ...corpusCtx,
       insurerId: options.insurerFilter,
       topK: RAG.globalTopK,
     })
@@ -312,6 +330,7 @@ export async function ask(
     // Concept / edge / general queries sem insurer: busca focada (topK=15)
     // mantem chunks no mesmo cluster semantico — comportamento pre-Fase 2.
     searchResults = await semanticSearch(expandedQuery, {
+      ...corpusCtx,
       topK: RAG.globalTopK,
     })
   }

@@ -22,7 +22,8 @@
     "phase2:azure-di:shadow-eval:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/azure-di-shadow-eval.test.ts",
     "phase2:audit-q16": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/audit-q16.ts",
     "phase2:corpus-routing:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/corpus-routing.test.ts",
-    "phase2:retrieval-trace:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/retrieval-trace.test.ts"
+    "phase2:retrieval-trace:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/retrieval-trace.test.ts",
+    "phase2:shadow-preview:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/shadow-preview.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
