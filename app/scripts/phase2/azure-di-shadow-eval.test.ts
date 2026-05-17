@@ -16,6 +16,10 @@
  *   npm run phase2:azure-di:shadow-eval:test
  */
 
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 import {
   SHADOW_EVAL_QUESTIONS,
   chunkContainsToken,
@@ -30,6 +34,11 @@ import {
   type RetrievedChunk,
   type ShadowEvalQuestionScope,
 } from '../../src/services/azure-di/shadow-eval-metrics'
+
+const HARNESS_PATH = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  'azure-di-shadow-eval.ts'
+)
 
 let passed = 0
 let failed = 0
@@ -781,6 +790,34 @@ function runControlAggregateTests(): void {
   }
 }
 
+function runHarnessDefaultsTests(): void {
+  console.log('\n## harness defaults (slice 3B.7.10)')
+
+  const source = readFileSync(HARNESS_PATH, 'utf8')
+
+  ok(
+    'DEFAULT_MATCH_COUNT literal is 20 (slice 3B.7.10)',
+    /const\s+DEFAULT_MATCH_COUNT\s*=\s*20\b/.test(source)
+  )
+  ok(
+    "DEFAULT_MATCH_COUNT literal does not still read 10 (no leftover 'DEFAULT_MATCH_COUNT = 10')",
+    !/const\s+DEFAULT_MATCH_COUNT\s*=\s*10\b/.test(source)
+  )
+  ok(
+    "harness exposes '--match-count' CLI flag for overrides",
+    /['"]--match-count['"]/.test(source)
+  )
+  ok(
+    "harness validates --match-count is a positive integer",
+    /matchCount\)\s*\|\|\s*opts\.matchCount\s*<\s*1/.test(source) ||
+      /Number\.isInteger\(opts\.matchCount\)/.test(source)
+  )
+  ok(
+    'help text templated on DEFAULT_MATCH_COUNT (will reflect 20 automatically)',
+    /default \$\{DEFAULT_MATCH_COUNT\}/.test(source)
+  )
+}
+
 function main(): void {
   console.log('# azure-di shadow-eval pure-helper test')
   runNormalizeTests()
@@ -794,6 +831,7 @@ function main(): void {
   runControlAggregateTests()
   runOutOfScopeCommercialAggregateTests()
   runQuestionsShapeTests()
+  runHarnessDefaultsTests()
   console.log(`\n${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)
 }
