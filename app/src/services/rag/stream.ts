@@ -9,6 +9,8 @@
  *   -> callLLMStream (yields deltas) -> extract citations -> save -> yield final
  */
 
+import { randomUUID } from "node:crypto";
+
 import { semanticSearch, type SearchResult } from "./search";
 import { buildContext } from "./context-builder";
 import { extractCitations, type Citation } from "./citation";
@@ -66,6 +68,14 @@ export async function* askStream(
     const mentionedInsurers = detectInsurers(question);
     const expandedQuery = expandQueryWithJargon(question);
 
+    // Slice 3C-c: corpus-routing context for telemetry + preview mode.
+    const corpusCtx = {
+      insurerNames: mentionedInsurers,
+      requestId: randomUUID(),
+      question,
+      source: "stream" as const,
+    };
+
     let searchResults: SearchResult[] = [];
 
     if (mentionedInsurers.length > 0) {
@@ -76,6 +86,7 @@ export async function* askStream(
         const nameResults: SearchResult[] = [];
         for (const id of ids) {
           const r = await semanticSearch(expandedQuery, {
+            ...corpusCtx,
             insurerId: id,
             topK: perInsurer,
           });
@@ -86,12 +97,14 @@ export async function* askStream(
 
       if (searchResults.length === 0) {
         searchResults = await semanticSearch(expandedQuery, {
+          ...corpusCtx,
           insurerId: options?.insurerFilter,
           topK: RAG.fetchK,
         });
       }
     } else {
       searchResults = await semanticSearch(expandedQuery, {
+        ...corpusCtx,
         insurerId: options?.insurerFilter,
         topK: RAG.fetchK,
       });

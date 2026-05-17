@@ -6,6 +6,8 @@
  * Depois, LLM compara e destaca diferencas.
  */
 
+import { randomUUID } from "node:crypto";
+
 import { semanticSearch } from "./search";
 import { buildContext } from "./context-builder";
 import { resolveInsurerIds, loadEnrichment } from "./answer";
@@ -118,6 +120,17 @@ export async function compareInsurers(
     `${input.productType} exclusoes limitacoes nao cobertura`,
   ];
 
+  // Slice 3C-c: corpus-routing context. compareInsurers is multi-insurer
+  // by definition (2-3 insurers in input), so shouldRunShadowPreview will
+  // always reject (length !== 1) — telemetry still flows tagged
+  // source='compare' for observability.
+  const corpusCtx = {
+    insurerNames: input.insurerNames,
+    requestId: randomUUID(),
+    question: `${input.productType} ${input.insurerNames.join(" vs ")}`,
+    source: "compare" as const,
+  };
+
   const allResults = [];
   for (const name of input.insurerNames) {
     const ids = idsMap.get(name) ?? [];
@@ -125,7 +138,12 @@ export async function compareInsurers(
       for (const q of queries) {
         // Phase 3A G2: comparison is always verbal → restrict to conditions_pdf.
         // rate_table_pdf chunks (avg ~285 chars, numeric) leak otherwise.
-        const r = await semanticSearch(q, { insurerId: id, topK: 3, sourceType: 'conditions_pdf' });
+        const r = await semanticSearch(q, {
+          ...corpusCtx,
+          insurerId: id,
+          topK: 3,
+          sourceType: 'conditions_pdf',
+        });
         allResults.push(...r);
       }
     }

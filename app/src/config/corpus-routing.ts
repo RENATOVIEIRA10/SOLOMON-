@@ -73,11 +73,20 @@ export interface CorpusRoutingOptions {
 export const SHADOW_ALLOWLIST_ENV_VAR = 'SHADOW_CORPUS_ALLOWLIST'
 
 /**
- * Parse `SHADOW_CORPUS_ALLOWLIST` into a Set of canonical insurer names.
- * Empty / unset env => empty set => no insurer eligible.
+ * The environment variable that gates which insurers run a shadow
+ * preview retrieval ALONGSIDE the legacy serve. Comma-separated
+ * canonical names. Empty / unset => no insurer triggers preview.
+ *
+ * Slice 3C-c. Preview mode is strictly separate from serve mode:
+ *  - SHADOW_CORPUS_ALLOWLIST controls who can be SERVED by shadow.
+ *  - SHADOW_PREVIEW_INSURERS controls who is OBSERVED via shadow
+ *    while legacy keeps serving.
+ * The two envs can be set independently; in 3C-c both surfaces are
+ * deliberately kept disjoint (allowlist empty, preview list optional).
  */
-export function getShadowAllowlistFromEnv(): ReadonlySet<string> {
-  const raw = process.env[SHADOW_ALLOWLIST_ENV_VAR]
+export const SHADOW_PREVIEW_ENV_VAR = 'SHADOW_PREVIEW_INSURERS'
+
+function parseInsurerList(raw: string | undefined): ReadonlySet<string> {
   if (!raw || !raw.trim()) return new Set<string>()
   return new Set(
     raw
@@ -85,6 +94,57 @@ export function getShadowAllowlistFromEnv(): ReadonlySet<string> {
       .map((s) => s.trim())
       .filter((s) => s.length > 0)
   )
+}
+
+/**
+ * Parse `SHADOW_CORPUS_ALLOWLIST` into a Set of canonical insurer names.
+ * Empty / unset env => empty set => no insurer eligible.
+ */
+export function getShadowAllowlistFromEnv(): ReadonlySet<string> {
+  return parseInsurerList(process.env[SHADOW_ALLOWLIST_ENV_VAR])
+}
+
+/**
+ * Parse `SHADOW_PREVIEW_INSURERS` into a Set of canonical insurer names.
+ * Same shape as the allowlist parser. Empty / unset env => empty set
+ * => no preview triggered for any insurer.
+ */
+export function getShadowPreviewListFromEnv(): ReadonlySet<string> {
+  return parseInsurerList(process.env[SHADOW_PREVIEW_ENV_VAR])
+}
+
+export interface ShadowPreviewOptions {
+  /** Canonical insurer names from detectInsurers(question). */
+  insurerNames: readonly string[]
+  /**
+   * Override-able for tests. Defaults to reading SHADOW_PREVIEW_INSURERS.
+   */
+  envPreviewList?: ReadonlySet<string>
+  /**
+   * The corpus that WAS chosen to serve. Preview only makes sense
+   * when serving legacy (we observe what shadow would have done).
+   * If serving shadow already, preview is redundant.
+   */
+  servedCorpus: Corpus
+}
+
+/**
+ * Decide whether to run a shadow-corpus retrieval ALONGSIDE legacy in
+ * preview-only mode. The shadow result is NEVER returned to the user
+ * in slice 3C-c; it is traced with mode='preview-only' and discarded.
+ *
+ * Conditions (all must hold):
+ *   1. servedCorpus === 'legacy' (preview makes no sense if shadow served)
+ *   2. insurerNames.length === 1 (single-insurer queries only)
+ *   3. envPreviewList.has(insurerNames[0]) (case-sensitive whitelist)
+ */
+export function shouldRunShadowPreview(options: ShadowPreviewOptions): boolean {
+  if (options.servedCorpus !== 'legacy') return false
+  if (options.insurerNames.length !== 1) return false
+  const insurer = options.insurerNames[0]
+  if (typeof insurer !== 'string' || insurer.length === 0) return false
+  const list = options.envPreviewList ?? getShadowPreviewListFromEnv()
+  return list.has(insurer)
 }
 
 /**
