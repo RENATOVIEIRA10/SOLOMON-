@@ -9,6 +9,10 @@ import { createServiceClient } from '@/lib/supabase'
 import { embedChunks } from '@/services/embeddings/embedder'
 import { RAG } from '@/config/constants'
 import { chooseRetrievalCorpus, type Corpus } from '@/config/corpus-routing'
+import {
+  recordRetrievalTrace,
+  type RetrievalSource,
+} from '@/services/rag/retrieval-trace'
 
 export interface SearchResult {
   id: string
@@ -35,10 +39,33 @@ export interface SearchOptions {
    */
   insurerNames?: readonly string[]
   /**
-   * Per-insurer runtime routing table (slice 3C-b). Reserved for future
-   * wiring from the `corpus_routing` DB table. Absent in 3C-a.
+   * Per-insurer runtime routing table (reserved for future wiring from
+   * the `corpus_routing` DB table). Absent in 3C-a/b.
    */
   corpusDbRouting?: ReadonlyMap<string, Corpus>
+  /**
+   * Slice 3C-b telemetry hooks. All optional; when absent, the helper
+   * fills with sensible defaults (uuid for requestId, 'unknown' for
+   * source). The trace is fire-and-forget; if the insert fails the
+   * user-facing request continues normally.
+   */
+  requestId?: string
+  source?: RetrievalSource
+  /**
+   * Raw question text. When provided, sha256-hashed in retrieval-trace.ts
+   * before insert. NEVER stored raw (PII safety: hash-only v1 per CEO
+   * decision at PR #49 merge).
+   */
+  question?: string
+  /**
+   * Duck-typed Langfuse trace handle. When provided, search.ts tags it
+   * with the chosen corpus. No hard Langfuse import in this module so
+   * the coupling stays light (per CEO scope at PR #49 merge:
+   * "sem acoplamento pesado").
+   */
+  langfuseTrace?: {
+    update: (params: { tags?: readonly string[] }) => void
+  }
 }
 
 /**
@@ -90,6 +117,31 @@ export async function semanticSearchWithEmbedding(
   const rpcName: 'match_documents' | 'match_shadow_documents' =
     corpus === 'shadow' ? 'match_shadow_documents' : 'match_documents'
 
+  // Slice 3C-b: light Langfuse tag (duck-typed, no Langfuse import).
+  // Best-effort; failures here never propagate.
+  try {
+    options?.langfuseTrace?.update({ tags: [`corpus:${corpus}`] })
+  } catch (tagErr) {
+    console.warn(
+      '[rag/search] langfuse trace tag failed:',
+      tagErr instanceof Error ? tagErr.message : tagErr
+    )
+  }
+
+  // Slice 3C-b: timed RPC + best-effort trace insert. The user-facing
+  // path is unchanged on success and on error; only the recordRetrievalTrace
+  // side-effect is new.
+  const traceInsurer =
+    (options?.insurerNames ?? []).length === 1 ? options!.insurerNames![0] : null
+  const traceCommon = {
+    requestId: options?.requestId,
+    insurerName: traceInsurer,
+    corpus,
+    source: options?.source ?? ('unknown' as RetrievalSource),
+    question: options?.question,
+  }
+
+  const t0 = Date.now()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data, error } = await (supabase.rpc as any)(rpcName, {
     query_embedding: JSON.stringify(queryEmbedding),
@@ -99,10 +151,29 @@ export async function semanticSearchWithEmbedding(
     filter_product_id: options?.productId ?? null,
     filter_source_type: options?.sourceType ?? null,
   })
+  const latencyMs = Date.now() - t0
 
   if (error) {
+    recordRetrievalTrace({
+      ...traceCommon,
+      latencyMs,
+      chunksReturned: 0,
+      // Slice 3C-b does NOT auto-fall-back to legacy -- that lives in
+      // 3C-c+. Here we just record that the RPC errored.
+      fallbackUsed: false,
+      fallbackReason: 'rpc_error',
+    })
     throw new Error(`[rag/search] pgvector search failed: ${error.message}`)
   }
+
+  const chunksReturned = Array.isArray(data) ? data.length : 0
+  recordRetrievalTrace({
+    ...traceCommon,
+    latencyMs,
+    chunksReturned,
+    fallbackUsed: false,
+    fallbackReason: null,
+  })
 
   if (!data || data.length === 0) {
     return []
