@@ -260,7 +260,14 @@ def recommend(
         )
         return ("BLOCK", bullets)
 
-    coverage_ok = paired_count >= 5000 or days_observed >= 7.0
+    # Coverage rule: CEO authorized ">= 5000 queries OR >= 7 days". Plus a
+    # zero-floor guard: with literally zero paired traces, the verdict is
+    # never PROCEED regardless of elapsed days (no evidence at all).
+    MIN_PAIRED_FLOOR = 100
+    coverage_ok = (
+        paired_count >= 5000
+        or (days_observed >= 7.0 and paired_count >= MIN_PAIRED_FLOOR)
+    )
     fallback_ok = shadow_fallback_rate < 0.05
     latency_ok = overhead is None or overhead <= 0.50
 
@@ -274,9 +281,17 @@ def recommend(
         return ("PROCEED-TO-CANARY", bullets)
 
     if not coverage_ok:
-        bullets.append(
-            f"EXTEND: observation window insufficient (paired={paired_count} < 5000 AND days={days_observed:.1f} < 7)."
-        )
+        if paired_count < MIN_PAIRED_FLOOR:
+            bullets.append(
+                f"EXTEND: only {paired_count} paired traces collected (< {MIN_PAIRED_FLOOR} floor)."
+                " Elapsed days alone does not count toward PROCEED without paired evidence."
+                " Confirm SHADOW_PREVIEW_INSURERS=Prudential is set on the deployed prod env"
+                " and that traffic is flowing."
+            )
+        else:
+            bullets.append(
+                f"EXTEND: observation insufficient (paired={paired_count} < 5000 AND days={days_observed:.1f} < 7)."
+            )
     if not fallback_ok:
         bullets.append(
             f"EXTEND: shadow fallback rate {shadow_fallback_rate:.2%} > 5% target."
@@ -348,7 +363,7 @@ def render_markdown(
     lines: list[str] = []
     lines.append("# SOLOMON -- Phase 2 / Slice 3C-c -- preview-window evidence report")
     lines.append("")
-    lines.append(f"_Generated {dt.datetime.utcnow().isoformat()}Z. Read-only. Insurer scope: `{insurer}`._")
+    lines.append(f"_Generated {dt.datetime.now(dt.timezone.utc).replace(tzinfo=None).isoformat()}Z. Read-only. Insurer scope: `{insurer}`._")
     lines.append("")
 
     # 1. Window
@@ -496,7 +511,7 @@ def main() -> None:
 
     base, headers = supabase_headers()
 
-    until = dt.datetime.utcnow()
+    until = dt.datetime.now(dt.timezone.utc).replace(tzinfo=None)
     since = until - dt.timedelta(days=args.days)
 
     print(f"[preview-report] fetching retrieval_traces for {args.insurer} since {since.isoformat()}", file=sys.stderr)
