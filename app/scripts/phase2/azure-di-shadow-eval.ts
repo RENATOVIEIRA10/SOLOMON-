@@ -38,8 +38,10 @@ import {
   scoreQuestion,
   tallyCategoryAggregates,
   tallyControlAggregate,
+  tallyOutOfScopeCommercialAggregate,
   type CategoryAggregate,
   type ControlAggregate,
+  type OutOfScopeCommercialAggregate,
   type QuestionComparison,
   type RetrievedChunk,
   type ShadowEvalQuestion,
@@ -238,6 +240,7 @@ function renderReport(args: {
   comparisons: readonly QuestionComparison[]
   aggregates: readonly CategoryAggregate[]
   controlAggregate: ControlAggregate | null
+  outOfScopeCommercialAggregate: OutOfScopeCommercialAggregate | null
 }): string {
   const lines: string[] = []
   lines.push('# Phase 2 PR 3B slice 3B.6.3 — legacy vs shadow eval report')
@@ -252,7 +255,7 @@ function renderReport(args: {
   lines.push('- **No LLM judge.** CP / CR here are deterministic keyword-overlap proxies — see methodology below.')
   lines.push('- No production read path import. No edit of match_documents/answer.ts/compare.ts.')
   lines.push(
-    '- Slice 3B.7.1: questions tagged `scope: conditions | control_rate_table`. Only `conditions` feed the stop signal.'
+    '- Scope tags (slice 3B.7.1 + 3B.7.5): `conditions` | `control_rate_table` | `out_of_scope_commercial`. Only `conditions` feeds the stop signal.'
   )
   lines.push('')
   lines.push('## Inputs')
@@ -277,6 +280,7 @@ function renderReport(args: {
   // --- In-scope (conditions) per-question ---
   const inScope = args.comparisons.filter((c) => c.question.scope === 'conditions')
   const control = args.comparisons.filter((c) => c.question.scope === 'control_rate_table')
+  const outOfScope = args.comparisons.filter((c) => c.question.scope === 'out_of_scope_commercial')
   lines.push(`## Per-question results — in-scope conditions_pdf (N=${inScope.length})`)
   lines.push('')
   lines.push('These questions DRIVE the stop signal: their answers live in `conditions_pdf`, so')
@@ -304,6 +308,26 @@ function renderReport(args: {
     )
     lines.push('|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|')
     control.forEach((c, i) => {
+      lines.push(renderPerQuestionRow(c, i + 1))
+    })
+    lines.push('')
+  }
+
+  // --- Out-of-scope (commercial) per-question (slice 3B.7.5) ---
+  if (outOfScope.length > 0) {
+    lines.push(`## Per-question results — out-of-scope commercial (N=${outOfScope.length})`)
+    lines.push('')
+    lines.push("Informational only. These questions ask for product-positioning facts that")
+    lines.push('do not live in ANY indexed PDF (neither `conditions_pdf` nor `rate_table_pdf`).')
+    lines.push('Legacy may score artificially via synthetic metadata-header chunks the legacy')
+    lines.push('ingestion injects; shadow chunker does not. Reported for transparency about')
+    lines.push("legacy's structured-data injection behavior; **never feed the stop signal**.")
+    lines.push('')
+    lines.push(
+      '| # | Q | category | Legacy CP | Shadow CP | Δ CP | Legacy CR | Shadow CR | Δ CR | legacy chunks | shadow chunks | notes |'
+    )
+    lines.push('|---:|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---|')
+    outOfScope.forEach((c, i) => {
       lines.push(renderPerQuestionRow(c, i + 1))
     })
     lines.push('')
@@ -350,6 +374,28 @@ function renderReport(args: {
         : 'shadow tied or beat legacy on rate questions — unexpected; check curation'
     lines.push(
       `| ${ca.scope} | ${ca.questionCount} | ${formatPct(ca.legacyCp)} | ${formatPct(ca.shadowCp)} | ${formatDelta(ca.deltaCp)} | ${formatPct(ca.legacyCr)} | ${formatPct(ca.shadowCr)} | ${formatDelta(ca.deltaCr)} | ${reading} |`
+    )
+    lines.push('')
+  }
+
+  if (args.outOfScopeCommercialAggregate) {
+    const oa = args.outOfScopeCommercialAggregate
+    lines.push(
+      '## Out-of-scope commercial aggregate (informational only, never a stop signal)'
+    )
+    lines.push('')
+    lines.push('Questions whose ground-truth fact lives only in commercial / sales material —')
+    lines.push('NOT in any indexed PDF. Shadow is expected to score 0; any legacy lift here is')
+    lines.push("a legacy-ingestion artifact (synthetic metadata-header chunk), not retrieval.")
+    lines.push('')
+    lines.push('| scope | Qs | Legacy CP | Shadow CP | Δ CP | Legacy CR | Shadow CR | Δ CR | reading |')
+    lines.push('|---|---:|---:|---:|---:|---:|---:|---:|---|')
+    const reading =
+      oa.legacyCp > 0 || oa.legacyCr > 0
+        ? "legacy scored via synthetic metadata-header (ingestion artifact, not retrieval)"
+        : 'neither corpus surfaced the commercial-only facts (as expected)'
+    lines.push(
+      `| ${oa.scope} | ${oa.questionCount} | ${formatPct(oa.legacyCp)} | ${formatPct(oa.shadowCp)} | ${formatDelta(oa.deltaCp)} | ${formatPct(oa.legacyCr)} | ${formatPct(oa.shadowCr)} | ${formatDelta(oa.deltaCr)} | ${reading} |`
     )
     lines.push('')
   }
@@ -432,6 +478,7 @@ async function main(): Promise<void> {
 
   const aggregates = tallyCategoryAggregates(comparisons)
   const controlAggregate = tallyControlAggregate(comparisons)
+  const outOfScopeCommercialAggregate = tallyOutOfScopeCommercialAggregate(comparisons)
 
   for (const a of aggregates) {
     console.log(
@@ -443,6 +490,12 @@ async function main(): Promise<void> {
       `\nagg control_rate_table (${controlAggregate.questionCount} Qs, informational): CP ${formatPct(controlAggregate.legacyCp)} → ${formatPct(controlAggregate.shadowCp)} (${formatDelta(controlAggregate.deltaCp)}), CR ${formatPct(controlAggregate.legacyCr)} → ${formatPct(controlAggregate.shadowCr)} (${formatDelta(controlAggregate.deltaCr)})  [never feeds stop signal]`
     )
   }
+  if (outOfScopeCommercialAggregate) {
+    const oa = outOfScopeCommercialAggregate
+    console.log(
+      `\nagg out_of_scope_commercial (${oa.questionCount} Qs, informational): CP ${formatPct(oa.legacyCp)} → ${formatPct(oa.shadowCp)} (${formatDelta(oa.deltaCp)}), CR ${formatPct(oa.legacyCr)} → ${formatPct(oa.shadowCr)} (${formatDelta(oa.deltaCr)})  [never feeds stop signal]`
+    )
+  }
 
   const report = renderReport({
     generatedAt: new Date().toISOString(),
@@ -451,6 +504,7 @@ async function main(): Promise<void> {
     comparisons,
     aggregates,
     controlAggregate,
+    outOfScopeCommercialAggregate,
   })
   const reportPath = path.join(outDir, 'shadow-eval-report.md')
   await writeFile(reportPath, report, 'utf8')
