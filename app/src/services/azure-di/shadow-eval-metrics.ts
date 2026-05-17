@@ -25,10 +25,61 @@
  * The module is pure: no I/O, no DB, no OpenAI, no read-path import.
  */
 
-/** A retrieved chunk surface — only the fields the metric needs. */
+/**
+ * A retrieved chunk surface — only the fields the metric needs.
+ *
+ * `metadata` is OPTIONAL. When present, the keys
+ * `section` / `heading_path` / `section_title` contribute to the
+ * proxy-token search alongside `content` — see {@link getScoringText}.
+ * This was added in slice 3B.7.6 because the new chunker
+ * (`azure-di-layout-v3`) extracts section/heading text into
+ * `metadata.section` rather than embedding it in the chunk body. The
+ * old scorer only looked at `content`, which produced a systematic
+ * false-negative on shadow chunks where the relevant product name or
+ * concept is in the heading.
+ *
+ * Legacy rows typically expose `metadata` as `null` or absent —
+ * they don't gain anything from this change. The fix removes a
+ * shadow-specific bias from the metric.
+ */
 export interface RetrievedChunk {
   id: string
   content: string
+  metadata?: RetrievedChunkMetadata | null
+}
+
+/** Optional metadata fields the proxy metric considers when scoring. */
+export interface RetrievedChunkMetadata {
+  /** Heading-path string emitted by the slice 3B.2 chunker (`SemanticChunkMetadata.section`). */
+  section?: string | null
+  /** Alias accepted from other producers; same role as `section`. */
+  heading_path?: string | null
+  /** Alias accepted from other producers; same role as `section`. */
+  section_title?: string | null
+  /** Any other metadata keys may appear and are ignored by the scorer. */
+  [key: string]: unknown
+}
+
+/**
+ * Returns the full text the proxy-token search should look at for
+ * one chunk: `content` plus, when present and non-empty, any of
+ * `metadata.section` / `metadata.heading_path` / `metadata.section_title`.
+ * Joined with newlines so the padded-substring search in
+ * {@link chunkContainsToken} cannot accidentally bridge two fields.
+ *
+ * Pure. Slice 3B.7.6.
+ */
+export function getScoringText(chunk: RetrievedChunk): string {
+  const parts: string[] = []
+  if (typeof chunk.content === 'string' && chunk.content.length > 0) parts.push(chunk.content)
+  const meta = chunk.metadata
+  if (meta) {
+    for (const key of ['section', 'heading_path', 'section_title'] as const) {
+      const v = meta[key]
+      if (typeof v === 'string' && v.length > 0) parts.push(v)
+    }
+  }
+  return parts.join('\n')
 }
 
 /**
@@ -150,6 +201,9 @@ export function chunkContainsToken(text: string, normalizedToken: string): boole
 /**
  * Returns the SUBSET of `expectedTokens` that appears anywhere in the
  * UNION of `chunks`. Order is preserved relative to `expectedTokens`.
+ *
+ * Slice 3B.7.6: searches the full scoring text of each chunk (content +
+ * heading metadata) via {@link getScoringText}, not just `content`.
  */
 export function findMatchedTokens(
   chunks: readonly RetrievedChunk[],
@@ -157,7 +211,7 @@ export function findMatchedTokens(
 ): string[] {
   const found: string[] = []
   for (const token of expectedTokens) {
-    const hit = chunks.some((c) => chunkContainsToken(c.content, token))
+    const hit = chunks.some((c) => chunkContainsToken(getScoringText(c), token))
     if (hit) found.push(token)
   }
   return found
@@ -166,6 +220,9 @@ export function findMatchedTokens(
 /**
  * Computes the proxy CP / CR for one retrieval against one question.
  * Pure.
+ *
+ * Slice 3B.7.6: scoring text includes heading metadata when present —
+ * see {@link getScoringText}.
  */
 export function scoreQuestion(
   chunks: readonly RetrievedChunk[],
@@ -183,7 +240,8 @@ export function scoreQuestion(
   const matched = findMatchedTokens(chunks, expectedTokens)
   let chunksWithAnyToken = 0
   for (const c of chunks) {
-    const hit = expectedTokens.some((t) => chunkContainsToken(c.content, t))
+    const scoringText = getScoringText(c)
+    const hit = expectedTokens.some((t) => chunkContainsToken(scoringText, t))
     if (hit) chunksWithAnyToken += 1
   }
   return {
