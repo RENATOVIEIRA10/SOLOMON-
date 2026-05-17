@@ -8,6 +8,7 @@
 import { createServiceClient } from '@/lib/supabase'
 import { embedChunks } from '@/services/embeddings/embedder'
 import { RAG } from '@/config/constants'
+import { chooseRetrievalCorpus, type Corpus } from '@/config/corpus-routing'
 
 export interface SearchResult {
   id: string
@@ -26,6 +27,18 @@ export interface SearchOptions {
   insurerId?: string
   productId?: string
   sourceType?: string
+  /**
+   * Canonical insurer names from `detectInsurers(question)`. Optional.
+   * Used ONLY by `chooseRetrievalCorpus` to decide between
+   * `match_documents` and `match_shadow_documents`. Slice 3C-a — no
+   * caller passes this yet; without it, every query stays on legacy.
+   */
+  insurerNames?: readonly string[]
+  /**
+   * Per-insurer runtime routing table (slice 3C-b). Reserved for future
+   * wiring from the `corpus_routing` DB table. Absent in 3C-a.
+   */
+  corpusDbRouting?: ReadonlyMap<string, Corpus>
 }
 
 /**
@@ -67,8 +80,18 @@ export async function semanticSearchWithEmbedding(
 
   const supabase = createServiceClient()
 
+  // Slice 3C-a: pick the retrieval RPC based on env allowlist + DB
+  // routing. With the default empty SHADOW_CORPUS_ALLOWLIST, this is
+  // ALWAYS 'match_documents' -- production behavior is unchanged.
+  const corpus: Corpus = chooseRetrievalCorpus({
+    insurerNames: options?.insurerNames ?? [],
+    dbRouting: options?.corpusDbRouting,
+  })
+  const rpcName: 'match_documents' | 'match_shadow_documents' =
+    corpus === 'shadow' ? 'match_shadow_documents' : 'match_documents'
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)('match_documents', {
+  const { data, error } = await (supabase.rpc as any)(rpcName, {
     query_embedding: JSON.stringify(queryEmbedding),
     match_threshold: threshold,
     match_count: topK,
