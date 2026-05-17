@@ -1,0 +1,32 @@
+{
+  "name": "@solomon/reel-trilhos",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Instagram Reel — SOLOMON, os 3 trilhos. Built in Remotion. Isolated from app/ (no read-path, no Supabase, no Phase 2 retrieval).",
+  "scripts": {
+    "dev": "remotion studio",
+    "build": "remotion render Reel out/solomon-trilhos.mp4 --codec=h264 --crf=18",
+    "build:preview": "remotion render Reel out/preview.mp4 --frames=0-150 --codec=h264 --crf=20",
+    "build:still": "remotion still Reel out/poster.png --frame=120",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.379",
+    "@remotion/google-fonts": "4.0.379",
+    "@remotion/media-utils": "4.0.379",
+    "@remotion/zod-types": "4.0.379",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.379",
+    "zod": "3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@types/react": "19.0.2",
+    "@types/react-dom": "19.0.2",
+    "typescript": "5.7.2"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
