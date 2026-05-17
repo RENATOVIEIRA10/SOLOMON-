@@ -52,7 +52,10 @@ loadEnv({ path: '.env.local', quiet: true })
 loadEnv({ quiet: true })
 
 const DEFAULT_INSURER_MATCH = 'Prudential do Brasil'
-const DEFAULT_MATCH_COUNT = 10
+// Slice 3B.7.10: default raised from 10 -> 20 to test the audit hypothesis
+// from PR #45 (Q16 'vida inteira' top-K dilution). Harness-only — production
+// read path is unchanged. See docs/phase-2-pr3b7.10-match-count-20.md.
+const DEFAULT_MATCH_COUNT = 20
 const DEFAULT_THRESHOLD = 0.0
 const DEFAULT_OUT_ROOT = path.join('..', 'docs', 'audit-runs')
 const SLICE_TAG = 'phase-2-pr3b6.3'
