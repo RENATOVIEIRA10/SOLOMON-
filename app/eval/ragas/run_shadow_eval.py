@@ -245,16 +245,21 @@ def build_ragas_dataset(rows: list[dict[str, Any]]):
     return Dataset.from_dict(data)
 
 
-def run_ragas(ds, judge_backend: str) -> Any:
+def run_ragas(ds, judge_backend: str, *, max_workers: int = 4, timeout: int = 600) -> Any:
     """Run Ragas with LLMContextPrecisionWithReference + LLMContextRecall only.
 
     Both metrics are LLM-judge based and use the reference (GT) plus the
     retrieved contexts. No answer column is consumed.
+
+    Concurrency control: Ragas defaults to 16 workers and 180s timeout.
+    For CP over 10 chunks/row x 18 rows we saw all jobs hit 180s under
+    Gemini throttling. max_workers=4 + timeout=600 keeps the API happy.
     """
     # Import metrics + evaluate locally so module import in --help doesn't
     # pull heavy deps.
     from ragas import evaluate
     from ragas.metrics import LLMContextPrecisionWithReference, LLMContextRecall
+    from ragas.run_config import RunConfig
 
     os.environ.setdefault("JUDGE_BACKEND", judge_backend)
     from metrics import build_evaluator_embeddings, build_evaluator_llm
@@ -262,6 +267,7 @@ def run_ragas(ds, judge_backend: str) -> Any:
     emb = build_evaluator_embeddings()
 
     metrics = [LLMContextPrecisionWithReference(), LLMContextRecall()]
+    run_config = RunConfig(max_workers=max_workers, timeout=timeout, max_retries=2)
     result = evaluate(
         dataset=ds,
         metrics=metrics,
@@ -269,6 +275,7 @@ def run_ragas(ds, judge_backend: str) -> Any:
         embeddings=emb,
         raise_exceptions=False,
         show_progress=True,
+        run_config=run_config,
     )
     return result
 
@@ -281,6 +288,10 @@ def main() -> None:
     ap.add_argument("--judge-backend", default=os.environ.get("JUDGE_BACKEND", "gemini"),
                     choices=["anthropic", "gemini"],
                     help="LLM judge backend (default: gemini, ~62%% cheaper than Haiku)")
+    ap.add_argument("--max-workers", type=int, default=4,
+                    help="Ragas concurrency (default: 4 -- keeps Gemini happy)")
+    ap.add_argument("--ragas-timeout", type=int, default=600,
+                    help="Per-job Ragas timeout in seconds (default: 600)")
     ap.add_argument("--out-root", default=str(RESULTS_ROOT))
     args = ap.parse_args()
 
@@ -343,10 +354,16 @@ def main() -> None:
     print(f"retrieval done in {time.time() - t0:.1f}s  ({len(rows)} rows)")
     print()
 
-    print("running Ragas evaluate (CP + CR)...")
+    print(f"running Ragas evaluate (CP + CR) "
+          f"max_workers={args.max_workers} timeout={args.ragas_timeout}s ...")
     ds = build_ragas_dataset(rows)
     t1 = time.time()
-    result = run_ragas(ds, args.judge_backend)
+    result = run_ragas(
+        ds,
+        args.judge_backend,
+        max_workers=args.max_workers,
+        timeout=args.ragas_timeout,
+    )
     elapsed = time.time() - t1
     print(f"ragas done in {elapsed:.1f}s")
 
