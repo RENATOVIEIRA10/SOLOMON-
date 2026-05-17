@@ -461,6 +461,40 @@ function runQuestionsShapeTests(): void {
       JSON.stringify(['Q16', 'Q17', 'Q31', 'Q32', 'Q36', 'Q37']),
     `got ${conditionsIds.join(',')}`
   )
+  // --- slice 3B.7.9: Q16 token revision ('2 anos' -> 'dois anos') ---
+  const q16 = SHADOW_EVAL_QUESTIONS.find((q) => q.id === 'Q16')
+  ok('Q16 exists', q16 !== undefined)
+  if (q16) {
+    ok(
+      "Q16 expectedTokens drop '2 anos' (zero literal hits in PDF -- slice 3B.7.8 audit)",
+      !q16.expectedTokens.includes('2 anos')
+    )
+    ok(
+      "Q16 expectedTokens include 'dois anos' (matches PDF phrasing)",
+      q16.expectedTokens.includes('dois anos')
+    )
+    ok(
+      "Q16 expectedTokens still include 'carencia'",
+      q16.expectedTokens.includes('carencia')
+    )
+    ok(
+      "Q16 expectedTokens still include 'suicidio'",
+      q16.expectedTokens.includes('suicidio')
+    )
+    ok(
+      "Q16 expectedTokens still include 'vida inteira'",
+      q16.expectedTokens.includes('vida inteira')
+    )
+    ok(
+      "Q16 scope remains 'conditions' (stop signal must keep applying)",
+      q16.scope === 'conditions'
+    )
+    ok(
+      "Q16 category remains 'concept'",
+      q16.category === 'concept'
+    )
+  }
+
   // --- slice 3B.7.5: Q37 token revision ---
   const q37 = SHADOW_EVAL_QUESTIONS.find((q) => q.id === 'Q37')
   ok('Q37 exists', q37 !== undefined)

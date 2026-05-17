@@ -415,9 +415,9 @@ export const SHADOW_EVAL_QUESTIONS: readonly ShadowEvalQuestion[] = [
     scope: 'conditions',
     question:
       'Qual o periodo de carencia para suicidio no Seguro Vida Inteira da Prudential?',
-    expectedTokens: ['carencia', 'suicidio', '2 anos', 'vida inteira'],
+    expectedTokens: ['carencia', 'suicidio', 'dois anos', 'vida inteira'],
     notes:
-      'Julio-validated ground_truth: "2 anos a contar da contratacao". Tokens cover the right clause (carencia + suicidio) and the right product (vida inteira) plus the literal period. Scope=conditions: clause lives in conditions_pdf.',
+      'Julio-validated ground_truth: "2 anos a contar da contratacao". The Prudential CG always writes the period as "dois anos" / "2 (dois) anos" / "2 (dois) primeiros anos" -- literal "2 anos" appears in zero chunks across legacy and shadow corpora (slice 3B.7.8 audit, PR #45). Token uses "dois anos" so the proxy substring matches the document phrasing while staying case+accent insensitive. Tokens cover the right clause (carencia + suicidio) and the right product (vida inteira) plus the literal period. Scope=conditions: clause lives in conditions_pdf.',
   },
   {
     id: 'Q17',
