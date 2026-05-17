@@ -17,12 +17,15 @@
 // dynamic import inside the runtime test. Static imports of node:* and
 // pure files (readFileSync, path, url) are safe because they do not pull
 // `@/lib/supabase`.
-process.env.NEXT_PUBLIC_SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? 'https://test.invalid'
-process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? 'test-anon-key'
-process.env.SUPABASE_SERVICE_ROLE_KEY =
-  process.env.SUPABASE_SERVICE_ROLE_KEY ?? 'test-service-role-key'
+// Force bogus values unconditionally. The test's intent is to verify
+// fire-and-forget behaviour against a failing insert. If a real Supabase
+// URL leaks in from a deployed env (.env.local on VPS), the insert
+// could succeed and the runtime gate would not exercise the failure
+// path. Overwriting here keeps the assertion deterministic on every
+// host (notebook / VPS / CI).
+process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.invalid'
+process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
+process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
 
 import { readFileSync } from 'node:fs'
 import path from 'node:path'
