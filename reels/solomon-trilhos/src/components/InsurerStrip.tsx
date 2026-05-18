@@ -1,47 +1,31 @@
 import { interpolate, useCurrentFrame } from "remotion";
 import { colors, fonts } from "../theme";
+import { insurers } from "../script";
 
 /**
- * Strip horizontal infinita com as 15 seguradoras.
- * Movimento contínuo da direita pra esquerda (estilo trading ticker).
- * Insiders sabem: SOLOMON cobre 15 seguradoras de vida.
- * Cada uma renderizada como SIGLA + cor real da marca.
+ * Ticker SOLOMON — reproduz fielmente .sl-ticker da landing.
+ *
+ * Diferencas chave da versao antiga (chips coloridos por seguradora):
+ *  - Cormorant Garamond 400, NAO mono
+ *  - Cor unica muted (#7a7670), gold no hover (estatico aqui)
+ *  - Separador "·" (interpunct) dourado-dim entre items
+ *  - Label "SEGURADORAS INDEXADAS" a esquerda com fade-out gradient
+ *  - Sem chips, sem cores de marca. Editorial puro.
  */
-
-const INSURERS: { name: string; color: string }[] = [
-  { name: "PRUDENTIAL", color: colors.insurer.prudential },
-  { name: "MAG", color: colors.insurer.mag },
-  { name: "BRADESCO VIDA", color: colors.insurer.bradesco },
-  { name: "ICATU", color: colors.insurer.icatu },
-  { name: "AZOS", color: colors.insurer.azos },
-  { name: "METLIFE", color: colors.insurer.metlife },
-  { name: "PORTO SEGURO", color: "#003B71" },
-  { name: "SULAMERICA", color: "#FF6900" },
-  { name: "TOKIO MARINE", color: "#1F3864" },
-  { name: "ZURICH", color: "#0066B3" },
-  { name: "MAPFRE", color: "#C8102E" },
-  { name: "ALLIANZ", color: "#003781" },
-  { name: "CHUBB", color: "#0091DA" },
-  { name: "ITAU VIDA", color: "#EC7000" },
-  { name: "BB SEGUROS", color: "#FFCC29" },
-];
-
 export const InsurerTicker: React.FC<{
   top?: number;
   delay?: number;
   speedPxPerFrame?: number;
-}> = ({ top = 1340, delay = 0, speedPxPerFrame = 3.2 }) => {
+}> = ({ top = 1280, delay = 0, speedPxPerFrame = 1.6 }) => {
   const frame = useCurrentFrame();
   const elapsed = Math.max(0, frame - delay);
   const offset = -elapsed * speedPxPerFrame;
-
   const opacity = interpolate(frame, [delay, delay + 24], [0, 1], {
     extrapolateLeft: "clamp",
     extrapolateRight: "clamp",
   });
 
-  // duplicado pra parecer loop infinito
-  const items = [...INSURERS, ...INSURERS, ...INSURERS];
+  const items = [...insurers, ...insurers, ...insurers];
 
   return (
     <div
@@ -50,68 +34,78 @@ export const InsurerTicker: React.FC<{
         top,
         left: 0,
         right: 0,
-        height: 80,
-        overflow: "hidden",
+        height: 92,
         opacity,
-        maskImage:
-          "linear-gradient(to right, transparent 0%, #000 12%, #000 88%, transparent 100%)",
-        WebkitMaskImage:
-          "linear-gradient(to right, transparent 0%, #000 12%, #000 88%, transparent 100%)",
+        borderTop: `1px solid ${colors.border}`,
+        borderBottom: `1px solid ${colors.border}`,
+        overflow: "hidden",
+        background: colors.black,
       }}
     >
+      {/* Label fixa a esquerda */}
       <div
         style={{
+          position: "absolute",
+          top: 0,
+          bottom: 0,
+          left: 0,
+          padding: "0 28px",
+          zIndex: 2,
           display: "flex",
-          gap: 28,
-          transform: `translateX(${offset}px)`,
+          alignItems: "center",
+          fontFamily: fonts.sans,
+          fontSize: 16,
+          color: colors.goldDim,
+          letterSpacing: "0.25em",
+          textTransform: "uppercase",
+          fontWeight: 500,
+          background: `linear-gradient(to right, ${colors.black} 70%, transparent)`,
           whiteSpace: "nowrap",
         }}
       >
-        {items.map((insurer, i) => (
-          <InsurerChip key={i} name={insurer.name} color={insurer.color} />
-        ))}
+        Seguradoras indexadas
       </div>
-    </div>
-  );
-};
 
-const InsurerChip: React.FC<{ name: string; color: string }> = ({
-  name,
-  color,
-}) => {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 12,
-        padding: "14px 22px",
-        background: colors.bgPanel,
-        border: `1px solid ${colors.bgElevated}`,
-        borderRadius: 12,
-        flexShrink: 0,
-        height: 60,
-      }}
-    >
+      {/* Track */}
       <div
         style={{
-          width: 10,
-          height: 10,
-          borderRadius: 5,
-          background: color,
-          boxShadow: `0 0 12px ${color}55`,
-        }}
-      />
-      <div
-        style={{
-          fontFamily: fonts.mono,
-          fontSize: 20,
-          fontWeight: 600,
-          color: colors.ink,
-          letterSpacing: "0.04em",
+          display: "flex",
+          alignItems: "center",
+          gap: 56,
+          height: "100%",
+          transform: `translateX(${offset}px)`,
+          paddingLeft: 360,
+          whiteSpace: "nowrap",
         }}
       >
-        {name}
+        {items.map((name, i) => (
+          <div key={i} style={{ display: "contents" }}>
+            <span
+              style={{
+                fontFamily: fonts.serif,
+                fontSize: 36,
+                fontWeight: 400,
+                color: colors.muted,
+                letterSpacing: "0.05em",
+                flexShrink: 0,
+              }}
+            >
+              {name}
+            </span>
+            {i < items.length - 1 && (
+              <span
+                style={{
+                  color: colors.goldDim,
+                  fontSize: 16,
+                  alignSelf: "center",
+                  flexShrink: 0,
+                }}
+              >
+                ·
+              </span>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   );

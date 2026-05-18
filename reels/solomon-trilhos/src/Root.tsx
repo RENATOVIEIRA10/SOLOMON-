@@ -1,13 +1,16 @@
 import { Composition } from "remotion";
+// Import side-effect: dispara loading do Cormorant/Inter/JetBrains via @remotion/google-fonts.
+// Sem isso a Composition renderiza no fallback (Times/Arial) — visualmente errado.
+import "./components/fonts";
 import { Reel } from "./Reel";
 import { sizes } from "./theme";
 
 /**
- * Registro Remotion. So 1 composicao por enquanto.
+ * Registro Remotion.
  *
- * Para renderizar com voiceover, gerar primeiro o arquivo em
- * public/voiceover/solomon-trilhos.mp3 e ligar a prop enableVoiceover=true
- * no painel Studio (ou via CLI --props).
+ * Defaults props: voiceover/music desligados pra preview no Studio.
+ * Para render final com audio, ligar via Studio props panel ou
+ * via CLI: `npm run build -- --props='{"enableVoiceover":true,"enableMusic":true}'`
  */
 export const Root: React.FC = () => {
   return (

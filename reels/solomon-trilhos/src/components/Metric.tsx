@@ -1,74 +1,81 @@
-import { interpolate, useCurrentFrame } from "remotion";
-import { useEnter } from "../motion";
+import { useCountUp, useFadeUp } from "../motion";
 import { colors, fonts } from "../theme";
 
 /**
- * Cartao de metrica Ragas. Numero conta de 0 ate o valor final em ~24 frames.
- * Tons sutis: bom = verde, medio = ambar, baixo = vermelho (saturacao baixa).
+ * Stat card — reproduz .sl-stat-card da landing real.
+ *
+ * Mudancas em relacao a versao antiga (Ragas):
+ *  - Numero gigante em Cormorant Garamond 300, GOLD (#C8AA6E)
+ *  - Suffix em gold-dim, tamanho ~50% do numero
+ *  - Label uppercase, sans, muted, letterspacing 0.10em
+ *  - Background SURFACE (#0c0c12), border 1px gold-dim
+ *  - SEM cor por qualidade (era inadequado pra metrica de eval interna)
  */
-export const MetricCard: React.FC<{
-  label: string;
+export const StatCard: React.FC<{
   value: number;
+  suffix?: string;
+  label: string;
   delay?: number;
-  /** noise sensitivity e invertida: menor = melhor */
-  invert?: boolean;
-}> = ({ label, value, delay = 0, invert = false }) => {
-  const frame = useCurrentFrame();
-  const enter = useEnter(delay, 22);
-
-  const counted = interpolate(frame, [delay + 6, delay + 30], [0, value], {
-    extrapolateLeft: "clamp",
-    extrapolateRight: "clamp",
-  });
-
-  const formatted = counted.toFixed(2);
-
-  // Cor baseada em qualidade
-  const quality = invert ? 1 - value : value;
-  const color =
-    quality >= 0.8
-      ? colors.primary
-      : quality >= 0.65
-        ? colors.warn
-        : colors.danger;
+  formatLarge?: boolean;
+}> = ({ value, suffix, label, delay = 0, formatLarge }) => {
+  const enter = useFadeUp(delay, 22);
+  const counted = useCountUp(value, delay + 6, value > 1000 ? 60 : 36);
+  const formatted = formatLarge ? counted.toLocaleString("pt-BR") : `${counted}`;
 
   return (
     <div
       style={{
         ...enter,
-        background: colors.bgElevated,
-        border: `1px solid ${colors.bgPanel}`,
-        borderRadius: 16,
-        padding: "28px 24px",
+        padding: "44px 32px",
+        background: colors.surface,
+        borderRight: `1px solid ${colors.border}`,
         textAlign: "center",
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 14,
+        height: "100%",
+        justifyContent: "center",
       }}
     >
       <div
         style={{
-          fontFamily: fonts.mono,
-          fontSize: 20,
-          fontWeight: 600,
-          color: colors.inkMuted,
-          letterSpacing: "0.1em",
-          textTransform: "uppercase",
+          fontFamily: fonts.serif,
+          fontSize: 96,
+          fontWeight: 300,
+          color: colors.gold,
+          letterSpacing: "-0.02em",
+          lineHeight: 1,
+          display: "flex",
+          alignItems: "baseline",
+          justifyContent: "center",
         }}
       >
-        {label}
+        <span>{formatted}</span>
+        {suffix && (
+          <span
+            style={{
+              fontSize: 56,
+              color: colors.goldDim,
+              marginLeft: 4,
+            }}
+          >
+            {suffix}
+          </span>
+        )}
       </div>
       <div
         style={{
-          fontFamily: fonts.mono,
-          fontSize: 72,
-          fontWeight: 700,
-          color,
-          letterSpacing: "-0.04em",
-          lineHeight: 1,
+          fontFamily: fonts.sans,
+          fontSize: 18,
+          color: colors.muted,
+          letterSpacing: "0.10em",
+          lineHeight: 1.5,
+          textTransform: "uppercase",
+          fontWeight: 500,
+          whiteSpace: "pre-line",
         }}
       >
-        {formatted}
+        {label}
       </div>
     </div>
   );

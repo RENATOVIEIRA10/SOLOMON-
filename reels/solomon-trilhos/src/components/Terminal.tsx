@@ -1,198 +1,288 @@
 import type { CSSProperties } from "react";
-import { useBlinkingCursor, useEnter, useTypewriter } from "../motion";
-import { colors, fonts } from "../theme";
+import { useBlinkingCursor, useFadeUp, useTypewriter } from "../motion";
+import { colors, fonts, tracking } from "../theme";
 
 /**
- * Bloco terminal-style. Headerless por padrao (so o filete da janela).
- * Cada linha pode ser typewriter ou estatica.
+ * Terminal SOLOMON — reproduz fielmente o .sl-demo-terminal da landing.
+ *
+ * Diferenca chave em relacao a versao antiga (IDE-style):
+ *  - background SURFACE (#0c0c12), nao bg2
+ *  - border filete dourado-dim (rgba(200,170,110,0.12))
+ *  - dots OSX no header (3 circulos coloridos pequenos)
+ *  - titulo "solomon · terminal" centralizado em mono dourado-dim
+ *  - prompt `$` dourado
+ *  - divider hr fino dourado
+ *  - cursor dourado piscando
+ *  - GLOW LINE dourada na base (assinatura)
+ *  - resposta com: verdict pill + answer + quote italic + source (file · p. · §)
  */
-export type TerminalLine =
-  | { kind: "prompt"; text: string; delay?: number; typewriter?: boolean }
-  | { kind: "kv"; key: string; value: string; delay?: number; valueColor?: string }
-  | { kind: "arrow"; text: string; delay?: number; color?: string }
-  | { kind: "blank"; delay?: number }
-  | { kind: "comment"; text: string; delay?: number };
 
-export const Terminal: React.FC<{
-  lines: TerminalLine[];
-  width?: number;
+export const SolomonTerminal: React.FC<{
+  command: string;
+  verdict: string;
+  answer: string;
+  quote: string;
+  source: { file: string; page: string; section: string };
   delay?: number;
-  topLabel?: string;
-  cursorOnLast?: boolean;
-}> = ({ lines, width = 900, delay = 0, topLabel, cursorOnLast = true }) => {
-  const enter = useEnter(delay, 24);
+  width?: number;
+  showResponseAfter?: number;
+}> = ({
+  command,
+  verdict,
+  answer,
+  quote,
+  source,
+  delay = 0,
+  width = 920,
+  showResponseAfter = 80,
+}) => {
+  const enter = useFadeUp(delay, 26);
+  const visibleCmd = useTypewriter(command, delay + 14, 1.5);
+  const cursorVisible = useBlinkingCursor();
+  const responseEnter = useFadeUp(delay + showResponseAfter, 20);
 
   return (
     <div
       style={{
         ...enter,
         width,
-        background: colors.bgElevated,
-        border: `1px solid ${colors.bgPanel}`,
-        borderRadius: 16,
-        overflow: "hidden",
-        boxShadow: "0 12px 48px rgba(0,0,0,0.45)",
+        position: "relative",
+        background: colors.surface,
+        border: `1px solid ${colors.border}`,
+        boxShadow: "0 16px 64px rgba(0,0,0,0.55)",
       }}
     >
-      <TerminalHeader label={topLabel ?? "solomon"} />
+      <TerminalBar />
+      <div style={{ padding: "40px 36px" }}>
+        <Prompt cmd={visibleCmd} cursorVisible={cursorVisible} />
+        <Divider />
+        <div style={responseEnter}>
+          <VerdictPill text={verdict} />
+          <Answer text={answer} />
+          <Quote text={quote} />
+          <Source file={source.file} page={source.page} section={source.section} />
+        </div>
+      </div>
+      {/* Glow line dourada — assinatura SOLOMON */}
       <div
         style={{
-          padding: "28px 32px 30px",
-          fontFamily: fonts.mono,
-          fontSize: 24,
-          lineHeight: 1.55,
-          letterSpacing: 0,
+          position: "absolute",
+          bottom: 0,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: "60%",
+          height: 1,
+          background: `linear-gradient(to right, transparent, ${colors.gold}, transparent)`,
+          boxShadow: "0 0 24px 3px rgba(200, 170, 110, 0.45)",
         }}
-      >
-        {lines.map((line, i) => (
-          <TerminalLineRenderer
-            key={i}
-            line={line}
-            isLast={i === lines.length - 1}
-            cursorOnLast={cursorOnLast}
-            baseDelay={delay}
-          />
-        ))}
-      </div>
+      />
     </div>
   );
 };
 
-const TerminalHeader: React.FC<{ label: string }> = ({ label }) => {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 10,
-        padding: "16px 24px",
-        background: colors.bgPanel,
-        borderBottom: `1px solid ${colors.bg}`,
-      }}
-    >
-      <Dot color="#FF5F57" />
-      <Dot color="#FFBD2E" />
-      <Dot color="#28CA42" />
-      <div
-        style={{
-          marginLeft: 16,
-          fontFamily: fonts.mono,
-          fontSize: 18,
-          color: colors.inkMuted,
-          letterSpacing: "0.05em",
-        }}
-      >
-        {label}
-      </div>
-    </div>
-  );
-};
-
-const Dot: React.FC<{ color: string }> = ({ color }) => (
+const TerminalBar: React.FC = () => (
   <div
     style={{
-      width: 14,
-      height: 14,
-      borderRadius: 7,
-      background: color,
-      opacity: 0.85,
+      display: "flex",
+      alignItems: "center",
+      gap: 10,
+      padding: "18px 24px",
+      background: colors.surface2,
+      borderBottom: `1px solid ${colors.border}`,
+    }}
+  >
+    <Dot color="#ff5f57" />
+    <Dot color="#febc2e" />
+    <Dot color="#28c840" />
+    <div
+      style={{
+        flex: 1,
+        textAlign: "center",
+        fontFamily: fonts.mono,
+        fontSize: 18,
+        color: colors.muted,
+        letterSpacing: "0.1em",
+        marginLeft: -52,
+      }}
+    >
+      solomon · terminal
+    </div>
+  </div>
+);
+
+const Dot: React.FC<{ color: string }> = ({ color }) => (
+  <div style={{ width: 12, height: 12, borderRadius: "50%", backgroundColor: color }} />
+);
+
+const Prompt: React.FC<{ cmd: string; cursorVisible: boolean }> = ({
+  cmd,
+  cursorVisible,
+}) => (
+  <div
+    style={{
+      display: "flex",
+      alignItems: "flex-start",
+      gap: 16,
+      marginBottom: 28,
+      fontFamily: fonts.mono,
+      fontSize: 24,
+      lineHeight: 1.5,
+    }}
+  >
+    <span style={{ color: colors.gold, flexShrink: 0 }}>$</span>
+    <span style={{ color: colors.text, flex: 1 }}>
+      {cmd}
+      <span
+        style={{
+          display: "inline-block",
+          width: 10,
+          height: 24,
+          marginLeft: 4,
+          verticalAlign: "middle",
+          backgroundColor: cursorVisible ? colors.gold : "transparent",
+        }}
+      />
+    </span>
+  </div>
+);
+
+const Divider: React.FC = () => (
+  <hr
+    style={{
+      border: "none",
+      borderTop: `1px solid ${colors.border}`,
+      margin: "28px 0",
     }}
   />
 );
 
-const TerminalLineRenderer: React.FC<{
-  line: TerminalLine;
-  isLast: boolean;
-  cursorOnLast: boolean;
-  baseDelay: number;
-}> = ({ line, isLast, cursorOnLast, baseDelay }) => {
-  // Hooks SEMPRE no topo, na mesma ordem. Rules of Hooks.
-  const delay = (line.kind !== "blank" ? (line.delay ?? 0) : 0) + baseDelay;
-  const cursorVisible = useBlinkingCursor();
+const VerdictPill: React.FC<{ text: string }> = ({ text }) => (
+  <div
+    style={{
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 10,
+      background: "rgba(200, 170, 110, 0.08)",
+      border: `1px solid ${colors.goldDim}`,
+      padding: "8px 18px",
+      marginBottom: 22,
+      fontFamily: fonts.sans,
+      fontSize: 20,
+      fontWeight: 500,
+      color: colors.gold,
+      letterSpacing: tracking.button,
+      textTransform: "uppercase",
+    }}
+  >
+    <span style={{ fontSize: 16, lineHeight: 1 }}>✓</span>
+    {text}
+  </div>
+);
 
-  // Texto-alvo do typewriter, em funcao do kind. String vazia para blank.
-  const targetText = (() => {
-    switch (line.kind) {
-      case "prompt":
-        return line.text;
-      case "kv":
-        return line.value;
-      case "arrow":
-      case "comment":
-        return line.text;
-      case "blank":
-        return "";
-    }
-  })();
+const Answer: React.FC<{ text: string }> = ({ text }) => (
+  <p
+    style={{
+      fontFamily: fonts.sans,
+      fontSize: 26,
+      color: colors.text,
+      lineHeight: 1.7,
+      margin: "0 0 22px 0",
+      letterSpacing: "-0.005em",
+    }}
+  >
+    {text}
+  </p>
+);
 
-  // Typewriter rapido se o autor pediu nao-tipado (kind=prompt + typewriter=false).
-  const speed = line.kind === "prompt" && !line.typewriter ? 9999 : 1.4;
-  const visible = useTypewriter(targetText, delay, speed);
+const Quote: React.FC<{ text: string }> = ({ text }) => (
+  <div
+    style={{
+      borderLeft: `2px solid ${colors.goldDim}`,
+      padding: "14px 20px",
+      marginBottom: 20,
+      fontFamily: fonts.serif,
+      fontStyle: "italic",
+      fontSize: 24,
+      fontWeight: 400,
+      color: colors.muted,
+      lineHeight: 1.7,
+    }}
+  >
+    &ldquo;{text}&rdquo;
+  </div>
+);
 
-  switch (line.kind) {
-    case "prompt":
-      return (
-        <div style={lineStyle}>
-          <span style={{ color: colors.primary, marginRight: 12 }}>{">"}</span>
-          <span style={{ color: colors.ink }}>{visible}</span>
-          {isLast && cursorOnLast && (
-            <span
-              style={{
-                display: "inline-block",
-                width: 12,
-                height: 24,
-                marginLeft: 6,
-                verticalAlign: "middle",
-                background: cursorVisible ? colors.primary : "transparent",
-              }}
-            />
-          )}
-        </div>
-      );
-    case "kv":
-      return (
-        <div style={lineStyle}>
-          <span
-            style={{
-              color: colors.inkMuted,
-              marginLeft: 26,
-              marginRight: 14,
-              minWidth: 180,
-              display: "inline-block",
-            }}
-          >
-            {line.key}
-          </span>
-          <span style={{ color: line.valueColor ?? colors.ink }}>{visible}</span>
-        </div>
-      );
-    case "arrow":
-      return (
-        <div style={lineStyle}>
-          <span
-            style={{
-              color: line.color ?? colors.primary,
-              marginLeft: 14,
-              marginRight: 8,
-            }}
-          >
-            {"→"}
-          </span>
-          <span style={{ color: line.color ?? colors.ink }}>{visible}</span>
-        </div>
-      );
-    case "comment":
-      return (
-        <div style={lineStyle}>
-          <span style={{ color: colors.inkDim }}>{`// ${visible}`}</span>
-        </div>
-      );
-    case "blank":
-      return <div style={{ height: 12 }} />;
-  }
-};
+const Source: React.FC<{ file: string; page: string; section: string }> = ({
+  file,
+  page,
+  section,
+}) => (
+  <div
+    style={{
+      fontFamily: fonts.mono,
+      fontSize: 17,
+      color: colors.goldDim,
+      letterSpacing: "0.05em",
+      display: "flex",
+      gap: 10,
+      flexWrap: "wrap",
+      alignItems: "center",
+    }}
+  >
+    <span>Fonte:</span>
+    <strong style={{ color: colors.gold, fontWeight: 600 }}>{file}</strong>
+    <span>·</span>
+    <span>{page}</span>
+    <span>·</span>
+    <span>{section}</span>
+  </div>
+);
 
-const lineStyle: CSSProperties = {
-  display: "block",
-  whiteSpace: "pre",
+/**
+ * Mini-terminal compacto — usado nos cards de pilares (Pre-Sinistro/Comparador).
+ * Mais simples: so prompt + result + quote opcional.
+ */
+export const MiniTerminal: React.FC<{
+  prompt: string;
+  result: string;
+  quote?: string;
+  delay?: number;
+}> = ({ prompt, result, quote, delay = 0 }) => {
+  const enter = useFadeUp(delay, 22);
+  return (
+    <div
+      style={{
+        ...enter,
+        background: "rgba(0, 0, 0, 0.4)",
+        border: `1px solid rgba(200, 170, 110, 0.06)`,
+        padding: 22,
+        fontFamily: fonts.mono,
+        fontSize: 18,
+        lineHeight: 1.8,
+      }}
+    >
+      <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
+        <span style={{ color: colors.gold, flexShrink: 0 }}>$</span>
+        <span style={{ color: colors.muted }}>{prompt}</span>
+      </div>
+      <div style={{ display: "flex", gap: 10, marginTop: 10, alignItems: "flex-start" }}>
+        <span style={{ color: colors.gold, flexShrink: 0 }}>→</span>
+        <span style={{ color: colors.live, fontWeight: 600 }}>{result}</span>
+      </div>
+      {quote && (
+        <div
+          style={{
+            color: colors.goldDim,
+            fontStyle: "italic",
+            fontSize: 16,
+            marginTop: 12,
+            fontFamily: fonts.serif,
+            lineHeight: 1.6,
+          }}
+        >
+          &ldquo;{quote}&rdquo;
+        </div>
+      )}
+    </div>
+  );
 };

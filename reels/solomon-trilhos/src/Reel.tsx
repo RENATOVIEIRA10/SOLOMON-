@@ -1,21 +1,22 @@
 import { AbsoluteFill, Audio, Sequence, staticFile } from "remotion";
-import { Scene01Hook } from "./scenes/Scene01_Hook";
-import { Scene02Trilho1 } from "./scenes/Scene02_Trilho1";
-import { Scene03Trilho2 } from "./scenes/Scene03_Trilho2";
-import { Scene04Trilho3 } from "./scenes/Scene04_Trilho3";
-import { Scene05Eval } from "./scenes/Scene05_Eval";
-import { Scene06Outro } from "./scenes/Scene06_Outro";
+import { Scene01Hero } from "./scenes/Scene01_Hero";
+import { Scene02AoVivo } from "./scenes/Scene02_AoVivo";
+import { Scene03PreSinistro } from "./scenes/Scene03_PreSinistro";
+import { Scene04Comparador } from "./scenes/Scene04_Comparador";
+import { Scene05Stats } from "./scenes/Scene05_Stats";
+import { Scene06CTA } from "./scenes/Scene06_CTA";
 import { colors, sceneTimings } from "./theme";
 
 /**
- * Composicao principal — orquestra as 6 cenas no timeline.
+ * Composicao principal — orquestra 6 cenas ADERENTES ao SOLOMON real.
  *
- * Audio: opcional. Se public/voiceover/solomon-trilhos.mp3 existir, e usado.
- * Caso contrario o reel renderiza silente (mockup visual).
- *
- * Trilha de fundo: NAO usar musica royalty-free generica.
- * Recomendacao: criar/comprar 1 trilha ambient minimalista (Endel-style)
- * — ver README.md "Trilha de fundo".
+ * Estrutura espelha a landing oficial (app/src/app/page.tsx):
+ *  1. HERO          (Certeza absoluta. Em segundos.)
+ *  2. AO VIVO       (Terminal com pergunta + citacao da fonte)
+ *  3. PRE-SINISTRO  (Checklist + risk flags)
+ *  4. COMPARADOR    (Tabela Prudential x MAG + ticker seguradoras)
+ *  5. STATS         (14+ / 16.940 / 3s / 24/7)
+ *  6. CTA           (Pronto para provar?)
  */
 export type ReelProps = {
   enableVoiceover: boolean;
@@ -27,47 +28,47 @@ export const Reel: React.FC<ReelProps> = ({
   enableMusic,
 }) => {
   return (
-    <AbsoluteFill style={{ backgroundColor: colors.bg }}>
+    <AbsoluteFill style={{ backgroundColor: colors.black }}>
       <Sequence
-        from={sceneTimings.hook.start}
-        durationInFrames={sceneTimings.hook.duration}
+        from={sceneTimings.hero.start}
+        durationInFrames={sceneTimings.hero.duration}
       >
-        <Scene01Hook />
+        <Scene01Hero />
       </Sequence>
 
       <Sequence
-        from={sceneTimings.trilho1.start}
-        durationInFrames={sceneTimings.trilho1.duration}
+        from={sceneTimings.aoVivo.start}
+        durationInFrames={sceneTimings.aoVivo.duration}
       >
-        <Scene02Trilho1 />
+        <Scene02AoVivo />
       </Sequence>
 
       <Sequence
-        from={sceneTimings.trilho2.start}
-        durationInFrames={sceneTimings.trilho2.duration}
+        from={sceneTimings.preSinistro.start}
+        durationInFrames={sceneTimings.preSinistro.duration}
       >
-        <Scene03Trilho2 />
+        <Scene03PreSinistro />
       </Sequence>
 
       <Sequence
-        from={sceneTimings.trilho3.start}
-        durationInFrames={sceneTimings.trilho3.duration}
+        from={sceneTimings.comparador.start}
+        durationInFrames={sceneTimings.comparador.duration}
       >
-        <Scene04Trilho3 />
+        <Scene04Comparador />
       </Sequence>
 
       <Sequence
-        from={sceneTimings.eval.start}
-        durationInFrames={sceneTimings.eval.duration}
+        from={sceneTimings.stats.start}
+        durationInFrames={sceneTimings.stats.duration}
       >
-        <Scene05Eval />
+        <Scene05Stats />
       </Sequence>
 
       <Sequence
-        from={sceneTimings.outro.start}
-        durationInFrames={sceneTimings.outro.duration}
+        from={sceneTimings.cta.start}
+        durationInFrames={sceneTimings.cta.duration}
       >
-        <Scene06Outro />
+        <Scene06CTA />
       </Sequence>
 
       {enableVoiceover && (
@@ -77,7 +78,7 @@ export const Reel: React.FC<ReelProps> = ({
       {enableMusic && (
         <Audio
           src={staticFile("voiceover/bg-ambient.mp3")}
-          volume={0.18}
+          volume={0.16}
         />
       )}
     </AbsoluteFill>

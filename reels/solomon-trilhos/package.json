@@ -12,13 +12,12 @@
   },
   "dependencies": {
     "@remotion/cli": "4.0.379",
+    "@remotion/fonts": "4.0.379",
     "@remotion/google-fonts": "4.0.379",
     "@remotion/media-utils": "4.0.379",
-    "@remotion/zod-types": "4.0.379",
     "react": "19.2.0",
     "react-dom": "19.2.0",
-    "remotion": "4.0.379",
-    "zod": "3.23.8"
+    "remotion": "4.0.379"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
