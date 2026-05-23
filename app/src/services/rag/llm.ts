@@ -36,8 +36,14 @@ const GEMINI_MODEL = 'gemini-2.5-flash'
 // Smoke 2026-04-28: single-insurer (15 chunks) = 12s OK; Padrao C
 // (15 chunks) = ~13s; Padrao B (20 chunks) = ~14s. 15s pega P99.
 const ANTHROPIC_TIMEOUT_MS = 15000
-const GEMINI_TIMEOUT_MS = 8000
-const OPENAI_TIMEOUT_MS = 6000
+// 2026-05-22: timeouts de fallback subidos. Os antigos (Gemini 8s / OpenAI 6s)
+// foram dimensionados quando o fallback raramente era exercitado (Anthropic
+// servia tudo). Com Anthropic sem credito e Gemini free instavel, OpenAI virou
+// a rede de seguranca real — mas 6s nao cobre a geracao de ~2048 tokens com
+// contexto de 15 chunks (leva 20-40s no gpt-4o-mini), entao abortava e o chat
+// caia em fallback degradado. Gemini 20s cobre prompt grande + thinking.
+const GEMINI_TIMEOUT_MS = 20000
+const OPENAI_TIMEOUT_MS = 30000
 
 // ---------------------------------------------------------------------------
 // Langfuse singleton (instantiated only if keys are present)
