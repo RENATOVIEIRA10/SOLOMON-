@@ -190,15 +190,15 @@ body {
    Tokens locais alinhados ao brand: gold #C8AA6E, black #06060a.
    ============================================================ */
 .sl-root {
-  --sl-gold: #C8AA6E;
-  --sl-gold-bright: #E2C97E;
-  --sl-gold-dim: #7a6540;
-  --sl-black: #06060a;
-  --sl-surface: #0c0c12;
-  --sl-surface2: #111118;
-  --sl-border: rgba(200, 170, 110, 0.12);
-  --sl-text: #e8e4dc;
-  --sl-muted: #7a7670;
+  --sl-gold: #FFD000;
+  --sl-gold-bright: #FFE54D;
+  --sl-gold-dim: #C8941E;
+  --sl-black: #040404;
+  --sl-surface: #141210;
+  --sl-surface2: #1c1812;
+  --sl-border: rgba(255, 208, 0, 0.28);
+  --sl-text: #FFFFFF;
+  --sl-muted: #C9C0A6;
   --sl-font-serif: var(--font-cormorant), Georgia, serif;
   --sl-font-mono: var(--font-mono-jetbrains), "DM Mono", "Courier New", monospace;
 
