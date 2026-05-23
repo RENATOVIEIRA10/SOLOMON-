@@ -111,7 +111,7 @@ export function DashboardHome() {
 
       {/* Quick access */}
       <section>
-        <h2 className="font-display text-2xl text-solomon-cream mb-4">
+        <h2 className="font-display text-2xl text-solomon-gold-light mb-4 [text-shadow:0_0_18px_rgba(255,208,0,0.35)]">
           Ações rápidas
         </h2>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-5">
@@ -130,7 +130,7 @@ export function DashboardHome() {
                     <div className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-solomon-gold/10 text-solomon-gold transition-colors group-hover:bg-solomon-gold/20">
                       <Icon className="h-5 w-5" />
                     </div>
-                    <CardTitle className="mt-4 text-xl">{item.title}</CardTitle>
+                    <CardTitle className="mt-4 text-xl text-solomon-gold-light">{item.title}</CardTitle>
                     <CardDescription>{item.description}</CardDescription>
                   </CardHeader>
                 </Card>
@@ -145,7 +145,7 @@ export function DashboardHome() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">Alertas</CardTitle>
+              <CardTitle className="text-xl text-solomon-gold-light">Alertas</CardTitle>
               <Link
                 href="/alertas"
                 className="inline-flex items-center gap-1 text-xs text-solomon-gold hover:text-solomon-gold-light transition-colors"
@@ -186,7 +186,7 @@ export function DashboardHome() {
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xl">Clientes recentes</CardTitle>
+              <CardTitle className="text-xl text-solomon-gold-light">Clientes recentes</CardTitle>
               <Link
                 href="/clientes"
                 className="inline-flex items-center gap-1 text-xs text-solomon-gold hover:text-solomon-gold-light transition-colors"

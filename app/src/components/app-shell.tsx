@@ -85,16 +85,16 @@ function DesktopSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                "relative flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold transition-colors",
                 active
                   ? "text-solomon-black"
-                  : "text-solomon-cream-muted hover:text-solomon-cream hover:bg-solomon-graphite/60"
+                  : "text-solomon-gold-light/90 hover:text-solomon-gold hover:bg-solomon-gold/10"
               )}
             >
               {active && (
                 <motion.span
                   layoutId="sidebar-pill"
-                  className="absolute inset-0 rounded-md bg-solomon-gold"
+                  className="absolute inset-0 rounded-md bg-solomon-gold shadow-[0_0_20px_rgba(255,208,0,0.5)]"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
