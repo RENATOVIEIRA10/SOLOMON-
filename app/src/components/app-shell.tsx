@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { motion } from "framer-motion";
 import {
@@ -61,14 +60,9 @@ function DesktopSidebar() {
   return (
     <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-60 flex-col border-r border-solomon-gold/15 bg-solomon-graphite/30 backdrop-blur-sm z-30">
       <div className="safe-top px-5 flex flex-col gap-1.5 pb-6">
-        <Image
-          src="/solomon-wordmark.png"
-          alt="SOLOMON"
-          width={1160}
-          height={424}
-          priority
-          className="h-9 w-auto"
-        />
+        <span className="font-display text-2xl font-semibold tracking-[0.14em] text-solomon-gold-light [text-shadow:0_0_18px_rgba(255,208,0,0.45)]">
+          SOLOMON
+        </span>
         <span className="font-mono text-[10px] uppercase tracking-wider text-solomon-gold/70 pl-1">
           v1.0 · AUR.IOs
         </span>
