@@ -9,10 +9,12 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ask, detectInsurers, resolveInsurerIds } from '@/services/rag/answer'
 import { detectRateIntent, queryRateTable } from '@/services/rag/rate-lookup'
+import { getOptionalAuthUserId } from '@/lib/auth'
 
 interface AskRequestBody {
   question: string
   insurer?: string
+  /** @deprecated ignored — broker is derived from the session (Phase 5.2). */
   brokerId?: string
   channel?: 'whatsapp' | 'dashboard' | 'api'
   history?: Array<{ role: 'user' | 'assistant'; content: string }>
@@ -108,8 +110,12 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Broker attribution comes from the verified session only. Unauthenticated
+    // callers (eval harness) still get answers, just without conversation save.
+    const sessionBrokerId = await getOptionalAuthUserId()
+
     const result = await ask(body.question.trim(), {
-      brokerId: body.brokerId,
+      brokerId: sessionBrokerId ?? undefined,
       channel: body.channel ?? 'api',
       insurerFilter: body.insurer,
       conversationHistory: body.history,

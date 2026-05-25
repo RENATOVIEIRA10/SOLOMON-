@@ -4,8 +4,9 @@
  * Contadores do dia para o corretor: consultas, plano, etc.
  */
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { requireAuthUserId } from "@/lib/auth";
 
 const PLAN_LIMITS: Record<string, number> = {
   trial: 10,
@@ -14,16 +15,11 @@ const PLAN_LIMITS: Record<string, number> = {
   corretora: 9999,
 };
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const url = new URL(request.url);
-    const brokerId = url.searchParams.get("brokerId");
-    if (!brokerId) {
-      return NextResponse.json(
-        { error: "brokerId is required" },
-        { status: 400 }
-      );
-    }
+    const auth = await requireAuthUserId();
+    if (auth instanceof NextResponse) return auth;
+    const brokerId = auth; // session-derived (auth_user_id)
 
     const supabase = createServiceClient();
 

@@ -7,13 +7,13 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
+import { requireAuthUserId } from '@/lib/auth'
 
 const VALID_ISSUES = ['hallucination', 'wrong_insurer', 'outdated', 'incomplete', 'other'] as const
 const VALID_CHANNELS = ['whatsapp', 'dashboard', 'api'] as const
 
 interface FeedbackPayload {
   conversation_id: string
-  broker_id: string
   rating: number
   flagged_issue?: string | null
   comment?: string | null
@@ -21,6 +21,10 @@ interface FeedbackPayload {
 }
 
 export async function POST(request: NextRequest) {
+  const auth = await requireAuthUserId()
+  if (auth instanceof NextResponse) return auth
+  const broker_id = auth // session-derived; client-sent broker_id is ignored
+
   let body: FeedbackPayload
   try {
     body = (await request.json()) as FeedbackPayload
@@ -28,10 +32,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
   }
 
-  const { conversation_id, broker_id, rating, flagged_issue, comment, channel } = body
+  const { conversation_id, rating, flagged_issue, comment, channel } = body
 
-  if (!conversation_id || !broker_id) {
-    return NextResponse.json({ error: 'conversation_id and broker_id are required' }, { status: 400 })
+  if (!conversation_id) {
+    return NextResponse.json({ error: 'conversation_id is required' }, { status: 400 })
   }
   if (typeof rating !== 'number' || rating < 1 || rating > 5 || !Number.isInteger(rating)) {
     return NextResponse.json({ error: 'rating must be integer 1-5' }, { status: 400 })

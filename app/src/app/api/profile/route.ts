@@ -1,34 +1,30 @@
 /**
- * GET /api/profile?brokerId=<uuid>  — upsert + fetch
- * PUT /api/profile                  — update
+ * GET /api/profile  — fetch (bootstrap mínimo na 1ª vez) do corretor autenticado
+ * PUT /api/profile  — update do corretor autenticado
  *
- * Enquanto auth Supabase nao esta ativo, usamos o UUID do localStorage como
- * auth_user_id bootstrap. Ao entrar em auth real, o bootstrap vira no-op.
+ * Phase 5.2: a identidade (auth_user_id) vem da SESSÃO, nunca de um brokerId
+ * do cliente. Sem sessão → 401. O bootstrap só cria o registro do PRÓPRIO
+ * usuário autenticado (allowlist via PILOT_BROKER_ALLOWLIST em @/lib/auth).
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { requireAuthUserId } from "@/lib/auth";
 
 const DEFAULT_PLAN = "trial";
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const url = new URL(request.url);
-    const brokerId = url.searchParams.get("brokerId");
-    if (!brokerId) {
-      return NextResponse.json(
-        { error: "brokerId is required" },
-        { status: 400 }
-      );
-    }
+    const auth = await requireAuthUserId();
+    if (auth instanceof NextResponse) return auth;
+    const authUserId = auth;
 
     const supabase = createServiceClient();
 
-    // Try find by auth_user_id
     const { data: existing, error: findErr } = await supabase
       .from("brokers")
       .select("*")
-      .eq("auth_user_id", brokerId)
+      .eq("auth_user_id", authUserId)
       .maybeSingle();
 
     if (findErr) {
@@ -40,11 +36,12 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ profile: existing });
     }
 
-    // Bootstrap: cria registro minimo
+    // Bootstrap: cria registro minimo para o usuario autenticado (não para um
+    // id arbitrário do cliente, como antes).
     const { data: created, error: insertErr } = await supabase
       .from("brokers")
       .insert({
-        auth_user_id: brokerId,
+        auth_user_id: authUserId,
         name: "Corretor",
         phone: "",
         plan: DEFAULT_PLAN,
@@ -56,10 +53,7 @@ export async function GET(request: NextRequest) {
 
     if (insertErr) {
       console.error("[api/profile] insert failed:", insertErr.message);
-      return NextResponse.json(
-        { error: "bootstrap failed" },
-        { status: 500 }
-      );
+      return NextResponse.json({ error: "bootstrap failed" }, { status: 500 });
     }
 
     return NextResponse.json({ profile: created });
@@ -71,8 +65,11 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const auth = await requireAuthUserId();
+    if (auth instanceof NextResponse) return auth;
+    const authUserId = auth;
+
     const body = (await request.json()) as {
-      brokerId: string;
       name?: string;
       phone?: string;
       email?: string | null;
@@ -80,12 +77,6 @@ export async function PUT(request: NextRequest) {
       creci?: string | null;
       susep_number?: string | null;
     };
-    if (!body.brokerId) {
-      return NextResponse.json(
-        { error: "brokerId is required" },
-        { status: 400 }
-      );
-    }
 
     const patch: Record<string, unknown> = {};
     if (body.name !== undefined) patch.name = body.name;
@@ -99,7 +90,7 @@ export async function PUT(request: NextRequest) {
     const { data, error } = await supabase
       .from("brokers")
       .update(patch as never)
-      .eq("auth_user_id", body.brokerId)
+      .eq("auth_user_id", authUserId)
       .select("*")
       .single();
 

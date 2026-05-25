@@ -12,6 +12,7 @@ import {
   User,
   BookOpen,
   Bell,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -99,8 +100,15 @@ function DesktopSidebar() {
         })}
       </nav>
 
-      <div className="px-6 py-4 border-t border-solomon-gold/10">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/50">
+      <div className="px-3 py-4 border-t border-solomon-gold/10 flex flex-col gap-3">
+        <a
+          href="/auth/signout"
+          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-gold/10 transition-colors"
+        >
+          <LogOut className="h-4 w-4" />
+          <span>Sair</span>
+        </a>
+        <p className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/50 px-3">
           AUR.IOs · 2026
         </p>
       </div>

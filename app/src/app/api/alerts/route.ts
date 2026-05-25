@@ -6,11 +6,15 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { requireAuthUserId } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
+    const auth = await requireAuthUserId();
+    if (auth instanceof NextResponse) return auth;
+    const brokerId = auth; // session-derived (auth_user_id)
+
     const url = new URL(request.url);
-    const brokerId = url.searchParams.get("brokerId");
     const unreadOnly = url.searchParams.get("unreadOnly") === "true";
     const limit = Math.min(Number(url.searchParams.get("limit") ?? 20) || 20, 100);
 

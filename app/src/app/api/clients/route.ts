@@ -1,38 +1,25 @@
 /**
- * GET  /api/clients?brokerId=<uuid>  — lista clientes do corretor
- * POST /api/clients                   — cria cliente
+ * GET  /api/clients   — lista clientes do corretor autenticado
+ * POST /api/clients   — cria cliente para o corretor autenticado
+ *
+ * Phase 5.2: a identidade do corretor vem da SESSÃO (auth_user_id), nunca de
+ * um brokerId enviado pelo cliente. Sem sessão → 401.
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
+import { requireAuthUserId, getBrokerRowId } from "@/lib/auth";
 
-async function resolveBrokerRowId(
-  supabase: ReturnType<typeof createServiceClient>,
-  authUserId: string
-): Promise<string | null> {
-  const { data } = await supabase
-    .from("brokers")
-    .select("id")
-    .eq("auth_user_id", authUserId)
-    .maybeSingle();
-  return (data as { id: string } | null)?.id ?? null;
-}
-
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
-    const url = new URL(request.url);
-    const brokerId = url.searchParams.get("brokerId");
-    if (!brokerId) {
-      return NextResponse.json(
-        { error: "brokerId is required" },
-        { status: 400 }
-      );
-    }
+    const auth = await requireAuthUserId();
+    if (auth instanceof NextResponse) return auth;
+    const authUserId = auth;
 
-    const supabase = createServiceClient();
-    const rowId = await resolveBrokerRowId(supabase, brokerId);
+    const rowId = await getBrokerRowId(authUserId);
     if (!rowId) return NextResponse.json({ clients: [] });
 
+    const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("broker_clients")
       .select("*")
@@ -53,8 +40,11 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const auth = await requireAuthUserId();
+    if (auth instanceof NextResponse) return auth;
+    const authUserId = auth;
+
     const body = (await request.json()) as {
-      brokerId: string;
       name: string;
       cpf?: string | null;
       phone?: string | null;
@@ -63,15 +53,14 @@ export async function POST(request: NextRequest) {
       notes?: string | null;
     };
 
-    if (!body.brokerId || !body.name || body.name.trim().length < 2) {
+    if (!body.name || body.name.trim().length < 2) {
       return NextResponse.json(
-        { error: "brokerId and name (>=2 chars) are required" },
+        { error: "name (>=2 chars) is required" },
         { status: 400 }
       );
     }
 
-    const supabase = createServiceClient();
-    const rowId = await resolveBrokerRowId(supabase, body.brokerId);
+    const rowId = await getBrokerRowId(authUserId);
     if (!rowId) {
       return NextResponse.json(
         { error: "broker not found — call /api/profile first" },
@@ -79,6 +68,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const supabase = createServiceClient();
     const { data, error } = await supabase
       .from("broker_clients")
       .insert({
