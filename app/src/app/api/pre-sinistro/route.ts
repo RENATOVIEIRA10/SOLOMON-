@@ -7,17 +7,21 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { analyzePreSinistro } from "@/services/rag/pre-sinistro";
+import { requireAuthUserId } from "@/lib/auth";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
+    // Broker-facing, high-consequence route — requires a verified session.
+    const auth = await requireAuthUserId();
+    if (auth instanceof NextResponse) return auth;
+
     const body = (await request.json()) as {
       insurerName: string;
       claimType: string;
       description: string;
-      brokerId?: string;
     };
 
     if (!body.insurerName || !body.claimType || !body.description) {

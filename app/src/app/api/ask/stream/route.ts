@@ -12,10 +12,12 @@
 
 import { NextRequest } from "next/server";
 import { askStream } from "@/services/rag/stream";
+import { getOptionalAuthUserId } from "@/lib/auth";
 
 interface AskRequestBody {
   question: string;
   insurer?: string;
+  /** @deprecated ignored — broker is derived from the session (Phase 5.2). */
   brokerId?: string;
   channel?: "whatsapp" | "dashboard" | "api";
   history?: Array<{ role: "user" | "assistant"; content: string }>;
@@ -45,6 +47,10 @@ export async function POST(request: NextRequest) {
     return errorResponse('Campo "history" deve ser um array.', 400);
   }
 
+  // Broker attribution from the verified session only (Phase 5.2). Resolved
+  // before the stream starts (cookies() must run in request scope).
+  const sessionBrokerId = await getOptionalAuthUserId();
+
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
@@ -61,7 +67,7 @@ export async function POST(request: NextRequest) {
 
       try {
         for await (const evt of askStream(body.question.trim(), {
-          brokerId: body.brokerId,
+          brokerId: sessionBrokerId ?? undefined,
           channel: body.channel ?? "api",
           insurerFilter: body.insurer,
           conversationHistory: body.history,
