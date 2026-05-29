@@ -1,9 +1,11 @@
 # SOLOMON — Estado do produto
 
-**Ultima atualizacao**: 2026-04-28 noite (Sessao 1 do plano "vendavel": 5 patches CRITICAL/HIGH + auditoria revelou AC paradoxo + NS bug + Padrao B duplamente quebrado)
+**Ultima atualizacao**: 2026-05-29 (fix pre_sinistro F regression; smoke eval confirma F=1.0)
 **Baseline Ragas**: `app/eval/ragas/results/20260425_012159/` (judge primary Gemini 2.5 Flash, secondary Haiku degradou por saldo Anthropic $0)
 **Persistencia**: tabela `eval_runs` no agentes-hub (50 linhas, run_id=20260425_012159)
 **Ground truth**: 21/24 perguntas flaggeadas validadas por Julio; Q48-Q50 pendentes
+
+> **2026-05-29 fix:** pre_sinistro F regressao (0.39) resolvida via PR #64 (commit bffb0ee). Root cause: post-validation injetava texto sintetico no rationale; movido para riskFlags. Smoke eval (2 perguntas, judge Gemini): F=1.00, CP=1.00, CR=1.00, NS=0.85. Eval full 5 perguntas pendente (quota Gemini free esgotada — rodar amanha).
 
 ---
 
@@ -19,7 +21,7 @@ Judge: Gemini 2.5 Flash. Answers: Haiku 4.5 (chat) + Sonnet 4.6 (pre-sinistro). 
 | comparison | 0.50 | 0.20 | 0.16 | 0.15 | n/a | 7/10 | 🔴 retrieval cego (CR=0.15) |
 | concept | 0.77 | 0.31 | 0.44 | 0.33 | n/a | 10/15 | 🟡 retrieval cego (CR=0.33) |
 | edge | 0.56 | 0.66 | 0.81 | 0.30 | 0.00 | 5/5 | 🟡 prompt fraco (NS=0.00) |
-| pre_sinistro | 0.57 | 0.50 | 0.60 | 0.37 | n/a | 0/5 | 🟡 retrieval medio + F medio |
+| pre_sinistro | ~~0.39~~ **1.00*** | 0.39 | 1.00 | 1.00 | 0.85 | 0/5 | 🟢 F regression fixed (PR #64) — smoke 2/5 Qs |
 
 **Agregado**: F=0.78 · AC=0.39 · CP=0.60 · CR=0.48 · NS=0.75
 
