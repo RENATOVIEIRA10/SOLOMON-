@@ -265,14 +265,24 @@ Cite trecho LITERAL de um dos chunks no campo citation.excerpt — o sistema val
     );
   }
 
-  // Post-validation verdict (CRITICAL 2)
+  // Post-validation verdict (CRITICAL 2).
+  // NOTA: o sinal de downgrade vai para riskFlags, NAO para rationale.
+  // O rationale permanece como output puro do LLM (grounded nos chunks).
+  // Ragas faithfulness e medida contra o rationale — texto nao-grounded
+  // aqui faz F cair; riskFlags sao excluidos pelo harness de eval.
   if (verdict === "COBERTO" && !hasEvidenceFor("COBERTO", results)) {
     verdict = "RISCO";
-    rationale = `[Validacao automatica: COBERTO sem chunk de cobertura clara — downgrade pra RISCO] ${rationale}`;
+    riskFlags = addRiskFlag(
+      riskFlags,
+      "Downgrade automatico: veredicto COBERTO sem chunk de cobertura explicita nos documentos indexados"
+    );
   }
   if (verdict === "NAO_COBERTO" && !hasEvidenceFor("NAO_COBERTO", results)) {
     verdict = "RISCO";
-    rationale = `[Validacao automatica: NAO_COBERTO sem chunk de exclusao clara — downgrade pra RISCO] ${rationale}`;
+    riskFlags = addRiskFlag(
+      riskFlags,
+      "Downgrade automatico: veredicto NAO_COBERTO sem chunk de exclusao explicita nos documentos indexados"
+    );
   }
 
   return {
