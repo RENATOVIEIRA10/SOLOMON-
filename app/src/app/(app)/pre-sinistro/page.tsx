@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { PreSinistroView } from "@/components/pre-sinistro/pre-sinistro-view";
 
 export const metadata = {
@@ -5,5 +6,9 @@ export const metadata = {
 };
 
 export default function PreSinistroPage() {
-  return <PreSinistroView />;
+  return (
+    <Suspense fallback={null}>
+      <PreSinistroView />
+    </Suspense>
+  );
 }

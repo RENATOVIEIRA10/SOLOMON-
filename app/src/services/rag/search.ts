@@ -72,6 +72,16 @@ export interface SearchOptions {
   }
 }
 
+type DocumentSearchRow = {
+  id: string
+  content: string
+  metadata: Record<string, unknown> | null
+  source_url: string | null
+  source_type: string
+  product_id: string | null
+  insurer_id: string | null
+}
+
 /**
  * Embeds a single query string using the same model as document embeddings.
  * Exported so callers fanning the same query across N insurers (Padrao C
@@ -218,6 +228,163 @@ export async function semanticSearchWithEmbedding(
     product_id: (row.product_id as string) ?? null,
     insurer_id: (row.insurer_id as string) ?? null,
   }))
+}
+
+/**
+ * Lexical companion retrieval for exact product/coverage wording.
+ *
+ * This intentionally stays additive: vector search remains the primary
+ * retriever, while lexical hits provide candidates that embeddings often miss
+ * for codes, acronyms, product names, and literal clause terms.
+ */
+export async function lexicalSearch(
+  query: string,
+  options?: SearchOptions
+): Promise<SearchResult[]> {
+  const terms = extractLexicalTerms(query, RAG.lexicalMaxTerms)
+  if (terms.length === 0) return []
+
+  const topK = options?.topK ?? RAG.lexicalTopK
+  const supabase = createServiceClient()
+  const orFilter = terms.map((term) => `content.ilike.%${term}%`).join(',')
+
+  let request = supabase
+    .from('documents')
+    .select('id, content, metadata, source_url, source_type, product_id, insurer_id')
+    .or(orFilter)
+    .not('embedding', 'is', null)
+    .is('valid_until', null)
+    .limit(Math.max(topK * 3, topK))
+
+  if (options?.insurerId) request = request.eq('insurer_id', options.insurerId)
+  if (options?.productId) request = request.eq('product_id', options.productId)
+  if (options?.sourceType) request = request.eq('source_type', options.sourceType)
+
+  const { data, error } = await request
+  if (error) {
+    console.warn(`[rag/lexical] Supabase lexical search failed: ${error.message}`)
+    return []
+  }
+
+  if (!Array.isArray(data) || data.length === 0) return []
+
+  return (data as DocumentSearchRow[])
+    .filter((row) => row.metadata?.rag_exclude !== true && row.metadata?.rag_exclude !== 'true')
+    .filter((row) => {
+      const tipoProduto = String(row.metadata?.tipo_produto ?? '')
+      return !['PGBL', 'VGBL', 'previdencia', 'capitalizacao', 'residencial', 'viagem', 'auto'].includes(tipoProduto)
+    })
+    .map((row) => ({
+      id: row.id,
+      content: row.content,
+      similarity: scoreLexicalHit(query, row, terms),
+      metadata: row.metadata ?? {},
+      source_url: row.source_url,
+      source_type: row.source_type,
+      product_id: row.product_id,
+      insurer_id: row.insurer_id,
+    }))
+    .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
+    .slice(0, topK)
+}
+
+export function mergeSearchResults(
+  primary: SearchResult[],
+  secondary: SearchResult[],
+  limit: number
+): SearchResult[] {
+  const byId = new Map<string, SearchResult>()
+
+  for (const result of [...primary, ...secondary]) {
+    const existing = byId.get(result.id)
+    if (!existing || (result.similarity ?? 0) > (existing.similarity ?? 0)) {
+      byId.set(result.id, result)
+    }
+  }
+
+  return [...byId.values()]
+    .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
+    .slice(0, limit)
+}
+
+export async function hybridSearch(
+  query: string,
+  options?: SearchOptions
+): Promise<SearchResult[]> {
+  const topK = options?.topK ?? RAG.topK
+  const [semantic, lexical] = await Promise.all([
+    semanticSearch(query, options),
+    lexicalSearch(query, { ...options, topK: Math.min(RAG.lexicalTopK, topK) }),
+  ])
+
+  return mergeSearchResults(semantic, lexical, topK)
+}
+
+export async function hybridSearchWithEmbedding(
+  query: string,
+  queryEmbedding: number[],
+  options?: SearchOptions
+): Promise<SearchResult[]> {
+  const topK = options?.topK ?? RAG.topK
+  const [semantic, lexical] = await Promise.all([
+    semanticSearchWithEmbedding(queryEmbedding, options),
+    lexicalSearch(query, { ...options, topK: Math.min(RAG.lexicalTopK, topK) }),
+  ])
+
+  return mergeSearchResults(semantic, lexical, topK)
+}
+
+const LEXICAL_STOPWORDS = new Set([
+  'como', 'qual', 'quais', 'quando', 'onde', 'para', 'pela', 'pelo', 'pelas',
+  'pelos', 'dos', 'das', 'nos', 'nas', 'que', 'uma', 'umas', 'uns', 'com',
+  'sem', 'por', 'sobre', 'seguro', 'seguros', 'seguradora', 'seguradoras',
+  'condicoes', 'gerais', 'documento', 'documentos', 'cliente', 'produto',
+  'produtos', 'cobertura', 'coberturas',
+])
+
+function extractLexicalTerms(query: string, maxTerms: number): string[] {
+  const normalized = query
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+  const tokens = normalized
+    .match(/[a-z0-9]{3,}/g)
+    ?.filter((term) => !LEXICAL_STOPWORDS.has(term))
+    ?? []
+
+  return [...new Set(tokens)]
+    .sort((a, b) => lexicalTermWeight(b) - lexicalTermWeight(a))
+    .slice(0, maxTerms)
+}
+
+function lexicalTermWeight(term: string): number {
+  let weight = term.length
+  if (/[0-9]/.test(term)) weight += 8
+  if (term.length <= 5 && /[a-z]/.test(term) && /[0-9]/.test(term)) weight += 6
+  return weight
+}
+
+function scoreLexicalHit(
+  query: string,
+  row: DocumentSearchRow,
+  terms: string[]
+): number {
+  const text = `${row.content} ${String(row.metadata?.product_name ?? '')} ${String(row.metadata?.coverage_name ?? '')}`
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+  const queryNorm = query
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+  const hits = terms.filter((term) => text.includes(term))
+  const hitRatio = terms.length > 0 ? hits.length / terms.length : 0
+  const rareTermBonus = hits.some((term) => /[0-9]/.test(term) || term.length >= 8) ? 0.12 : 0
+  const phraseBonus = queryNorm.length >= 12 && text.includes(queryNorm.slice(0, 80)) ? 0.1 : 0
+
+  return Math.min(0.92, 0.5 + hitRatio * 0.25 + rareTermBonus + phraseBonus)
 }
 
 // ---------------------------------------------------------------------------

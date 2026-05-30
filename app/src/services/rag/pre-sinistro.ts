@@ -1,11 +1,11 @@
-/**
- * Pré-Sinistro Analyzer
+﻿/**
+ * PrÃ©-Sinistro Analyzer
  *
  * Killer feature: analisa evento contra condicoes gerais da seguradora ANTES
  * de abrir sinistro. Retorna veredicto estruturado + checklist + risk flags.
  *
  * Sessao 2 (2026-04-28) hardenings (Codex review):
- * - resolveInsurerIdsExact (match exato — sem substring traz seguradoras erradas)
+ * - resolveInsurerIdsExact (match exato â€” sem substring traz seguradoras erradas)
  * - busca paralela por insurerIds + sort por similarity DESC antes do slice
  * - minimo evidencia (>=3 chunks E avg sim >= 0.50) ou downgrade RISCO
  * - productHint opcional pra filtrar chunks por metadata.product_name
@@ -13,7 +13,7 @@
  *   NAO_COBERTO requer chunk com exclusao explicita; senao downgrade RISCO
  * - validacao citation/excerpt: trecho deve aparecer literal em chunks
  *
- * Wave A.2 (2026-05-12): Anthropic Citations API removida — saldo Anthropic
+ * Wave A.2 (2026-05-12): Anthropic Citations API removida â€” saldo Anthropic
  * SDK direto morreu em prod. Substituido por Gemini 2.5 Flash com
  * responseMimeType=application/json. Citacoes literais agora dependem do
  * prompt + validateCitation() (substring >=30 chars contra chunks reais).
@@ -41,6 +41,13 @@ export interface PreSinistroResult {
   documentsChecklist: string[];
   laudoTerms: string[];
   riskFlags: string[];
+  humanReviewRequired: boolean;
+  legalDisclaimer: string;
+  evidenceSummary: {
+    chunkCount: number;
+    avgSimilarity: number;
+    hasValidatedCitation: boolean;
+  };
   model: string;
   latencyMs: number;
   // Chunks RAG usados como contexto do LLM. Expostos pro harness Ragas
@@ -81,7 +88,7 @@ VOCE DEVE RETORNAR APENAS UM JSON VALIDO com este schema exato (sem markdown, se
     "insurer": "Nome da seguradora",
     "clause": "Numero ou nome da clausula (ex: 4.2, Clausula de Exclusoes)",
     "source_url": "URL do PDF se disponivel nos documents",
-    "excerpt": "Trecho LITERAL de ate 300 caracteres da condicao geral que fundamenta — DEVE aparecer textualmente nos documents"
+    "excerpt": "Trecho LITERAL de ate 300 caracteres da condicao geral que fundamenta â€” DEVE aparecer textualmente nos documents"
   },
   "documentsChecklist": [
     "Lista de documentos necessarios para abrir o sinistro",
@@ -103,7 +110,7 @@ REGRAS CRITICAS:
 - verdict "RISCO": pode ser coberto mas ha fatores que podem levar a negativa (carencia, DPS, contestabilidade, exclusao proxima).
 - verdict "NAO_COBERTO": evento esta em exclusao clara ou fora do escopo da cobertura. Exige chunk com exclusao explicita.
 - Se nao houver evidencia textual clara, use verdict "RISCO" com confidence baixa.
-- excerpt da citation DEVE ser trecho LITERAL dos chunks [chunk_N] fornecidos — sem parafrase. O sistema valida substring contra os chunks reais e descarta a citacao se nao bater.
+- excerpt da citation DEVE ser trecho LITERAL dos chunks [chunk_N] fornecidos â€” sem parafrase. O sistema valida substring contra os chunks reais e descarta a citacao se nao bater.
 - SEMPRE preencher documentsChecklist, laudoTerms, riskFlags com ao menos 1 item cada.
 - Retornar APENAS o JSON, sem texto adicional, sem fence.
 `;
@@ -117,19 +124,22 @@ REGRAS CRITICAS:
  * pra Sonnet via fallback no futuro sem mudar codigo.
  */
 const PRE_SINISTRO_MODEL = process.env.PRE_SINISTRO_MODEL ?? "gemini-2.5-flash";
+const LEGAL_DISCLAIMER =
+  "Analise preliminar para apoio do corretor. Nao substitui regulacao formal do sinistro pela seguradora nem parecer juridico.";
 
 export async function analyzePreSinistro(
   input: PreSinistroInput
 ): Promise<PreSinistroResult> {
   const start = Date.now();
+  const normalizedClaimType = normalizeClaimType(input.claimType);
 
-  // 1. Resolve insurer id(s) via match EXATO — substring match podia trazer
+  // 1. Resolve insurer id(s) via match EXATO â€” substring match podia trazer
   // 2 seguradoras (HIGH 6 do Codex review).
   const insurerIds = await resolveInsurerIdsExact(input.insurerName);
 
   // 2. Search RAG paralelamente por insurerIds + sort global por similarity
   // (HIGH 3: era sequencial sem reordenar).
-  const query = buildSearchQuery(input);
+  const query = buildSearchQuery({ ...input, claimType: normalizedClaimType });
   const perInsurer = 8;
   // Slice 3C-c: corpus-routing context. pre-sinistro is single-insurer
   // per analysis -> eligible for shadow preview when input.insurerName
@@ -140,7 +150,7 @@ export async function analyzePreSinistro(
     question: query,
     source: "pre-sinistro" as const,
   };
-  // Phase 3A G2: pre-sinistro queries are always verbal → restrict to
+  // Phase 3A G2: pre-sinistro queries are always verbal â†’ restrict to
   // conditions_pdf. rate_table_pdf chunks would inject numeric noise that
   // poisons the verdict and the citation validation downstream.
   const settled = await Promise.all(
@@ -186,7 +196,7 @@ export async function analyzePreSinistro(
   }
 
   // 4. Minimo de evidencia (HIGH 4): se results.length < 3 OU avg sim < 0.50,
-  // NAO chama LLM — retorna RISCO pre-fabricado. Evita laudo juridico em
+  // NAO chama LLM â€” retorna RISCO pre-fabricado. Evita laudo juridico em
   // documentacao insuficiente.
   if (results.length === 0) {
     throw new Error(
@@ -223,12 +233,12 @@ ${chunksBlock}
 ANALISE ESTE EVENTO:
 
 Seguradora: ${input.insurerName}
-${input.productHint ? `Produto/apolice: ${input.productHint}\n` : ""}Tipo de evento: ${humanizeClaimType(input.claimType)}
+${input.productHint ? `Produto/apolice: ${input.productHint}\n` : ""}Tipo de evento: ${humanizeClaimType(normalizedClaimType)}
 Descricao do evento: ${input.description}
 
-Cite trecho LITERAL de um dos chunks no campo citation.excerpt — o sistema valida substring contra os chunks reais. Retorne APENAS o JSON estruturado.`;
+Cite trecho LITERAL de um dos chunks no campo citation.excerpt â€” o sistema valida substring contra os chunks reais. Retorne APENAS o JSON estruturado.`;
 
-  // 7. Call Gemini JSON — Wave A.2.
+  // 7. Call Gemini JSON â€” Wave A.2.
   const completion = await callGeminiJson(SYSTEM_PROMPT, userMessage, {
     model: PRE_SINISTRO_MODEL,
     temperature: 0.2,
@@ -248,15 +258,16 @@ Cite trecho LITERAL de um dos chunks no campo citation.excerpt — o sistema val
 
   // 8. Post-validation: veredicto + citation contra evidencia textual nos chunks
   let verdict = normalizeVerdict(parsed.verdict);
-  let rationale =
+  const rationale =
     typeof parsed.rationale === "string" && parsed.rationale.trim()
       ? parsed.rationale
-      : "Analise inconclusiva — reformule a descricao com mais detalhes.";
+      : "Analise inconclusiva â€” reformule a descricao com mais detalhes.";
   let riskFlags = Array.isArray(parsed.riskFlags) ? parsed.riskFlags : [];
+  let finalConfidence = clampConfidence(parsed.confidence);
 
   // Validar citation/excerpt contra chunks reais (CRITICAL 1).
   // Wave A.2: sem Citations API nativa, este e o unico guard contra paraphrase
-  // do Gemini — se o LLM nao copiou trecho fiel, citation vira null.
+  // do Gemini â€” se o LLM nao copiou trecho fiel, citation vira null.
   const validatedCitation = validateCitation(parsed.citation, results);
   if (parsed.citation && validatedCitation === null) {
     riskFlags = addRiskFlag(
@@ -268,10 +279,19 @@ Cite trecho LITERAL de um dos chunks no campo citation.excerpt — o sistema val
   // Post-validation verdict (CRITICAL 2).
   // NOTA: o sinal de downgrade vai para riskFlags, NAO para rationale.
   // O rationale permanece como output puro do LLM (grounded nos chunks).
-  // Ragas faithfulness e medida contra o rationale — texto nao-grounded
-  // aqui faz F cair; riskFlags sao excluidos pelo harness de eval.
+  // Ragas faithfulness e medida contra o rationale; texto nao-grounded aqui
+  // faz F cair. riskFlags sao excluidos pelo harness de eval.
+  if (verdict !== "RISCO" && validatedCitation === null) {
+    verdict = "RISCO";
+    finalConfidence = Math.min(finalConfidence, 0.45);
+    riskFlags = addRiskFlag(
+      riskFlags,
+      "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+    );
+  }
   if (verdict === "COBERTO" && !hasEvidenceFor("COBERTO", results)) {
     verdict = "RISCO";
+    finalConfidence = Math.min(finalConfidence, 0.45);
     riskFlags = addRiskFlag(
       riskFlags,
       "Downgrade automatico: veredicto COBERTO sem chunk de cobertura explicita nos documentos indexados"
@@ -279,15 +299,26 @@ Cite trecho LITERAL de um dos chunks no campo citation.excerpt — o sistema val
   }
   if (verdict === "NAO_COBERTO" && !hasEvidenceFor("NAO_COBERTO", results)) {
     verdict = "RISCO";
+    finalConfidence = Math.min(finalConfidence, 0.45);
     riskFlags = addRiskFlag(
       riskFlags,
       "Downgrade automatico: veredicto NAO_COBERTO sem chunk de exclusao explicita nos documentos indexados"
     );
   }
+  const evidenceSummary = {
+    chunkCount: results.length,
+    avgSimilarity: avgSim,
+    hasValidatedCitation: validatedCitation !== null,
+  };
+  const humanReviewRequired =
+    verdict === "RISCO" ||
+    validatedCitation === null ||
+    riskFlags.length > 0 ||
+    finalConfidence < 0.75;
 
   return {
     verdict,
-    confidence: clampConfidence(parsed.confidence),
+    confidence: finalConfidence,
     rationale,
     citation: validatedCitation,
     documentsChecklist: Array.isArray(parsed.documentsChecklist)
@@ -295,6 +326,9 @@ Cite trecho LITERAL de um dos chunks no campo citation.excerpt — o sistema val
       : [],
     laudoTerms: Array.isArray(parsed.laudoTerms) ? parsed.laudoTerms : [],
     riskFlags,
+    humanReviewRequired,
+    legalDisclaimer: LEGAL_DISCLAIMER,
+    evidenceSummary,
     model: completion.model,
     latencyMs: Date.now() - start,
     chunks: toResultChunks(results),
@@ -312,7 +346,7 @@ interface InsurerRow {
 
 /**
  * Resolve insurer ids por match exato (case-insensitive). Sem substring
- * — pre-sinistro nao pode aceitar nome ambiguo (HIGH 6 Codex review).
+ * â€” pre-sinistro nao pode aceitar nome ambiguo (HIGH 6 Codex review).
  */
 async function resolveInsurerIdsExact(name: string): Promise<string[]> {
   const trimmed = name.trim();
@@ -382,6 +416,28 @@ function buildSearchQuery(input: PreSinistroInput): string {
   return `${baseTerms}${productTerms} ${input.description}`;
 }
 
+function normalizeClaimType(raw: string): string {
+  const t = stripAccentsLower(raw).replace(/[^a-z0-9]+/g, "_");
+  if (t.includes("suicidio")) return "morte_natural";
+  if (t.includes("morte") && (t.includes("acidental") || t.includes("acidente"))) {
+    return "morte_acidental";
+  }
+  if (t.includes("morte")) return "morte_natural";
+  if (t.includes("doenca_grave") || t.includes("doencas_graves") || t.includes("cancer")) {
+    return "doenca_grave";
+  }
+  if (t.includes("invalidez") || t.includes("ipa") || t.includes("ipd") || t.includes("ifpd")) {
+    return "invalidez";
+  }
+  if (t.includes("diaria") || t.includes("dit") || t.includes("incapacidade")) {
+    return "diaria";
+  }
+  if (t.includes("internacao") || t.includes("dih") || t.includes("hospital")) {
+    return "internacao";
+  }
+  return raw;
+}
+
 function humanizeClaimType(t: string): string {
   const map: Record<string, string> = {
     morte_natural: "Morte natural (por doenca)",
@@ -405,7 +461,7 @@ function clampConfidence(c: unknown): number {
 }
 
 function stripAccentsLower(s: string): string {
-  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 }
 
 function normalizeText(s: string): string {
@@ -433,7 +489,7 @@ const EXCLUSION_KEYWORDS = [
 
 /**
  * Verifica se ha chunk com keyword de cobertura (verdict=COBERTO) ou
- * exclusao (verdict=NAO_COBERTO). Retorna false se nao bater — caller
+ * exclusao (verdict=NAO_COBERTO). Retorna false se nao bater â€” caller
  * downgrade pra RISCO.
  */
 function hasEvidenceFor(
@@ -531,7 +587,14 @@ function buildRiskResult(params: {
   rationale: string;
   riskFlags: string[];
   chunks: SearchResult[];
+  avgSimilarity?: number;
 }): PreSinistroResult {
+  const avgSimilarity =
+    params.avgSimilarity ??
+    (params.chunks.length > 0
+      ? params.chunks.reduce((acc, r) => acc + (r.similarity ?? 0), 0) / params.chunks.length
+      : 0);
+
   return {
     verdict: "RISCO",
     confidence: 0.3,
@@ -543,6 +606,13 @@ function buildRiskResult(params: {
     ],
     laudoTerms: [],
     riskFlags: params.riskFlags,
+    humanReviewRequired: true,
+    legalDisclaimer: LEGAL_DISCLAIMER,
+    evidenceSummary: {
+      chunkCount: params.chunks.length,
+      avgSimilarity,
+      hasValidatedCitation: false,
+    },
     model: params.model,
     latencyMs: Date.now() - params.start,
     chunks: toResultChunks(params.chunks),
@@ -578,3 +648,4 @@ function extractJson<T>(raw: string): T | null {
 
   return null;
 }
+

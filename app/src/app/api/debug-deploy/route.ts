@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { detectInsurers, resolveInsurerIds } from '@/services/rag/answer'
-import { detectRateIntent, queryRateTable } from '@/services/rag/rate-lookup'
+import { detectRateIntent, queryRateTable, type RateIntent } from '@/services/rag/rate-lookup'
 
 export async function GET() {
   return NextResponse.json({
@@ -17,26 +17,26 @@ export async function POST(request: NextRequest) {
     if (!q) return NextResponse.json({ error: 'question required' }, { status: 400 })
 
     const mentioned = detectInsurers(q)
-    const intent =
+    const intent: RateIntent =
       mentioned.length === 1 ? detectRateIntent(q, mentioned[0]) : { hasIntent: false }
 
-    let resolvedIds: Record<string, string[]> = {}
+    const resolvedIds: Record<string, string[]> = {}
     let rateRowCount = 0
     let firstRow: unknown = null
 
-    if (mentioned.length === 1 && (intent as any).hasIntent) {
+    if (mentioned.length === 1 && intent.hasIntent) {
       const m = await resolveInsurerIds(mentioned)
       for (const [k, v] of m) resolvedIds[k] = v
       const ids = Object.values(resolvedIds)[0]
       if (ids && ids.length > 0) {
         const rows = await queryRateTable({
           insurerId: ids[0],
-          productHint: (intent as any).productHint,
-          age: (intent as any).age,
-          gender: (intent as any).gender,
-          rendaMensal: (intent as any).rendaMensal,
-          capital: (intent as any).capital,
-          franquia: (intent as any).franquia,
+          productHint: intent.productHint,
+          age: intent.age,
+          gender: intent.gender,
+          rendaMensal: intent.rendaMensal,
+          capital: intent.capital,
+          franquia: intent.franquia,
           limit: 5,
         })
         rateRowCount = rows.length

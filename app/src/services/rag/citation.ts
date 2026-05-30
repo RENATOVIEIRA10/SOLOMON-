@@ -16,6 +16,13 @@ export interface Citation {
   excerpt: string
 }
 
+export interface CitationAudit {
+  citations: Citation[]
+  referencedIndexes: number[]
+  invalidCitationIndexes: number[]
+  citationCoverage: number
+}
+
 /**
  * Finds all [N] references in the response text and maps them
  * to the provided sources array.
@@ -26,24 +33,25 @@ export function extractCitations(
   responseText: string,
   sources: ContextBlock[]
 ): Citation[] {
-  if (!responseText || sources.length === 0) {
-    return []
-  }
+  return auditCitations(responseText, sources).citations
+}
 
-  // Find all [N] patterns in the response
-  const refPattern = /\[(\d+)\]/g
-  const referencedIndices = new Set<number>()
-
-  let match: RegExpExecArray | null
-  while ((match = refPattern.exec(responseText)) !== null) {
-    referencedIndices.add(parseInt(match[1], 10))
-  }
+/**
+ * Audits citation quality, including hallucinated [N] references.
+ */
+export function auditCitations(
+  responseText: string,
+  sources: ContextBlock[]
+): CitationAudit {
+  const referencedIndices = extractReferencedIndexes(responseText)
+  const validSourceIndexes = new Set(sources.map((source) => source.index))
+  const invalidCitationIndexes = referencedIndices.filter((index) => !validSourceIndexes.has(index))
 
   // Map referenced indices to citations
   const citations: Citation[] = []
 
   for (const source of sources) {
-    if (!referencedIndices.has(source.index)) continue
+    if (!referencedIndices.includes(source.index)) continue
 
     citations.push({
       index: source.index,
@@ -58,7 +66,28 @@ export function extractCitations(
   // Sort by index
   citations.sort((a, b) => a.index - b.index)
 
-  return citations
+  return {
+    citations,
+    referencedIndexes: referencedIndices,
+    invalidCitationIndexes,
+    citationCoverage: sources.length > 0
+      ? Math.round((citations.length / sources.length) * 100) / 100
+      : 0,
+  }
+}
+
+function extractReferencedIndexes(responseText: string): number[] {
+  if (!responseText) return []
+
+  const refPattern = /\[(\d+)\]/g
+  const referencedIndices = new Set<number>()
+
+  let match: RegExpExecArray | null
+  while ((match = refPattern.exec(responseText)) !== null) {
+    referencedIndices.add(parseInt(match[1], 10))
+  }
+
+  return [...referencedIndices].sort((a, b) => a - b)
 }
 
 /**

@@ -8,7 +8,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { ask, detectInsurers, resolveInsurerIds } from '@/services/rag/answer'
-import { detectRateIntent, queryRateTable } from '@/services/rag/rate-lookup'
+import { detectRateIntent, queryRateTable, type RateIntent } from '@/services/rag/rate-lookup'
 import { getOptionalAuthUserId } from '@/lib/auth'
 
 interface AskRequestBody {
@@ -77,8 +77,8 @@ export async function POST(request: NextRequest) {
     if (body.debug) {
       const q = body.question.trim()
       const mentioned = detectInsurers(q)
-      const intent = mentioned.length === 1 ? detectRateIntent(q, mentioned[0]) : { hasIntent: false }
-      let resolvedIds: Record<string, string[]> = {}
+      const intent: RateIntent = mentioned.length === 1 ? detectRateIntent(q, mentioned[0]) : { hasIntent: false }
+      const resolvedIds: Record<string, string[]> = {}
       let rateRowCount = 0
       let firstRow: unknown = null
       if (mentioned.length === 1 && intent.hasIntent) {
@@ -88,12 +88,12 @@ export async function POST(request: NextRequest) {
         if (ids && ids.length > 0) {
           const rows = await queryRateTable({
             insurerId: ids[0],
-            productHint: (intent as any).productHint,
-            age: (intent as any).age,
-            gender: (intent as any).gender,
-            rendaMensal: (intent as any).rendaMensal,
-            capital: (intent as any).capital,
-            franquia: (intent as any).franquia,
+            productHint: intent.productHint,
+            age: intent.age,
+            gender: intent.gender,
+            rendaMensal: intent.rendaMensal,
+            capital: intent.capital,
+            franquia: intent.franquia,
             limit: 5,
           })
           rateRowCount = rows.length
@@ -128,14 +128,17 @@ export async function POST(request: NextRequest) {
       tokensUsed: result.tokensUsed,
       latencyMs: result.latencyMs,
       conversationId: result.conversationId,
+      confidenceScore: result.confidenceScore,
+      lowConfidence: result.lowConfidence,
+      citationCoverage: result.citationCoverage,
+      invalidCitationIndexes: result.invalidCitationIndexes,
+      answerWarnings: result.answerWarnings,
     }
 
     if (body.evalMode) {
       response.sources = result.sources
-      response.confidenceScore = result.confidenceScore
       response.avgSimilarity = result.avgSimilarity
       response.sourceCount = result.sourceCount
-      response.lowConfidence = result.lowConfidence
     }
 
     return NextResponse.json(response)

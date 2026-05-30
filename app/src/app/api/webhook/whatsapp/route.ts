@@ -46,7 +46,7 @@ async function claimMessage(messageId: string): Promise<boolean> {
         endpoint: 'whatsapp-webhook',
         response: { claimed_at: new Date().toISOString() },
         expires_at: expires,
-      } as any)
+      } as never)
     if (error) {
       // Unique violation → duplicate
       if (error.code === '23505' || /duplicate/i.test(error.message)) return false

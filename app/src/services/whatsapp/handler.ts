@@ -84,6 +84,9 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
         `\nValide no PDF oficial antes de usar com cliente.` +
         `\nResponda */feedback* com nota 1-5 para ajudar a melhorar.`
     }
+    if (result.answerWarnings.length > 0) {
+      formatted += `\n\n*Avisos RAG:*\n${result.answerWarnings.map((warning) => `- ${warning}`).join('\n')}`
+    }
     await addMessage(msg.from, 'assistant', result.answer)
 
     // 6. Increment query counter

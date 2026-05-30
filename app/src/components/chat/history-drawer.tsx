@@ -24,9 +24,13 @@ export function HistoryDrawer({
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
 
+  function handleOpenChange(nextOpen: boolean) {
+    setOpen(nextOpen);
+    if (nextOpen && brokerId) setLoading(true);
+  }
+
   useEffect(() => {
     if (!open || !brokerId) return;
-    setLoading(true);
     fetch(`/api/conversations?brokerId=${encodeURIComponent(brokerId)}&limit=30`)
       .then((r) => r.json())
       .then((data) => setItems(data.conversations ?? []))
@@ -35,7 +39,7 @@ export function HistoryDrawer({
   }, [open, brokerId]);
 
   return (
-    <Dialog.Root open={open} onOpenChange={setOpen}>
+    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
       <Dialog.Trigger asChild>
         <button
           type="button"

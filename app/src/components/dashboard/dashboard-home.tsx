@@ -212,10 +212,11 @@ export function DashboardHome() {
             ) : (
               <ul className="flex flex-col gap-2">
                 {clients.map((c) => (
-                  <li
-                    key={c.id}
-                    className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-solomon-charcoal/40 transition-colors"
-                  >
+                  <li key={c.id}>
+                    <Link
+                      href={`/clientes/${c.id}`}
+                      className="flex items-center justify-between rounded-lg px-3 py-2 hover:bg-solomon-charcoal/40 transition-colors"
+                    >
                     <div className="flex items-center gap-3 min-w-0">
                       <div className="h-8 w-8 rounded-full bg-solomon-gold/10 text-solomon-gold flex items-center justify-center text-xs font-semibold shrink-0">
                         {c.name
@@ -234,6 +235,7 @@ export function DashboardHome() {
                         </p>
                       </div>
                     </div>
+                    </Link>
                   </li>
                 ))}
               </ul>

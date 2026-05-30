@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -32,8 +33,16 @@ interface PreSinistroResult {
   documentsChecklist: string[];
   laudoTerms: string[];
   riskFlags: string[];
+  humanReviewRequired: boolean;
+  legalDisclaimer: string;
+  evidenceSummary: {
+    chunkCount: number;
+    avgSimilarity: number;
+    hasValidatedCitation: boolean;
+  };
   model: string;
   latencyMs: number;
+  analysisId?: string;
 }
 
 const CLAIM_TYPES = [
@@ -46,9 +55,12 @@ const CLAIM_TYPES = [
 ];
 
 export function PreSinistroView() {
+  const searchParams = useSearchParams();
   const brokerId = useBrokerId();
+  const brokerClientId = searchParams.get("clientId");
   const [insurer, setInsurer] = useState<string | null>(null);
   const [claimType, setClaimType] = useState<string>("morte_natural");
+  const [productHint, setProductHint] = useState("");
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PreSinistroResult | null>(null);
@@ -72,6 +84,8 @@ export function PreSinistroView() {
         body: JSON.stringify({
           insurerName: insurer,
           claimType,
+          productHint: productHint.trim() || undefined,
+          brokerClientId: brokerClientId ?? undefined,
           description: description.trim(),
           brokerId,
         }),
@@ -102,6 +116,11 @@ export function PreSinistroView() {
           Cruze o evento com as condições gerais <em>antes</em> de abrir o
           sinistro. Veredicto, checklist de documentos e alertas de risco em segundos.
         </p>
+        {brokerClientId && (
+          <p className="mt-3 inline-flex rounded-md border border-solomon-gold/20 bg-solomon-gold/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-solomon-gold">
+            Analise vinculada ao Cliente 360
+          </p>
+        )}
       </header>
 
       <Card className="mb-6">
@@ -141,6 +160,13 @@ export function PreSinistroView() {
               <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
                 Descrição do evento
               </span>
+              <input
+                type="text"
+                value={productHint}
+                onChange={(e) => setProductHint(e.target.value)}
+                placeholder="Produto ou apolice (opcional): ex. Seguro Doencas Graves Plus"
+                className="mb-3 h-10 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 px-3 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20"
+              />
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
@@ -228,6 +254,21 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
               </div>
               <p className="mt-3 text-sm leading-relaxed text-solomon-cream">
                 {result.rationale}
+              </p>
+              {result.humanReviewRequired && (
+                <p className="mt-3 inline-flex rounded bg-solomon-gold/15 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-solomon-gold">
+                  Revisao humana necessaria
+                </p>
+              )}
+              <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-mono uppercase tracking-widest text-solomon-cream-muted">
+                <span>{result.evidenceSummary.chunkCount} chunks</span>
+                <span>similaridade {Math.round(result.evidenceSummary.avgSimilarity * 100)}%</span>
+                <span>
+                  citacao {result.evidenceSummary.hasValidatedCitation ? "validada" : "nao validada"}
+                </span>
+              </div>
+              <p className="mt-4 border-t border-solomon-gold/10 pt-3 text-xs leading-relaxed text-solomon-cream-muted">
+                {result.legalDisclaimer}
               </p>
             </div>
           </div>

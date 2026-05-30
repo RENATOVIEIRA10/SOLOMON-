@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "framer-motion";
@@ -141,9 +142,11 @@ export function ClientsView() {
                         {initials(c.name)}
                       </div>
                       <div className="min-w-0">
-                        <CardTitle className="text-lg truncate">
-                          {c.name}
-                        </CardTitle>
+                        <Link href={`/clientes/${c.id}`} className="block">
+                          <CardTitle className="text-lg truncate transition-colors hover:text-solomon-gold-light">
+                            {c.name}
+                          </CardTitle>
+                        </Link>
                         {c.cpf && (
                           <p className="font-mono text-[10px] text-solomon-cream-muted/60 mt-0.5">
                             CPF {c.cpf}
@@ -179,6 +182,12 @@ export function ClientsView() {
                       {c.notes}
                     </p>
                   )}
+                  <Link
+                    href={`/clientes/${c.id}`}
+                    className="inline-flex pt-2 text-xs text-solomon-gold transition-colors hover:text-solomon-gold-light"
+                  >
+                    Abrir Cliente 360
+                  </Link>
                 </CardContent>
               </Card>
             </motion.div>

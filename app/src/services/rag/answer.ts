@@ -8,10 +8,10 @@
 import { randomUUID } from 'node:crypto'
 
 import { createServiceClient } from '@/lib/supabase'
-import { embedQuery, rerankWithCohere, semanticSearch, semanticSearchWithEmbedding, type SearchResult } from './search'
+import { embedQuery, hybridSearch, hybridSearchWithEmbedding, rerankWithCohere, semanticSearch, semanticSearchWithEmbedding, type SearchResult } from './search'
 import { buildContext, type ContextBlock, type EnrichmentData } from './context-builder'
 import { callLLM, type LLMResponse } from './llm'
-import { extractCitations, type Citation } from './citation'
+import { auditCitations, type Citation } from './citation'
 import { RAG } from '@/config/constants'
 import { expandQueryWithJargon } from '@/config/jargon'
 import { detectRateIntent, queryRateTable, formatRateAnswer } from './rate-lookup'
@@ -137,6 +137,12 @@ export interface AskResult {
   sourceCount: number
   /** True se confidenceScore < LOW_CONFIDENCE_THRESHOLD — consumer pode exibir aviso */
   lowConfidence: boolean
+  /** Percentual de fontes recuperadas que foram citadas na resposta */
+  citationCoverage: number
+  /** Referencias [N] citadas pelo modelo que nao existem no contexto */
+  invalidCitationIndexes: number[]
+  /** Avisos operacionais para UI/canais quando a resposta precisa de cautela */
+  answerWarnings: string[]
 }
 
 /** Abaixo desse valor, resposta deve exibir aviso ao corretor */
@@ -238,6 +244,11 @@ export async function ask(
             avgSimilarity: confidence,
             sourceCount: rateRows.length,
             lowConfidence: !hasEnoughDimensions,
+            citationCoverage: 1,
+            invalidCitationIndexes: [],
+            answerWarnings: hasEnoughDimensions
+              ? []
+              : ['Consulta de taxa com parametros incompletos; confirme idade, sexo e capital segurado.'],
           }
         }
         console.log(`[rag/ask] Rate fast-path MISS — no rows, falling through to RAG.`)
@@ -268,9 +279,9 @@ export async function ask(
     const queryEmbedding = await embedQuery(expandedQuery)
 
     for (const [name, ids] of insurerIds) {
-      let nameResults: SearchResult[] = []
+      const nameResults: SearchResult[] = []
       for (const id of ids) {
-        const r = await semanticSearchWithEmbedding(queryEmbedding, {
+        const r = await hybridSearchWithEmbedding(expandedQuery, queryEmbedding, {
           ...corpusCtx,
           insurerId: id,
           topK: perInsurerFetch,
@@ -286,7 +297,7 @@ export async function ask(
 
     // If targeted search found nothing, fall back to global
     if (searchResults.length === 0) {
-      searchResults = await semanticSearch(expandedQuery, {
+      searchResults = await hybridSearch(expandedQuery, {
         ...corpusCtx,
         insurerId: options?.insurerFilter,
         topK: RAG.fetchK,
@@ -316,7 +327,7 @@ export async function ask(
     }
   } else if (options?.insurerFilter) {
     // Caller forced a single-insurer filter — honor it without round-robin.
-    searchResults = await semanticSearch(expandedQuery, {
+    searchResults = await hybridSearch(expandedQuery, {
       ...corpusCtx,
       insurerId: options.insurerFilter,
       topK: RAG.globalTopK,
@@ -329,7 +340,7 @@ export async function ask(
   } else {
     // Concept / edge / general queries sem insurer: busca focada (topK=15)
     // mantem chunks no mesmo cluster semantico — comportamento pre-Fase 2.
-    searchResults = await semanticSearch(expandedQuery, {
+    searchResults = await hybridSearch(expandedQuery, {
       ...corpusCtx,
       topK: RAG.globalTopK,
     })
@@ -428,13 +439,28 @@ export async function ask(
         avgSimilarity,
         sourceCount,
         lowConfidence,
+        citationCoverage: 0,
+        invalidCitationIndexes: [],
+        answerWarnings: ['IA principal indisponivel; resposta montada a partir dos trechos recuperados.'],
       }
     }
     throw error
   }
 
-  // 7. Extract citations
-  const citations = extractCitations(llmResponse.text, sources)
+  // 7. Audit citations and adjust confidence before exposing the answer.
+  const citationAudit = auditCitations(llmResponse.text, sources)
+  const answerWarnings = buildRagAnswerWarnings({
+    sourceCount,
+    confidenceScore,
+    citationsCount: citationAudit.citations.length,
+    invalidCitationIndexes: citationAudit.invalidCitationIndexes,
+  })
+  const finalConfidenceScore = adjustConfidenceForCitationAudit(confidenceScore, {
+    sourceCount,
+    citationsCount: citationAudit.citations.length,
+    invalidCitationIndexes: citationAudit.invalidCitationIndexes,
+  })
+  const finalLowConfidence = finalConfidenceScore < LOW_CONFIDENCE_THRESHOLD
 
   // 8. Save conversation (if brokerId provided)
   let conversationId: string | undefined
@@ -447,23 +473,73 @@ export async function ask(
       model: llmResponse.model,
       tokensUsed: llmResponse.tokensUsed,
       latencyMs: Date.now() - startTime,
-      sources: citations,
+      sources: citationAudit.citations,
     })
   }
 
   return {
     answer: llmResponse.text,
-    citations,
+    citations: citationAudit.citations,
     sources,
     model: llmResponse.model,
     tokensUsed: llmResponse.tokensUsed,
     latencyMs: Date.now() - startTime,
     conversationId,
-    confidenceScore,
+    confidenceScore: finalConfidenceScore,
     avgSimilarity,
     sourceCount,
-    lowConfidence,
+    lowConfidence: finalLowConfidence,
+    citationCoverage: citationAudit.citationCoverage,
+    invalidCitationIndexes: citationAudit.invalidCitationIndexes,
+    answerWarnings,
   }
+}
+
+interface CitationConfidenceInput {
+  sourceCount: number
+  citationsCount: number
+  invalidCitationIndexes: number[]
+}
+
+export function adjustConfidenceForCitationAudit(
+  baseConfidence: number,
+  audit: CitationConfidenceInput
+): number {
+  let adjusted = baseConfidence
+
+  if (audit.sourceCount === 0) {
+    adjusted = 0
+  } else if (audit.citationsCount === 0) {
+    adjusted = Math.min(adjusted, 0.45)
+  }
+
+  if (audit.invalidCitationIndexes.length > 0) {
+    adjusted = Math.min(adjusted, 0.35)
+  }
+
+  return Math.round(adjusted * 100) / 100
+}
+
+export function buildRagAnswerWarnings(params: CitationConfidenceInput & {
+  confidenceScore: number
+}): string[] {
+  const warnings: string[] = []
+
+  if (params.sourceCount === 0) {
+    warnings.push('Nenhum documento foi recuperado para fundamentar a resposta.')
+  } else if (params.citationsCount === 0) {
+    warnings.push('A resposta nao trouxe citacoes validas dos documentos recuperados.')
+  }
+
+  if (params.invalidCitationIndexes.length > 0) {
+    warnings.push(`A resposta citou referencias inexistentes: [${params.invalidCitationIndexes.join('], [')}].`)
+  }
+
+  if (params.confidenceScore < LOW_CONFIDENCE_THRESHOLD) {
+    warnings.push('A recuperacao teve baixa confianca; confirme nos documentos antes de usar comercialmente.')
+  }
+
+  return warnings
 }
 
 /**

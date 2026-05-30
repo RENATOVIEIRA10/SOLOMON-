@@ -217,7 +217,7 @@ async function gateRuntimeBestEffort(): Promise<void> {
   // must absorb that failure without throwing to the caller.
   //
   // Dynamic import so the supabase singleton loads AFTER our env stub.
-  const traceMod = (await import('../../src/services/rag/retrieval-trace')) as {
+  const traceMod = (await import('../../src/services/rag/retrieval-trace')) as unknown as {
     recordRetrievalTrace: (input: Record<string, unknown>) => void
   }
   const { recordRetrievalTrace } = traceMod

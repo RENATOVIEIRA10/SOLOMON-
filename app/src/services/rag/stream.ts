@@ -11,9 +11,9 @@
 
 import { randomUUID } from "node:crypto";
 
-import { semanticSearch, type SearchResult } from "./search";
+import { hybridSearch, type SearchResult } from "./search";
 import { buildContext } from "./context-builder";
-import { extractCitations, type Citation } from "./citation";
+import { auditCitations, type Citation } from "./citation";
 import { callLLMStream } from "./llm";
 import { RAG } from "@/config/constants";
 import { expandQueryWithJargon } from "@/config/jargon";
@@ -28,6 +28,8 @@ import {
   buildUserMessage,
   saveConversation,
   stripSourcesSection,
+  adjustConfidenceForCitationAudit,
+  buildRagAnswerWarnings,
   type AskOptions,
 } from "./answer";
 
@@ -46,6 +48,9 @@ export interface StreamMetaEvent {
   avgSimilarity: number;
   sourceCount: number;
   lowConfidence: boolean;
+  citationCoverage: number;
+  invalidCitationIndexes: number[];
+  answerWarnings: string[];
 }
 export interface StreamErrorEvent {
   type: "error";
@@ -85,7 +90,7 @@ export async function* askStream(
       for (const [, ids] of insurerIds) {
         const nameResults: SearchResult[] = [];
         for (const id of ids) {
-          const r = await semanticSearch(expandedQuery, {
+          const r = await hybridSearch(expandedQuery, {
             ...corpusCtx,
             insurerId: id,
             topK: perInsurer,
@@ -96,14 +101,14 @@ export async function* askStream(
       }
 
       if (searchResults.length === 0) {
-        searchResults = await semanticSearch(expandedQuery, {
+        searchResults = await hybridSearch(expandedQuery, {
           ...corpusCtx,
           insurerId: options?.insurerFilter,
           topK: RAG.fetchK,
         });
       }
     } else {
-      searchResults = await semanticSearch(expandedQuery, {
+      searchResults = await hybridSearch(expandedQuery, {
         ...corpusCtx,
         insurerId: options?.insurerFilter,
         topK: RAG.fetchK,
@@ -136,8 +141,6 @@ export async function* askStream(
     const sourceFactor = Math.min(1, sourceCount / 5);
     const confidenceScore =
       Math.round((avgSimilarity * 0.6 + sourceFactor * 0.4) * 100) / 100;
-    const lowConfidence = confidenceScore < LOW_CONFIDENCE_THRESHOLD;
-
     // ---- 5. Prompt + stream ----
     // Stream path (dashboard SSE). Channel whatsapp suprime FONTES porque o
     // canal injeta citacoes via formatRagResponse — guard defensivo.
@@ -167,8 +170,20 @@ export async function* askStream(
       }
     }
 
-    // ---- 6. Citations + save ----
-    const citations = extractCitations(fullText, sources);
+    // ---- 6. Citation audit + save ----
+    const citationAudit = auditCitations(fullText, sources);
+    const answerWarnings = buildRagAnswerWarnings({
+      sourceCount,
+      confidenceScore,
+      citationsCount: citationAudit.citations.length,
+      invalidCitationIndexes: citationAudit.invalidCitationIndexes,
+    });
+    const finalConfidenceScore = adjustConfidenceForCitationAudit(confidenceScore, {
+      sourceCount,
+      citationsCount: citationAudit.citations.length,
+      invalidCitationIndexes: citationAudit.invalidCitationIndexes,
+    });
+    const finalLowConfidence = finalConfidenceScore < LOW_CONFIDENCE_THRESHOLD;
 
     let conversationId: string | undefined;
     if (options?.brokerId) {
@@ -180,7 +195,7 @@ export async function* askStream(
         model,
         tokensUsed,
         latencyMs: Date.now() - startTime,
-        sources: citations,
+        sources: citationAudit.citations,
       });
     }
 
@@ -188,13 +203,16 @@ export async function* askStream(
       type: "meta",
       model,
       conversationId,
-      citations,
+      citations: citationAudit.citations,
       tokensUsed,
       latencyMs: Date.now() - startTime,
-      confidenceScore,
+      confidenceScore: finalConfidenceScore,
       avgSimilarity,
       sourceCount,
-      lowConfidence,
+      lowConfidence: finalLowConfidence,
+      citationCoverage: citationAudit.citationCoverage,
+      invalidCitationIndexes: citationAudit.invalidCitationIndexes,
+      answerWarnings,
     };
   } catch (err) {
     const message =

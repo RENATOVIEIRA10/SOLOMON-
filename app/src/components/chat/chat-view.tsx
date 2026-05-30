@@ -8,15 +8,6 @@ import { MessageBubble, type ChatMessage, type Citation } from "./message";
 import { ChatInput } from "./chat-input";
 import { HistoryDrawer } from "./history-drawer";
 
-type AskResponse = {
-  answer: string;
-  citations: Citation[];
-  model: string;
-  tokensUsed?: number;
-  latencyMs: number;
-  conversationId: string;
-};
-
 const SUGGESTIONS = [
   "O que é IPA majorada e como funciona?",
   "Qual a carência para morte por doença em apólice de vida individual?",
@@ -92,7 +83,6 @@ export function ChatView() {
         let fullText = "";
         let started = false;
 
-        // eslint-disable-next-line no-constant-condition
         while (true) {
           const { value, done } = await reader.read();
           if (done) break;
@@ -141,6 +131,9 @@ export function ChatView() {
               const meta = payload as {
                 citations: Citation[];
                 conversationId?: string;
+                confidenceScore?: number;
+                lowConfidence?: boolean;
+                answerWarnings?: string[];
               };
               setMessages((m) =>
                 m.map((msg) =>
@@ -150,6 +143,9 @@ export function ChatView() {
                         loading: false,
                         citations: meta.citations,
                         conversationId: meta.conversationId,
+                        confidenceScore: meta.confidenceScore,
+                        lowConfidence: meta.lowConfidence,
+                        answerWarnings: meta.answerWarnings,
                       }
                     : msg
                 )

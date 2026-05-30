@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Copy, Check, ThumbsUp, ThumbsDown, ExternalLink } from "lucide-react";
+import { Copy, Check, ThumbsUp, ThumbsDown, ExternalLink, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +20,9 @@ export type ChatMessage = {
   content: string;
   citations?: Citation[];
   conversationId?: string;
+  confidenceScore?: number;
+  lowConfidence?: boolean;
+  answerWarnings?: string[];
   loading?: boolean;
   feedback?: "up" | "down" | null;
 };
@@ -74,6 +77,24 @@ export function MessageBubble({
             renderMessageContent(message.content, message.citations)
           )}
         </div>
+
+        {!isUser && !message.loading && message.lowConfidence && (
+          <div className="flex w-full items-start gap-2 rounded-md border border-solomon-gold/20 bg-solomon-gold/10 px-3 py-2 text-xs leading-relaxed text-solomon-cream-muted">
+            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-solomon-gold" />
+            <div className="min-w-0">
+              <p className="font-mono text-[10px] uppercase tracking-widest text-solomon-gold">
+                Confianca baixa {typeof message.confidenceScore === "number" ? `${Math.round(message.confidenceScore * 100)}%` : ""}
+              </p>
+              {message.answerWarnings && message.answerWarnings.length > 0 && (
+                <ul className="mt-1 list-disc space-y-1 pl-4">
+                  {message.answerWarnings.map((warning) => (
+                    <li key={warning}>{warning}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          </div>
+        )}
 
         <AnimatePresence mode="wait">
           {!isUser && !message.loading && message.citations && message.citations.length > 0 && (
