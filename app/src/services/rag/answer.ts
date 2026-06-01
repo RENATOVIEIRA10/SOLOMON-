@@ -308,7 +308,7 @@ export async function ask(
     // compareIntent: reserva 5 slots pra "others" no Padrao B; senao, divide topK pelas mencionadas.
     const perInsurer = compareIntent ? Math.max(1, RAG.topK - 5) : Math.ceil(RAG.topK / mentionedInsurers.length)
     const perInsurerFetch = Math.min(RAG.fetchK, perInsurer * 3)
-    const queryTokens = tokenizeForProductMatch(question)
+    const queryTokens = tokenizeForProductMatch(expandedQuery)
     const queryEmbedding = await embedQuery(expandedQuery)
 
     for (const [name, ids] of insurerIds) {
@@ -324,7 +324,7 @@ export async function ask(
       }
       const locallyRanked =
         shouldRerankWithinEntity && nameResults.length > perInsurer
-          ? await rerankWithinEntity(question, nameResults, perInsurer)
+          ? await rerankWithinEntity(expandedQuery, nameResults, perInsurer)
           : nameResults
       const boosted = boostByProductMatch(locallyRanked, queryTokens)
       const trimmed = boosted.slice(0, perInsurer)
