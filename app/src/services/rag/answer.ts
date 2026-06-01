@@ -566,7 +566,7 @@ function enforceApComparisonSourceNotes(
     `${source.productName} ${source.content}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 
   const premiavelSources = sources.filter((source) => /premiavel/i.test(sourceText(source)))
-  if (premiavelSources.length > 0 && !/premiavel|capitalizacao|sorteio/.test(answerNorm)) {
+  if (premiavelSources.length > 0 && !/capitalizacao|sorteio/.test(answerNorm)) {
     const refs = premiavelSources.slice(0, 3).map((source) => `[${source.index}]`).join(', ')
     notes.push(
       `**Nota de fonte sobre Bradesco AP Premiavel:** as fontes recuperadas tambem incluem linhas/produtos Bradesco com nomenclatura AP Premiavel/Premiavel ${refs}. Os trechos recuperados confirmam esses produtos/canais, mas nao detalham o regulamento dos sorteios ou da capitalizacao; para essa regra especifica, consulte o regulamento de capitalizacao do produto.`
