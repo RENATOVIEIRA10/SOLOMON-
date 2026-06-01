@@ -69,6 +69,14 @@ async function safeFlush() {
   }
 }
 
+function isLikelyIncompleteResponse(text: string): boolean {
+  const trimmed = text.trim()
+  if (trimmed.length === 0) return true
+  if (trimmed.length >= 800) return false
+  if (/[.!?)]$/.test(trimmed)) return false
+  return /(\bde|\bdo|\bda|\bdos|\bdas|\bem|\bcom|\bpara|\be|[,;:("'])$/i.test(trimmed)
+}
+
 /**
  * Calls the LLM with a system prompt and user message.
  * Tries Anthropic → Gemini → OpenAI in order.
@@ -257,7 +265,8 @@ async function callGemini(
     ],
     generationConfig: {
       temperature: 0.3,
-      maxOutputTokens: 2048,
+      maxOutputTokens: 4096,
+      thinkingConfig: { thinkingBudget: 0 },
     },
   }
 
@@ -282,14 +291,26 @@ async function callGemini(
 
   const data = await response.json()
 
-  const text = data?.candidates?.[0]?.content?.parts?.[0]?.text
+  const candidate = data?.candidates?.[0]
+  const text = candidate?.content?.parts?.[0]?.text
+  const finishReason = candidate?.finishReason
+  const promptTokens = data?.usageMetadata?.promptTokenCount ?? 0
+  const outputTokens = data?.usageMetadata?.candidatesTokenCount ?? 0
+  console.log(
+    `[rag/llm] Gemini finishReason=${finishReason} ` +
+      `promptTokens=${promptTokens} outputTokens=${outputTokens} responseLen=${text?.length ?? 0}`
+  )
   if (!text) {
     throw new Error('Gemini returned empty response')
   }
+  if (isLikelyIncompleteResponse(text)) {
+    throw new Error(
+      `Gemini returned likely incomplete response ` +
+        `(finishReason=${finishReason}, responseLen=${text.length})`
+    )
+  }
 
-  const tokensUsed =
-    (data?.usageMetadata?.promptTokenCount ?? 0) +
-    (data?.usageMetadata?.candidatesTokenCount ?? 0)
+  const tokensUsed = promptTokens + outputTokens
 
   return {
     text,
