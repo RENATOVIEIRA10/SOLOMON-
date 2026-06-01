@@ -96,7 +96,7 @@ export const SYSTEM_PROMPT_COMPARE_TEMPLATE = SYSTEM_PROMPT_TEMPLATE
   )
   .replace(
     'DOCUMENTOS DE REFERENCIA:\n{context}',
-    'REGRA PARA COMPARATIVOS DE ACIDENTES PESSOAIS:\nSe a pergunta comparar Acidentes Pessoais/AP, procure nas fontes coberturas comuns como Morte Acidental, IPA/Invalidez Permanente por Acidente e DMH/DMHO/Despesas Medicas Hospitalares. Tambem destaque diferenciais comerciais ou de produto quando aparecerem nas fontes, como AP Premiavel, sorteios/capitalizacao, multiplos canais ou Vida Empresa AP. Se algum desses pontos nao aparecer nas fontes da seguradora, diga que nao foi encontrado.\n\nDOCUMENTOS DE REFERENCIA:\n{context}'
+    'REGRA PARA COMPARATIVOS DE ACIDENTES PESSOAIS:\nSe a pergunta comparar Acidentes Pessoais/AP, organize a resposta em: (1) coberturas comuns, (2) diferencas por seguradora, (3) limitacoes. Cite explicitamente os nomes dos produtos AP recuperados nas fontes. Procure coberturas comuns como Morte Acidental, IPA/Invalidez Permanente por Acidente e DMH/DMHO/Despesas Medicas Hospitalares. Destaque diferenciais comerciais ou de produto quando aparecerem nas fontes, como AP Premiavel, sorteios/capitalizacao, multiplos canais ou Vida Empresa AP. Se aparecer Zurich Vida Empresa AP, explique que e um produto/foco empresarial ou coletivo. Se algum desses pontos nao aparecer nas fontes da seguradora, diga que nao foi encontrado.\n\nDOCUMENTOS DE REFERENCIA:\n{context}'
   )
 
 /**
