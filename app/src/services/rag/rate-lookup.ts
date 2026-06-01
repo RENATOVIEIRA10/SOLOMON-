@@ -638,27 +638,15 @@ export function formatRateAnswer(params: {
     const doc = groupRows[0].source_doc_name
     const version = groupRows[0].version_label ?? ''
     lines.push(`**${productName} — ${productCode}**${portfolio ? ` (Portfolio ${portfolio})` : ''} — Cobertura ${coverageType}`)
-    for (const r of groupRows) {
-      const rateBr = formatBrNumber(r.rate)
-      const genderLabel = r.gender === 'M' ? 'Masc' : 'Fem'
-      if (r.rate_unit === 'fixed_brl_monthly') {
-        // DITA/DIT: premio mensal fixo em BRL, period codifica (franquia, renda, capital)
-        const periodLabel = formatPeriodDIT(r.period)
-        lines.push(`  - Idade ${r.age} / ${genderLabel}${periodLabel ? ` — ${periodLabel}` : ''}: **R$ ${formatBrNumber(r.rate, 2)}/mes**`)
-      } else if (r.rate_unit === 'per_100_diaria_monthly') {
-        lines.push(`  - Idade ${r.age} / ${genderLabel}: **${rateBr}** por R$ 100 de diaria (taxa mensal)`)
-      } else if (r.rate_unit === 'per_1000_renda_monthly') {
-        lines.push(`  - Idade ${r.age} / ${genderLabel}: **${rateBr}** por R$ 1.000 de renda (taxa mensal)`)
-      } else if (r.rate_unit === 'per_1000_monthly') {
-        lines.push(`  - Idade ${r.age} / ${genderLabel}: **${rateBr}** por R$ 1.000 (taxa mensal)`)
-      } else {
-        lines.push(`  - Idade ${r.age} / ${genderLabel}: **${rateBr}** por R$ 1.000 (taxa anual)`)
-      }
-      if (intent.capital && (r.rate_unit === 'per_1000_annual' || r.rate_unit === 'per_1000_monthly')) {
-        const premio = (r.rate * intent.capital) / 1000
-        const mensal = r.rate_unit === 'per_1000_monthly' ? premio : premio / 12
-        const anual = r.rate_unit === 'per_1000_monthly' ? premio * 12 : premio
-        lines.push(`    Premio para capital R$ ${formatBrNumber(intent.capital, 0)}: **R$ ${formatBrNumber(anual, 2)}/ano** (≈ R$ ${formatBrNumber(mensal, 2)}/mes)`)
+    const repeatedSummary = summarizeRepeatedRateRows(groupRows, intent)
+    if (repeatedSummary) {
+      lines.push(repeatedSummary)
+    } else {
+      for (const r of groupRows) {
+        lines.push(formatRateRowLine(r))
+        if (intent.capital && (r.rate_unit === 'per_1000_annual' || r.rate_unit === 'per_1000_monthly')) {
+          lines.push(formatCapitalPremiumLine(r, intent.capital))
+        }
       }
     }
     lines.push(`  *Fonte: ${doc}, pagina ${page}${version ? `, versao ${version}` : ''}*`)
@@ -732,6 +720,59 @@ function rateUnitLabel(row: RateRow): string {
   if (row.rate_unit === 'per_100_diaria_monthly') return 'por R$ 100 de diaria/mes'
   if (row.rate_unit === 'per_1000_renda_monthly') return 'por R$ 1.000 de renda/mes'
   return row.rate_unit
+}
+
+function summarizeRepeatedRateRows(rows: RateRow[], intent: RateIntent): string | undefined {
+  if (rows.length < 8) return undefined
+
+  const first = rows[0]
+  const sameRate = rows.every((row) =>
+    row.rate === first.rate &&
+    row.rate_unit === first.rate_unit &&
+    (row.period ?? '') === (first.period ?? '')
+  )
+  if (!sameRate) return undefined
+
+  const ages = [...new Set(rows.map((row) => row.age))].sort((a, b) => a - b)
+  const genders = [...new Set(rows.map((row) => row.gender))].sort()
+  const ageLabel = ages.length === 1 ? `Idade ${ages[0]}` : `Idades ${ages[0]} a ${ages[ages.length - 1]}`
+  const genderLabel =
+    genders.length === 2 ? 'Fem e Masc' : genders[0] === 'M' ? 'Masc' : 'Fem'
+  const periodLabel = first.rate_unit === 'fixed_brl_monthly' ? formatPeriodDIT(first.period) : null
+  const suffix = periodLabel ? ` — ${periodLabel}` : ''
+  const lines = [`  - ${ageLabel} / ${genderLabel}${suffix}: **${formatRateValue(first)}** ${rateUnitText(first)}`]
+
+  if (intent.capital && (first.rate_unit === 'per_1000_annual' || first.rate_unit === 'per_1000_monthly')) {
+    lines.push(formatCapitalPremiumLine(first, intent.capital))
+  }
+
+  return lines.join('\n')
+}
+
+function formatRateRowLine(row: RateRow): string {
+  const genderLabel = row.gender === 'M' ? 'Masc' : 'Fem'
+  const periodLabel = row.rate_unit === 'fixed_brl_monthly' ? formatPeriodDIT(row.period) : null
+  return `  - Idade ${row.age} / ${genderLabel}${periodLabel ? ` — ${periodLabel}` : ''}: **${formatRateValue(row)}** ${rateUnitText(row)}`
+}
+
+function formatRateValue(row: RateRow): string {
+  if (row.rate_unit === 'fixed_brl_monthly') return `R$ ${formatBrNumber(row.rate, 2)}/mes`
+  return formatBrNumber(row.rate)
+}
+
+function rateUnitText(row: RateRow): string {
+  if (row.rate_unit === 'fixed_brl_monthly') return ''
+  if (row.rate_unit === 'per_100_diaria_monthly') return 'por R$ 100 de diaria (taxa mensal)'
+  if (row.rate_unit === 'per_1000_renda_monthly') return 'por R$ 1.000 de renda (taxa mensal)'
+  if (row.rate_unit === 'per_1000_monthly') return 'por R$ 1.000 (taxa mensal)'
+  return 'por R$ 1.000 (taxa anual)'
+}
+
+function formatCapitalPremiumLine(row: RateRow, capital: number): string {
+  const premio = (row.rate * capital) / 1000
+  const mensal = row.rate_unit === 'per_1000_monthly' ? premio : premio / 12
+  const anual = row.rate_unit === 'per_1000_monthly' ? premio * 12 : premio
+  return `    Premio para capital R$ ${formatBrNumber(capital, 0)}: **R$ ${formatBrNumber(anual, 2)}/ano** (≈ R$ ${formatBrNumber(mensal, 2)}/mes)`
 }
 
 function formatBrNumber(n: number, decimals = 4): string {

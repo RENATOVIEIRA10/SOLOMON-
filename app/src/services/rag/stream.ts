@@ -110,9 +110,7 @@ export async function* askStream(
               intent.age !== undefined &&
               intent.gender !== undefined;
             const hasProductCodeComparison =
-              (intent.productCodes?.length ?? 0) >= 2 &&
-              intent.age !== undefined &&
-              intent.gender !== undefined;
+              (intent.productCodes?.length ?? 0) >= 2;
             const hasEnoughDimensions = hasAgeAndCapital || hasProductCodeFull || hasProductCodeRate || hasProductCodeComparison;
             const confidence = hasEnoughDimensions ? 1.0 : 0.4;
             let answer = formatRateAnswer({
