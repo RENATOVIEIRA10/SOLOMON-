@@ -450,7 +450,10 @@ export async function ask(
   // Confidence mixes match quality (avgSimilarity) and corroboration (sourceCount).
   // >=5 fontes com similaridade alta → 1.0; nenhum match → 0.
   const sourceFactor = Math.min(1, sourceCount / 5)
-  const confidenceScore = Math.round((avgSimilarity * 0.6 + sourceFactor * 0.4) * 100) / 100
+  const confidenceScore = Math.min(
+    1,
+    Math.round((avgSimilarity * 0.6 + sourceFactor * 0.4) * 100) / 100
+  )
   const lowConfidence = confidenceScore < LOW_CONFIDENCE_THRESHOLD
 
   // 4. Build system prompt — variant comparativa quando Padrao B disparou,
