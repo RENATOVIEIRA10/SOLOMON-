@@ -104,6 +104,19 @@ export const JARGON_DICT: JargonEntry[] = [
     expansions: ['Seguro de Acidentes Pessoais', 'Acidentes Pessoais'],
   },
   {
+    term: 'acidentes pessoais',
+    expansions: [
+      'Morte Acidental',
+      'Invalidez Permanente Total ou Parcial por Acidente',
+      'Despesas Medicas Hospitalares e Odontologicas',
+      'DMH',
+      'DMHO',
+      'AP Premiavel',
+      'Capitalizacao',
+      'Vida Empresa AP',
+    ],
+  },
+  {
     term: 'VGBL',
     expansions: ['Vida Gerador de Benefício Livre'],
   },

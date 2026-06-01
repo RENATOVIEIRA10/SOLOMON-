@@ -11,6 +11,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
 
 import { detectRateIntent } from '@/services/rag/rate-lookup'
 import { buildRerankDocument, type SearchResult } from '@/services/rag/search'
+import { expandQueryWithJargon } from '@/config/jargon'
 
 let passed = 0
 let failed = 0
@@ -86,8 +87,19 @@ function gateRerankDocumentMetadata(): void {
   ok('preserves chunk body', doc.includes('Tabela de taxas por idade.'))
 }
 
+function gateAcidentesPessoaisExpansion(): void {
+  console.log('\n## acidentes pessoais expansion')
+  const expanded = expandQueryWithJargon(
+    'Comparar coberturas de Acidentes Pessoais Zurich versus Bradesco - diferencas principais.'
+  )
+  ok('expands AP comparison with DMH', expanded.includes('DMH'))
+  ok('expands AP comparison with AP Premiavel', expanded.includes('AP Premiavel'))
+  ok('expands AP comparison with Vida Empresa AP', expanded.includes('Vida Empresa AP'))
+}
+
 gateMultiProductRateIntent()
 gateRerankDocumentMetadata()
+gateAcidentesPessoaisExpansion()
 
 if (failed > 0) {
   console.error(`\n${failed} failed, ${passed} passed`)

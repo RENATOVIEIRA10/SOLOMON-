@@ -94,6 +94,10 @@ export const SYSTEM_PROMPT_COMPARE_TEMPLATE = SYSTEM_PROMPT_TEMPLATE
     'Passo 5: NUNCA combine clausulas de seguradoras diferentes em uma mesma afirmacao.',
     'Passo 5: Compare lado a lado, sem fundir clausulas de seguradoras diferentes em uma mesma afirmacao.'
   )
+  .replace(
+    'DOCUMENTOS DE REFERENCIA:\n{context}',
+    'REGRA PARA COMPARATIVOS DE ACIDENTES PESSOAIS:\nSe a pergunta comparar Acidentes Pessoais/AP, procure nas fontes coberturas comuns como Morte Acidental, IPA/Invalidez Permanente por Acidente e DMH/DMHO/Despesas Medicas Hospitalares. Tambem destaque diferenciais comerciais ou de produto quando aparecerem nas fontes, como AP Premiavel, sorteios/capitalizacao, multiplos canais ou Vida Empresa AP. Se algum desses pontos nao aparecer nas fontes da seguradora, diga que nao foi encontrado.\n\nDOCUMENTOS DE REFERENCIA:\n{context}'
+  )
 
 /**
  * Remove a regra #11 e o bloco "FORMATO DA SECAO FONTES E LIMITACOES" do template.
