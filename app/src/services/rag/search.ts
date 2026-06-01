@@ -377,7 +377,8 @@ const LEXICAL_STOPWORDS = new Set([
   'pelos', 'dos', 'das', 'nos', 'nas', 'que', 'uma', 'umas', 'uns', 'com',
   'sem', 'por', 'sobre', 'seguro', 'seguros', 'seguradora', 'seguradoras',
   'condicoes', 'gerais', 'documento', 'documentos', 'cliente', 'produto',
-  'produtos', 'cobertura', 'coberturas',
+  'produtos', 'cobertura', 'coberturas', 'principais', 'diferencas',
+  'diferenca', 'oferece', 'oferecem', 'responda', 'secao', 'separada',
 ])
 
 function extractLexicalTerms(query: string, maxTerms: number): string[] {
@@ -399,6 +400,8 @@ function extractLexicalTerms(query: string, maxTerms: number): string[] {
 function lexicalTermWeight(term: string): number {
   let weight = term.length
   if (term === 'premiavel' || term === 'premiaveis') weight += 20
+  if (term === 'doencas' || term === 'doenca' || term === 'graves') weight += 12
+  if (term === 'dg') weight += 12
   if (/[0-9]/.test(term)) weight += 8
   if (term.length <= 5 && /[a-z]/.test(term) && /[0-9]/.test(term)) weight += 6
   return weight
@@ -422,9 +425,14 @@ function scoreLexicalHit(
   const hitRatio = terms.length > 0 ? hits.length / terms.length : 0
   const rareTermBonus = hits.some((term) => /[0-9]/.test(term) || term.length >= 8) ? 0.12 : 0
   const priorityTermBonus = hits.some((term) => term === 'premiavel' || term === 'premiaveis') ? 0.28 : 0
+  const dgBonus =
+    (queryNorm.includes('doencas graves') || queryNorm.includes('doenca grave') || /\bdg\b/.test(queryNorm)) &&
+    ((text.includes('doencas') && text.includes('graves')) || text.includes('doenca_grave') || /\bdg\b/.test(text))
+      ? 0.22
+      : 0
   const phraseBonus = queryNorm.length >= 12 && text.includes(queryNorm.slice(0, 80)) ? 0.1 : 0
 
-  return Math.min(0.95, 0.5 + hitRatio * 0.25 + rareTermBonus + priorityTermBonus + phraseBonus)
+  return Math.min(0.95, 0.5 + hitRatio * 0.25 + rareTermBonus + priorityTermBonus + dgBonus + phraseBonus)
 }
 
 // ---------------------------------------------------------------------------

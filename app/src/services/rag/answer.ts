@@ -324,12 +324,18 @@ export async function ask(
         })
         nameResults.push(...r)
       }
-      const productBoostedCandidates = boostByProductMatch(nameResults, queryTokens)
+      const productBoostedCandidates = boostByCoverageIntent(
+        boostByProductMatch(nameResults, queryTokens),
+        expandedQuery
+      )
       const locallyRanked =
         shouldRerankWithinEntity && productBoostedCandidates.length > perInsurer
           ? await rerankWithinEntity(expandedQuery, productBoostedCandidates, perInsurer)
           : productBoostedCandidates
-      const boosted = boostByProductMatch(locallyRanked, queryTokens)
+      const boosted = boostByCoverageIntent(
+        boostByProductMatch(locallyRanked, queryTokens),
+        expandedQuery
+      )
       const trimmed = boosted.slice(0, perInsurer)
       console.log(`[rag/ask] ${name}: ${nameResults.length} fetched, ${trimmed.length} after product-boost (across ${ids.length} insurer row(s))`)
       searchResults.push(...trimmed)
@@ -750,7 +756,7 @@ const PRODUCT_MATCH_STOPWORDS = new Set([
 ])
 
 function stripAccentsLower(s: string): string {
-  return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+  return s.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
 }
 
 export function tokenizeForProductMatch(s: string): Set<string> {
@@ -781,6 +787,63 @@ export function boostByProductMatch(chunks: SearchResult[], queryTokens: Set<str
       const productOverlap = overlap / ptoks.size
       const factor = 1 + 0.5 * productOverlap
       return { ...c, similarity: (c.similarity ?? 0) * factor }
+    })
+    .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
+}
+
+export function boostByCoverageIntent(chunks: SearchResult[], query: string): SearchResult[] {
+  if (chunks.length === 0) return []
+
+  const q = stripAccentsLower(query)
+  const wantsDoencasGraves =
+    q.includes('doencas graves') ||
+    q.includes('doenca grave') ||
+    /\bdg\b/.test(q)
+
+  if (!wantsDoencasGraves) return [...chunks]
+
+  return [...chunks]
+    .map((chunk) => {
+      const metadataText = [
+        chunk.metadata?.product_name,
+        chunk.metadata?.coverage_name,
+        chunk.metadata?.product_code,
+        chunk.metadata?.source_title,
+        chunk.source_type,
+        chunk.source_url,
+      ]
+        .filter(Boolean)
+        .map(String)
+        .join(' ')
+
+      const text = stripAccentsLower(`${metadataText} ${chunk.content}`)
+      let factor = 1
+
+      if (text.includes('doenca_grave') || text.includes('doenca grave')) factor += 0.35
+      if (text.includes('doencas graves')) factor += 0.4
+      if (/\bdg(?:10|13|30)?\b/.test(text)) factor += 0.18
+      if (/doencas graves (?:plus|premium|essencial|master|modular|basico)/.test(text)) factor += 0.45
+      if (text.includes('doencas criticas')) factor += 0.2
+      if (text.includes('diagnostico') || text.includes('carencia') || text.includes('sobrevida')) factor += 0.12
+
+      const noisyInstitutional =
+        text.includes('relatorio') ||
+        text.includes('sustentabilidade') ||
+        text.includes('colaboradores') ||
+        text.includes('gptw') ||
+        text.includes('atendimento humanizado')
+      if (noisyInstitutional && !(text.includes('doencas graves') || text.includes('doenca_grave'))) {
+        factor -= 0.45
+      }
+
+      if (!(text.includes('doencas') && text.includes('graves')) && !text.includes('doenca_grave')) {
+        factor -= 0.25
+      }
+
+      return {
+        ...chunk,
+        similarity: Math.max(0, (chunk.similarity ?? 0) * Math.max(0.3, factor)),
+      }
     })
     .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
 }

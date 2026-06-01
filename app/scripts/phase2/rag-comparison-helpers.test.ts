@@ -11,6 +11,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
 
 import { detectRateIntent } from '@/services/rag/rate-lookup'
 import { buildRerankDocument, type SearchResult } from '@/services/rag/search'
+import { boostByCoverageIntent } from '@/services/rag/answer'
 import { expandQueryWithJargon } from '@/config/jargon'
 
 let passed = 0
@@ -97,9 +98,45 @@ function gateAcidentesPessoaisExpansion(): void {
   ok('expands AP comparison with Vida Empresa AP', expanded.includes('Vida Empresa AP'))
 }
 
+function gateDoencasGravesBoost(): void {
+  console.log('\n## doencas graves retrieval boost')
+  const genericReport: SearchResult = {
+    id: 'generic-report',
+    content: 'Relatorio de sustentabilidade com informacoes sobre colaboradores e GPTW.',
+    similarity: 0.9,
+    metadata: { insurer_name: 'MAG Seguros' },
+    source_url: 'https://example.test/relatorio.pdf',
+    source_type: 'conditions_pdf',
+    product_id: null,
+    insurer_id: 'mag',
+  }
+  const dgProduct: SearchResult = {
+    id: 'dg-product',
+    content: 'Produto Doencas Graves Plus com cobertura de doenca grave, carencia e diagnostico.',
+    similarity: 0.7,
+    metadata: {
+      insurer_name: 'MAG Seguros',
+      product_name: 'DOENCAS GRAVES PLUS',
+      coverage_name: 'DOENCA_GRAVE',
+    },
+    source_url: 'https://example.test/condicoes-gerais.pdf',
+    source_type: 'conditions_pdf',
+    product_id: 'dg-plus',
+    insurer_id: 'mag',
+  }
+
+  const ranked = boostByCoverageIntent(
+    [genericReport, dgProduct],
+    'MAG: quais oferecem Doencas Graves e principais diferencas?'
+  )
+
+  ok('DG product outranks generic institutional report', ranked[0]?.id === 'dg-product')
+}
+
 gateMultiProductRateIntent()
 gateRerankDocumentMetadata()
 gateAcidentesPessoaisExpansion()
+gateDoencasGravesBoost()
 
 if (failed > 0) {
   console.error(`\n${failed} failed, ${passed} passed`)

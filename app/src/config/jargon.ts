@@ -97,6 +97,17 @@ export const JARGON_DICT: JargonEntry[] = [
     term: 'DG',
     expansions: ['Doenças Graves', 'Doenças Críticas'],
   },
+  {
+    term: 'doencas graves',
+    expansions: [
+      'Doenca Grave',
+      'Doencas Criticas',
+      'Doencas Graves Plus',
+      'Doencas Graves Premium',
+      'Doencas Graves Essencial',
+      'Doencas Graves Master',
+    ],
+  },
 
   // Produtos
   {
