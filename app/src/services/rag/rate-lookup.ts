@@ -20,8 +20,12 @@ export interface RateIntent {
   gender?: 'M' | 'F'
   /** Nome do produto mencionado (normalizado, maiusculo, sem acento). */
   productHint?: string
+  /** Nomes de produtos mencionados, quando a pergunta compara familias diferentes. */
+  productHints?: string[]
   /** Codigo SUSEP/comercial do produto (MAG: "2330", Prudential: "DDR5G"). */
   productCode?: string
+  /** Codigos mencionados na pergunta, quando ha comparacao entre produtos. */
+  productCodes?: string[]
   /** Capital segurado em reais, se explicitado. */
   capital?: number
   /** Renda mensal (DIT/DITA) em reais — ex "renda 3 mil" → 3000. */
@@ -43,6 +47,23 @@ export interface RateRow {
   source_doc_name: string
   source_page: number
   version_label: string | null
+}
+
+type QueryRateTableParams = {
+  insurerId: string
+  productHint?: string
+  productHints?: string[]
+  productCode?: string
+  productCodes?: string[]
+  age?: number
+  gender?: 'M' | 'F'
+  /** Para matrizes DIT/DITA: renda_mensal em R$ (codificada no campo period). */
+  rendaMensal?: number
+  /** Capital Morte por Acidente em R$ (codificado no campo period). */
+  capital?: number
+  /** Franquia DIT: '7' ou '10'. */
+  franquia?: '7' | '10'
+  limit?: number
 }
 
 const RATE_KEYWORDS = [
@@ -70,6 +91,10 @@ const RATE_KEYWORDS = [
   'cotar',
   'mensalidade',
   'anuidade',
+  'mais barato',
+  'mais caro',
+  'barato',
+  'caro',
 ]
 
 /** Regex: idade explicita em anos. */
@@ -109,6 +134,7 @@ const CAPITAL_LABELED_RE = new RegExp(
  */
 const PRODUCT_CODE_NUMERIC_RE = /\b(?:c[óo]digo|cod(?:\.|igo)?)\s*(?:susep\s*)?(\d{4,5})\b/i
 const PRODUCT_CODE_ALPHA_RE = /\b([A-Z]{2,4}\d{1,3}[A-Z]?)\b/
+const PRODUCT_CODE_ALPHA_GLOBAL_RE = /\b([A-Z]{2,4}\d{1,3}[A-Z]?)\b/g
 
 /** Regex: renda mensal. "renda 3 mil" / "renda mensal de R$ 3.000" / "renda 3000".
  *  Mesma logica do CAPITAL_RE para ordem de alternation. */
@@ -143,10 +169,12 @@ export function detectRateIntent(question: string, insurer?: string): RateIntent
   else if (/\b(mulher|feminino|fem)\b/i.test(q)) gender = 'F'
 
   // 4. Product hint — filtrado por seguradora quando disponivel
-  const productHint = detectProductHint(qNoAccent, insurer)
+  const productHints = detectProductHints(qNoAccent, insurer)
+  const productHint = productHints[0]
 
   // 5. Product code — MAG numerico "codigo NNNN" ou Prudential alfanumerico (DDR5G, WL10G)
-  const productCode = detectProductCode(question)
+  const productCodes = detectProductCodes(question)
+  const productCode = detectProductCode(question) ?? productCodes[0]
 
   // 6. Capital
   const capital = extractCapital(q)
@@ -159,9 +187,13 @@ export function detectRateIntent(question: string, insurer?: string): RateIntent
   const fMatch = q.match(FRANQUIA_RE)
   if (fMatch) franquia = fMatch[1] as '7' | '10'
 
-  // Intent gating: keyword explicita OU (produto + age + capital|renda) — cotacao implicita.
+  // Intent gating: keyword explicita OU produto com dimensoes suficientes
+  // para uma taxa estruturada. Capital e necessario para premio final, mas
+  // productCode + idade + sexo ja resolve taxa por R$ 1.000 em tabelas Prudential.
+  const hasProductCodeRate = Boolean(productCode && age !== undefined && gender !== undefined)
   const hasImplicitIntent = Boolean(
-    (productHint || productCode) && age !== undefined && (capital !== undefined || rendaMensal !== undefined)
+    hasProductCodeRate ||
+    ((productHint || productCode) && age !== undefined && (capital !== undefined || rendaMensal !== undefined))
   )
   // Alem disso, keyword sozinha nao basta: se nenhum qualifier foi extraido
   // (age, capital, renda, produto), nao e cotacao — e pergunta generica tipo
@@ -184,7 +216,9 @@ export function detectRateIntent(question: string, insurer?: string): RateIntent
     age,
     gender,
     productHint,
+    productHints: productHints.length > 0 ? productHints : undefined,
     productCode,
+    productCodes: productCodes.length > 0 ? productCodes : undefined,
     capital,
     rendaMensal,
     franquia,
@@ -294,14 +328,17 @@ const PRODUCT_FAMILIES: Array<{ patterns: string[]; canonical: string; insurer?:
   { insurer: 'MAG', patterns: ['dit'], canonical: 'DIT' },
 ]
 
-function detectProductHint(q: string, insurer?: string): string | undefined {
+function detectProductHints(q: string, insurer?: string): string[] {
+  const matches: string[] = []
   for (const fam of PRODUCT_FAMILIES) {
     if (fam.insurer && insurer && fam.insurer !== insurer) continue
     if (fam.patterns.some((p) => q.includes(stripAccents(p)))) {
-      return fam.canonical
+      matches.push(fam.canonical)
     }
   }
-  return undefined
+  return [...new Set(matches)]
+    .sort((a, b) => b.length - a.length)
+    .filter((candidate, index, all) => !all.slice(0, index).some((kept) => kept.includes(candidate)))
 }
 
 function extractRendaMensal(q: string): number | undefined {
@@ -371,6 +408,21 @@ function detectProductCode(raw: string): string | undefined {
   return undefined
 }
 
+function detectProductCodes(raw: string): string[] {
+  const codes: string[] = []
+
+  const numMatch = raw.match(PRODUCT_CODE_NUMERIC_RE)
+  if (numMatch) codes.push(numMatch[1])
+
+  for (const alphaMatch of raw.matchAll(PRODUCT_CODE_ALPHA_GLOBAL_RE)) {
+    const code = alphaMatch[1]
+    if (/^[FG]\d{1,2}$/i.test(code)) continue
+    codes.push(code.toUpperCase())
+  }
+
+  return [...new Set(codes)]
+}
+
 function parseBrazilianNumber(s: string): number {
   const hasComma = s.includes(',')
   const hasDot = s.includes('.')
@@ -397,34 +449,81 @@ function parseBrazilianNumber(s: string): number {
   return parseFloat(s)
 }
 
+function sanitizePostgrestOrValue(value: string): string {
+  return value.replace(/[(),]/g, ' ').trim()
+}
+
 /**
  * Consulta insurer_rate_tables com filtros opcionais.
  */
-export async function queryRateTable(params: {
-  insurerId: string
-  productHint?: string
-  productCode?: string
-  age?: number
-  gender?: 'M' | 'F'
-  /** Para matrizes DIT/DITA: renda_mensal em R$ (codificada no campo period). */
-  rendaMensal?: number
-  /** Capital Morte por Acidente em R$ (codificado no campo period). */
-  capital?: number
-  /** Franquia DIT: '7' ou '10'. */
-  franquia?: '7' | '10'
-  limit?: number
-}): Promise<RateRow[]> {
+export async function queryRateTable(params: QueryRateTableParams): Promise<RateRow[]> {
+  const productHints = params.productHints?.length ? params.productHints : params.productHint ? [params.productHint] : []
+  const productCodes = params.productCodes?.length ? params.productCodes : params.productCode ? [params.productCode] : []
+
+  if (productCodes.length > 1 || (productCodes.length > 0 && productHints.length > 1)) {
+    const rows: RateRow[] = []
+    for (const code of productCodes) {
+      rows.push(...(await queryRateTableSingle({ ...params, productCode: code, productCodes: undefined, productHints: undefined, productHint: undefined })))
+    }
+
+    const coveredProductNames = new Set(rows.map((row) => normalizeProductName(row.product_name)))
+    const uncoveredHints = productHints.filter((hint) => {
+      const normalizedHint = normalizeProductName(hint)
+      return ![...coveredProductNames].some((name) => name.includes(normalizedHint))
+    })
+    for (const hint of uncoveredHints) {
+      rows.push(...(await queryRateTableSingle({
+        ...params,
+        productHint: hint,
+        productHints: undefined,
+        productCode: undefined,
+        productCodes: undefined,
+        franquia: hint === 'DITA' ? undefined : params.franquia,
+      })))
+    }
+    return dedupeRateRows(rows)
+  }
+
+  if (productCodes.length === 0 && productHints.length > 1) {
+    const rows: RateRow[] = []
+    for (const hint of productHints) {
+      rows.push(...(await queryRateTableSingle({
+        ...params,
+        productHint: hint,
+        productHints: undefined,
+        franquia: hint === 'DITA' ? undefined : params.franquia,
+      })))
+    }
+    return dedupeRateRows(rows)
+  }
+
+  return queryRateTableSingle(params)
+}
+
+async function queryRateTableSingle(params: QueryRateTableParams): Promise<RateRow[]> {
   const supabase = createServiceClient()
   let q = supabase
     .from('insurer_rate_tables')
     .select('product_name, product_code, portfolio, coverage_type, gender, age, period, rate, rate_unit, source_doc_name, source_page, version_label')
     .eq('insurer_id', params.insurerId)
 
-  if (params.productHint) {
+  const productHints = params.productHints?.length ? params.productHints : params.productHint ? [params.productHint] : []
+  const productCodes = params.productCodes?.length ? params.productCodes : params.productCode ? [params.productCode] : []
+
+  if (productCodes.length >= 2) {
+    q = q.in('product_code', productCodes.map((code) => code.toUpperCase()))
+  } else if (productCodes.length === 1 && productHints.length >= 2) {
+    const productFilters = [
+      ...productHints.map((hint) => `product_name.ilike.%${sanitizePostgrestOrValue(hint)}%`),
+      `product_code.eq.${sanitizePostgrestOrValue(productCodes[0].toUpperCase())}`,
+    ]
+    q = q.or(productFilters.join(','))
+  } else if (productCodes.length === 1) {
+    q = q.eq('product_code', productCodes[0].toUpperCase())
+  } else if (productHints.length >= 2) {
+    q = q.or(productHints.map((hint) => `product_name.ilike.%${sanitizePostgrestOrValue(hint)}%`).join(','))
+  } else if (params.productHint) {
     q = q.ilike('product_name', `%${params.productHint}%`)
-  }
-  if (params.productCode) {
-    q = q.eq('product_code', params.productCode.toUpperCase())
   }
   if (params.age !== undefined) {
     q = q.eq('age', params.age)
@@ -453,6 +552,36 @@ export async function queryRateTable(params: {
     return []
   }
   return (data ?? []) as RateRow[]
+}
+
+function normalizeProductName(value: string): string {
+  return stripAccents(value).toUpperCase()
+}
+
+function dedupeRateRows(rows: RateRow[]): RateRow[] {
+  const seen = new Set<string>()
+  const out: RateRow[] = []
+  for (const row of rows) {
+    const key = [
+      row.product_name,
+      row.product_code,
+      row.coverage_type,
+      row.gender,
+      row.age,
+      row.period ?? '',
+      row.rate,
+      row.rate_unit,
+    ].join('|')
+    if (seen.has(key)) continue
+    seen.add(key)
+    out.push(row)
+  }
+  return out.sort((a, b) =>
+    a.product_name.localeCompare(b.product_name) ||
+    a.product_code.localeCompare(b.product_code) ||
+    a.age - b.age ||
+    a.gender.localeCompare(b.gender)
+  )
 }
 
 /**
@@ -486,14 +615,18 @@ export function formatRateAnswer(params: {
     '',
   ].filter((l): l is string => l !== null)
 
+  const comparisonSummary = buildRateComparisonSummary(groups, intent)
+  if (comparisonSummary) {
+    lines.push(comparisonSummary)
+    lines.push('')
+  }
+
   for (const [key, groupRows] of groups) {
     const [productName, productCode, coverageType] = key.split('|')
     const portfolio = groupRows[0].portfolio
     const page = groupRows[0].source_page
     const doc = groupRows[0].source_doc_name
     const version = groupRows[0].version_label ?? ''
-    const unit = groupRows[0].rate_unit
-
     lines.push(`**${productName} — ${productCode}**${portfolio ? ` (Portfolio ${portfolio})` : ''} — Cobertura ${coverageType}`)
     for (const r of groupRows) {
       const rateBr = formatBrNumber(r.rate)
@@ -542,6 +675,53 @@ export function formatRateAnswer(params: {
   else lines.push('- Nenhum dado adicional necessario.')
 
   return lines.join('\n')
+}
+
+function buildRateComparisonSummary(groups: Map<string, RateRow[]>, intent: RateIntent): string | undefined {
+  if (groups.size < 2) return undefined
+
+  const candidates = [...groups.entries()]
+    .map(([key, rows]) => {
+      const [productName, productCode] = key.split('|')
+      const bestRow = rows.reduce((best, row) => comparableRateValue(row, intent) < comparableRateValue(best, intent) ? row : best)
+      return {
+        label: `${productName} - ${productCode}`,
+        row: bestRow,
+        value: comparableRateValue(bestRow, intent),
+      }
+    })
+    .sort((a, b) => a.value - b.value)
+
+  const cheapest = candidates[0]
+  const mostExpensive = candidates[candidates.length - 1]
+  if (!cheapest || !mostExpensive) return undefined
+
+  const unit = rateUnitLabel(cheapest.row)
+  const spread =
+    mostExpensive.value > 0
+      ? `; diferenca aproximada: ${formatBrNumber((1 - cheapest.value / mostExpensive.value) * 100, 1)}% menor que ${mostExpensive.label}`
+      : ''
+  const capitalNote =
+    intent.capital && (cheapest.row.rate_unit === 'per_1000_annual' || cheapest.row.rate_unit === 'per_1000_monthly')
+      ? ` para capital R$ ${formatBrNumber(intent.capital, 0)}`
+      : ''
+  return `**Comparativo:** ${cheapest.label} e o mais barato (${formatBrNumber(cheapest.value, cheapest.row.rate_unit === 'fixed_brl_monthly' ? 2 : 4)} ${unit}${capitalNote})${spread}.`
+}
+
+function comparableRateValue(row: RateRow, intent: RateIntent): number {
+  if (intent.capital && (row.rate_unit === 'per_1000_annual' || row.rate_unit === 'per_1000_monthly')) {
+    return (row.rate * intent.capital) / 1000
+  }
+  return row.rate
+}
+
+function rateUnitLabel(row: RateRow): string {
+  if (row.rate_unit === 'fixed_brl_monthly') return 'R$/mes'
+  if (row.rate_unit === 'per_1000_monthly') return 'por R$ 1.000/mes'
+  if (row.rate_unit === 'per_1000_annual') return 'por R$ 1.000/ano'
+  if (row.rate_unit === 'per_100_diaria_monthly') return 'por R$ 100 de diaria/mes'
+  if (row.rate_unit === 'per_1000_renda_monthly') return 'por R$ 1.000 de renda/mes'
+  return row.rate_unit
 }
 
 function formatBrNumber(n: number, decimals = 4): string {

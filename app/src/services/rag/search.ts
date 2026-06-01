@@ -529,9 +529,7 @@ export async function rerankWithCohere(
     return candidates.slice(0, topN)
   }
 
-  const documents = candidates.map((c) =>
-    c.content.length > COHERE_MAX_DOC_CHARS ? c.content.slice(0, COHERE_MAX_DOC_CHARS) : c.content
-  )
+  const documents = candidates.map(buildRerankDocument)
 
   const controller = new AbortController()
   const timeoutId = setTimeout(() => controller.abort(), COHERE_RERANK_TIMEOUT_MS)
@@ -585,6 +583,28 @@ export async function rerankWithCohere(
   } finally {
     clearTimeout(timeoutId)
   }
+}
+
+/**
+ * Builds the text sent to Cohere. The indexed chunk body often starts mid-page,
+ * so product/source metadata is a real ranking signal for comparative queries.
+ */
+export function buildRerankDocument(candidate: SearchResult): string {
+  const metadata = candidate.metadata ?? {}
+  const header = [
+    metadata.insurer_name ? `Seguradora: ${String(metadata.insurer_name)}` : null,
+    metadata.product_name ? `Produto: ${String(metadata.product_name)}` : null,
+    metadata.product_code ? `Codigo: ${String(metadata.product_code)}` : null,
+    metadata.coverage_name ? `Cobertura: ${String(metadata.coverage_name)}` : null,
+    candidate.source_type ? `Tipo de fonte: ${candidate.source_type}` : null,
+  ].filter(Boolean)
+
+  const body =
+    candidate.content.length > COHERE_MAX_DOC_CHARS
+      ? candidate.content.slice(0, COHERE_MAX_DOC_CHARS)
+      : candidate.content
+
+  return header.length > 0 ? `${header.join('\n')}\n\n${body}` : body
 }
 
 /**

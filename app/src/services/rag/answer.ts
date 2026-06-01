@@ -190,7 +190,9 @@ export async function ask(
         age: intent.age,
         gender: intent.gender,
         product: intent.productHint,
+        productHints: intent.productHints,
         productCode: intent.productCode,
+        productCodes: intent.productCodes,
         capital: intent.capital,
         rendaMensal: intent.rendaMensal,
         franquia: intent.franquia,
@@ -201,7 +203,9 @@ export async function ask(
         const rateRows = await queryRateTable({
           insurerId: ids[0],
           productHint: intent.productHint,
+          productHints: intent.productHints,
           productCode: intent.productCode,
+          productCodes: intent.productCodes,
           age: intent.age,
           gender: intent.gender,
           rendaMensal: intent.rendaMensal,
@@ -221,7 +225,11 @@ export async function ask(
             intent.age !== undefined &&
             intent.gender !== undefined &&
             intent.capital !== undefined
-          const hasEnoughDimensions = hasAgeAndCapital || hasProductCodeFull
+          const hasProductCodeComparison =
+            (intent.productCodes?.length ?? 0) >= 2 &&
+            intent.age !== undefined &&
+            intent.gender !== undefined
+          const hasEnoughDimensions = hasAgeAndCapital || hasProductCodeFull || hasProductCodeComparison
           const confidence = hasEnoughDimensions ? 1.0 : 0.4
 
           let answer = formatRateAnswer({
@@ -229,8 +237,24 @@ export async function ask(
             intent,
             rows: rateRows,
           })
+          if (compareIntent) {
+            answer += `\n\n**Comparativo com outras seguradoras:** encontrei taxa estruturada apenas para ${mentionedInsurers[0]} nesta consulta. Para comparar premio exato com as demais seguradoras, e necessario ter a tabela/cotacao correspondente importada ou informada.`
+          }
           if (!hasEnoughDimensions) {
             answer = `> [Aviso] Consulta com parametros incompletos. Informe idade, sexo e capital segurado para garantir taxa correta.\n\n${answer}`
+          }
+          let conversationId: string | undefined
+          if (options?.brokerId) {
+            conversationId = await saveConversation({
+              brokerId: options.brokerId,
+              channel: options.channel ?? 'api',
+              message: question,
+              response: answer,
+              model: 'rate-table-lookup',
+              tokensUsed: 0,
+              latencyMs: Date.now() - startTime,
+              sources: [],
+            })
           }
           console.log(`[rag/ask] Rate fast-path HIT — ${rateRows.length} rows, confidence=${confidence}. Bypassing LLM.`)
           return {
@@ -240,6 +264,7 @@ export async function ask(
             model: 'rate-table-lookup',
             tokensUsed: 0,
             latencyMs: Date.now() - startTime,
+            conversationId,
             confidenceScore: confidence,
             avgSimilarity: confidence,
             sourceCount: rateRows.length,
@@ -265,6 +290,8 @@ export async function ask(
 
   // 1. Semantic search — strategy depends on whether insurers were mentioned
   let searchResults: SearchResult[] = []
+  const shouldRerankWithinEntity =
+    compareIntent || mentionedInsurers.length >= 2 || questionImpliesComparison(question)
 
   if (mentionedInsurers.length > 0) {
     // Targeted search: query each mentioned insurer separately to guarantee results.
@@ -289,7 +316,11 @@ export async function ask(
         })
         nameResults.push(...r)
       }
-      const boosted = boostByProductMatch(nameResults, queryTokens)
+      const locallyRanked =
+        shouldRerankWithinEntity && nameResults.length > perInsurer
+          ? await rerankWithinEntity(question, nameResults, perInsurer)
+          : nameResults
+      const boosted = boostByProductMatch(locallyRanked, queryTokens)
       const trimmed = boosted.slice(0, perInsurer)
       console.log(`[rag/ask] ${name}: ${nameResults.length} fetched, ${trimmed.length} after product-boost (across ${ids.length} insurer row(s))`)
       searchResults.push(...trimmed)
@@ -691,6 +722,15 @@ export function boostByProductMatch(chunks: SearchResult[], queryTokens: Set<str
       return { ...c, similarity: (c.similarity ?? 0) * factor }
     })
     .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
+}
+
+async function rerankWithinEntity(
+  query: string,
+  candidates: SearchResult[],
+  finalSlots: number
+): Promise<SearchResult[]> {
+  const keep = Math.min(candidates.length, Math.max(finalSlots * 2, finalSlots + 3))
+  return rerankWithCohere(query, candidates, keep)
 }
 
 // ---------------------------------------------------------------------------

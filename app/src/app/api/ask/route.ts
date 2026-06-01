@@ -89,6 +89,9 @@ export async function POST(request: NextRequest) {
           const rows = await queryRateTable({
             insurerId: ids[0],
             productHint: intent.productHint,
+            productHints: intent.productHints,
+            productCode: intent.productCode,
+            productCodes: intent.productCodes,
             age: intent.age,
             gender: intent.gender,
             rendaMensal: intent.rendaMensal,

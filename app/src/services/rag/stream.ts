@@ -17,6 +17,7 @@ import { auditCitations, type Citation } from "./citation";
 import { callLLMStream } from "./llm";
 import { RAG } from "@/config/constants";
 import { expandQueryWithJargon } from "@/config/jargon";
+import { detectRateIntent, formatRateAnswer, queryRateTable } from "./rate-lookup";
 import {
   SYSTEM_PROMPT_TEMPLATE,
   LOW_CONFIDENCE_THRESHOLD,
@@ -72,6 +73,90 @@ export async function* askStream(
     // ---- 1. Search (mirror of ask()) ----
     const mentionedInsurers = detectInsurers(question);
     const expandedQuery = expandQueryWithJargon(question);
+
+    if (mentionedInsurers.length === 1) {
+      const intent = detectRateIntent(question, mentionedInsurers[0]);
+      if (intent.hasIntent) {
+        const insurerIds = await resolveInsurerIds(mentionedInsurers);
+        const ids = insurerIds.values().next().value;
+        if (ids && ids.length > 0) {
+          const rateRows = await queryRateTable({
+            insurerId: ids[0],
+            productHint: intent.productHint,
+            productHints: intent.productHints,
+            productCode: intent.productCode,
+            productCodes: intent.productCodes,
+            age: intent.age,
+            gender: intent.gender,
+            rendaMensal: intent.rendaMensal,
+            capital: intent.capital,
+            franquia: intent.franquia,
+            limit: 40,
+          });
+
+          if (rateRows.length > 0) {
+            const hasAgeAndCapital =
+              intent.age !== undefined && intent.capital !== undefined;
+            const hasProductCodeFull =
+              intent.productCode !== undefined &&
+              intent.age !== undefined &&
+              intent.gender !== undefined &&
+              intent.capital !== undefined;
+            const hasProductCodeComparison =
+              (intent.productCodes?.length ?? 0) >= 2 &&
+              intent.age !== undefined &&
+              intent.gender !== undefined;
+            const hasEnoughDimensions = hasAgeAndCapital || hasProductCodeFull || hasProductCodeComparison;
+            const confidence = hasEnoughDimensions ? 1.0 : 0.4;
+            let answer = formatRateAnswer({
+              insurerName: mentionedInsurers[0],
+              intent,
+              rows: rateRows,
+            });
+
+            if (!hasEnoughDimensions) {
+              answer = `> [Aviso] Consulta com parametros incompletos. Informe idade, sexo e capital segurado para garantir taxa correta.\n\n${answer}`;
+            }
+
+            let conversationId: string | undefined;
+            if (options?.brokerId) {
+              conversationId = await saveConversation({
+                brokerId: options.brokerId,
+                channel: options.channel ?? "api",
+                message: question,
+                response: answer,
+                model: "rate-table-lookup",
+                tokensUsed: 0,
+                latencyMs: Date.now() - startTime,
+                sources: [],
+              });
+            }
+
+            yield { type: "token", delta: answer };
+            yield {
+              type: "meta",
+              model: "rate-table-lookup",
+              conversationId,
+              citations: [],
+              tokensUsed: 0,
+              latencyMs: Date.now() - startTime,
+              confidenceScore: confidence,
+              avgSimilarity: confidence,
+              sourceCount: rateRows.length,
+              lowConfidence: !hasEnoughDimensions,
+              citationCoverage: 1,
+              invalidCitationIndexes: [],
+              answerWarnings: hasEnoughDimensions
+                ? []
+                : [
+                    "Consulta de taxa com parametros incompletos; confirme idade, sexo e capital segurado.",
+                  ],
+            };
+            return;
+          }
+        }
+      }
+    }
 
     // Slice 3C-c: corpus-routing context for telemetry + preview mode.
     const corpusCtx = {
