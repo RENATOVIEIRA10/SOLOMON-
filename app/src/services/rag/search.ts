@@ -255,6 +255,8 @@ export async function lexicalSearch(
   const topK = options?.topK ?? RAG.lexicalTopK
   const supabase = createServiceClient()
   const orFilter = terms.map((term) => `content.ilike.%${term}%`).join(',')
+  const priorityTerms = terms.filter((term) => term === 'premiavel' || term === 'premiaveis')
+  const priorityFilter = priorityTerms.map((term) => `content.ilike.%${term}%`).join(',')
 
   let request = supabase
     .from('documents')
@@ -268,15 +270,42 @@ export async function lexicalSearch(
   if (options?.productId) request = request.eq('product_id', options.productId)
   if (options?.sourceType) request = request.eq('source_type', options.sourceType)
 
+  let priorityRows: DocumentSearchRow[] = []
+  if (priorityFilter) {
+    let priorityRequest = supabase
+      .from('documents')
+      .select('id, content, metadata, source_url, source_type, product_id, insurer_id')
+      .or(priorityFilter)
+      .not('embedding', 'is', null)
+      .is('valid_until', null)
+      .limit(Math.max(topK * 3, topK))
+
+    if (options?.insurerId) priorityRequest = priorityRequest.eq('insurer_id', options.insurerId)
+    if (options?.productId) priorityRequest = priorityRequest.eq('product_id', options.productId)
+    if (options?.sourceType) priorityRequest = priorityRequest.eq('source_type', options.sourceType)
+
+    const { data: priorityData, error: priorityError } = await priorityRequest
+    if (priorityError) {
+      console.warn(`[rag/lexical] Supabase priority lexical search failed: ${priorityError.message}`)
+    } else if (Array.isArray(priorityData)) {
+      priorityRows = priorityData as DocumentSearchRow[]
+    }
+  }
+
   const { data, error } = await request
   if (error) {
     console.warn(`[rag/lexical] Supabase lexical search failed: ${error.message}`)
-    return []
   }
 
-  if (!Array.isArray(data) || data.length === 0) return []
+  const rowsById = new Map<string, DocumentSearchRow>()
+  for (const row of priorityRows) rowsById.set(row.id, row)
+  if (!error && Array.isArray(data)) {
+    for (const row of data as DocumentSearchRow[]) rowsById.set(row.id, row)
+  }
+  const rows = [...rowsById.values()]
+  if (rows.length === 0) return []
 
-  return (data as DocumentSearchRow[])
+  return rows
     .filter((row) => row.metadata?.rag_exclude !== true && row.metadata?.rag_exclude !== 'true')
     .filter((row) => {
       if (options?.excludeNonLifeProductTypes === false) return true
