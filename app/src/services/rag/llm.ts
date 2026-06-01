@@ -77,6 +77,17 @@ function isLikelyIncompleteResponse(text: string): boolean {
   return /(\bde|\bdo|\bda|\bdos|\bdas|\bem|\bcom|\bpara|\be|[,;:("'])$/i.test(trimmed)
 }
 
+function getGeminiKeys(): string[] {
+  return [
+    process.env.GEMINI_API_KEY,
+    process.env.GEMINI_API_KEYS,
+  ]
+    .filter((value): value is string => Boolean(value?.trim()))
+    .flatMap((value) => value.split(/[\s,;]+/))
+    .map((value) => value.trim())
+    .filter(Boolean)
+}
+
 /**
  * Calls the LLM with a system prompt and user message.
  * Tries Anthropic → Gemini → OpenAI in order.
@@ -134,28 +145,35 @@ async function callLLMFallbackWithoutAnthropic(
   trace?: ReturnType<NonNullable<typeof langfuse>['trace']>
 ): Promise<LLMResponse> {
   // 2. Try Gemini
-  const geminiKey = process.env.GEMINI_API_KEY
-  if (geminiKey) {
+  const geminiKeys = getGeminiKeys()
+  if (geminiKeys.length > 0) {
     const gen = trace?.generation({
       name: 'gemini.flash',
       model: GEMINI_MODEL,
       input: { systemPrompt: systemPrompt.slice(0, 500), userMessage },
     })
-    try {
-      const result = await callGemini(systemPrompt, userMessage, geminiKey)
-      const latencyMs = Date.now() - start
-      gen?.end({
-        output: result.text,
-        usage: { totalTokens: result.tokensUsed },
-      })
-      trace?.update({ output: result.text })
-      await safeFlush()
-      return { ...result, latencyMs }
-    } catch (error) {
-      const msg = (error as Error).message
-      gen?.end({ level: 'ERROR', statusMessage: msg })
-      console.warn('[rag/llm] Gemini failed, trying OpenAI:', msg)
+    const geminiErrors: string[] = []
+    for (const [index, geminiKey] of geminiKeys.entries()) {
+      try {
+        const result = await callGemini(systemPrompt, userMessage, geminiKey)
+        const latencyMs = Date.now() - start
+        gen?.end({
+          output: result.text,
+          usage: { totalTokens: result.tokensUsed },
+          metadata: { keyIndex: index + 1, keyCount: geminiKeys.length },
+        })
+        trace?.update({ output: result.text })
+        await safeFlush()
+        return { ...result, latencyMs }
+      } catch (error) {
+        const msg = (error as Error).message
+        geminiErrors.push(`#${index + 1}: ${msg}`)
+        console.warn(`[rag/llm] Gemini key ${index + 1}/${geminiKeys.length} failed:`, msg)
+      }
     }
+    const combinedMsg = geminiErrors.join(' | ')
+    gen?.end({ level: 'ERROR', statusMessage: combinedMsg })
+    console.warn('[rag/llm] All Gemini keys failed, trying OpenAI:', combinedMsg)
   }
 
   // 3. Fallback to OpenAI

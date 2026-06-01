@@ -493,8 +493,10 @@ export async function ask(
     throw error
   }
 
+  const finalAnswerText = enforceApComparisonSourceNotes(llmResponse.text, question, sources)
+
   // 7. Audit citations and adjust confidence before exposing the answer.
-  const citationAudit = auditCitations(llmResponse.text, sources)
+  const citationAudit = auditCitations(finalAnswerText, sources)
   const answerWarnings = buildRagAnswerWarnings({
     sourceCount,
     confidenceScore,
@@ -515,7 +517,7 @@ export async function ask(
       brokerId: options.brokerId,
       channel: options.channel ?? 'api',
       message: question,
-      response: llmResponse.text,
+      response: finalAnswerText,
       model: llmResponse.model,
       tokensUsed: llmResponse.tokensUsed,
       latencyMs: Date.now() - startTime,
@@ -524,7 +526,7 @@ export async function ask(
   }
 
   return {
-    answer: llmResponse.text,
+    answer: finalAnswerText,
     citations: citationAudit.citations,
     sources,
     model: llmResponse.model,
@@ -545,6 +547,47 @@ interface CitationConfidenceInput {
   sourceCount: number
   citationsCount: number
   invalidCitationIndexes: number[]
+}
+
+function enforceApComparisonSourceNotes(
+  answer: string,
+  question: string,
+  sources: ContextBlock[]
+): string {
+  const q = stripAccentsLower(question)
+  if (!/\b(?:ap|acidentes?\s+pessoais?)\b/.test(q)) return answer
+
+  const answerNorm = stripAccentsLower(answer)
+  const notes: string[] = []
+  const sourceText = (source: ContextBlock) =>
+    `${source.productName} ${source.content}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+
+  const premiavelSources = sources.filter((source) => /premiavel/i.test(sourceText(source)))
+  if (premiavelSources.length > 0 && !/premiavel|capitalizacao|sorteio/.test(answerNorm)) {
+    const refs = premiavelSources.slice(0, 3).map((source) => `[${source.index}]`).join(', ')
+    notes.push(
+      `**Nota de fonte sobre Bradesco AP Premiavel:** as fontes recuperadas tambem incluem linhas/produtos Bradesco com nomenclatura AP Premiavel/Premiavel ${refs}. Os trechos recuperados confirmam esses produtos/canais, mas nao detalham o regulamento dos sorteios ou da capitalizacao; para essa regra especifica, consulte o regulamento de capitalizacao do produto.`
+    )
+  }
+
+  const zurichEmpresaSources = sources.filter((source) => /zurich vida empresa ap/i.test(sourceText(source)))
+  if (zurichEmpresaSources.length > 0 && !/vida empresa ap|empresarial|coletivo/.test(answerNorm)) {
+    const refs = zurichEmpresaSources.slice(0, 2).map((source) => `[${source.index}]`).join(', ')
+    notes.push(
+      `**Nota de fonte sobre Zurich Vida Empresa AP:** as fontes recuperadas incluem Zurich Vida Empresa AP ${refs}, indicando produto AP com foco empresarial/coletivo.`
+    )
+  }
+
+  const dmhSources = sources.filter((source) => /despesas medicas|hospitalares|odontologicas|dmho|dmh/i.test(sourceText(source)))
+  if (dmhSources.length > 0 && !/dmh|dmho|despesas/.test(answerNorm)) {
+    const refs = dmhSources.slice(0, 2).map((source) => `[${source.index}]`).join(', ')
+    notes.push(
+      `**Nota de fonte sobre DMH/DMHO:** os trechos recuperados tambem citam Despesas Medicas, Hospitalares e Odontologicas por Acidente ${refs}.`
+    )
+  }
+
+  if (notes.length === 0) return answer
+  return `${answer.trim()}\n\n${notes.join('\n\n')}`
 }
 
 export function adjustConfidenceForCitationAudit(
