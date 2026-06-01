@@ -295,6 +295,7 @@ export async function ask(
   }
 
   // 1. Semantic search — strategy depends on whether insurers were mentioned
+  const allowsApCapitalizacaoDifferentials = expandedQuery.includes('AP Premiavel')
   let searchResults: SearchResult[] = []
   const shouldRerankWithinEntity =
     compareIntent || mentionedInsurers.length >= 2 || questionImpliesComparison(question)
@@ -319,6 +320,7 @@ export async function ask(
           insurerId: id,
           topK: perInsurerFetch,
           sourceType: rateIntentDetected ? 'rate_table_pdf' : undefined,
+          excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
         })
         nameResults.push(...r)
       }
@@ -338,6 +340,7 @@ export async function ask(
         ...corpusCtx,
         insurerId: options?.insurerFilter,
         topK: RAG.fetchK,
+        excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
       })
     }
 
@@ -353,6 +356,7 @@ export async function ask(
       const others = await roundRobinGlobalSearch(expandedQuery, {
         excludeInsurerIds: mentionedIdSet,
         perInsurerTopK: 1,
+        excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
       })
       // Reserva 5-7 slots pros "others" — sem isso o slice de topK
       // adiante corta tudo (bug HIGH 13). Cap total = topK + 5.
@@ -368,18 +372,22 @@ export async function ask(
       ...corpusCtx,
       insurerId: options.insurerFilter,
       topK: RAG.globalTopK,
+      excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
     })
   } else if (questionImpliesComparison(question)) {
     // Padrao C: round-robin per-entity SO em queries comparativas explicitas.
     // 1 mini-search por insurer ativa em paralelo (top-2 cada) merged + sorted.
     // Sem isso, concept/edge queries despejavam 24 chunks irrelevantes no LLM.
-    searchResults = await roundRobinGlobalSearch(expandedQuery)
+    searchResults = await roundRobinGlobalSearch(expandedQuery, {
+      excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
+    })
   } else {
     // Concept / edge / general queries sem insurer: busca focada (topK=15)
     // mantem chunks no mesmo cluster semantico — comportamento pre-Fase 2.
     searchResults = await hybridSearch(expandedQuery, {
       ...corpusCtx,
       topK: RAG.globalTopK,
+      excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
     })
   }
 
@@ -779,6 +787,7 @@ async function loadActiveInsurers(minChunks = 50): Promise<ActiveInsurer[]> {
 interface RoundRobinOptions {
   excludeInsurerIds?: Set<string>
   perInsurerTopK?: number
+  excludeNonLifeProductTypes?: boolean
 }
 
 /**
@@ -797,7 +806,10 @@ export async function roundRobinGlobalSearch(
     ? all.filter((i) => !opts.excludeInsurerIds!.has(i.id))
     : all
   if (insurers.length === 0) {
-    return semanticSearch(query, { topK: RAG.globalTopK })
+    return semanticSearch(query, {
+      topK: RAG.globalTopK,
+      excludeNonLifeProductTypes: opts?.excludeNonLifeProductTypes,
+    })
   }
 
   const queryEmbedding = await embedQuery(query)
@@ -805,7 +817,11 @@ export async function roundRobinGlobalSearch(
 
   const settled = await Promise.allSettled(
     insurers.map((i) =>
-      semanticSearchWithEmbedding(queryEmbedding, { insurerId: i.id, topK: perInsurerTopK })
+      semanticSearchWithEmbedding(queryEmbedding, {
+        insurerId: i.id,
+        topK: perInsurerTopK,
+        excludeNonLifeProductTypes: opts?.excludeNonLifeProductTypes,
+      })
     )
   )
 

@@ -36,6 +36,12 @@ export interface SearchOptions {
   productId?: string
   sourceType?: string
   /**
+   * Default true: keeps previdencia/capitalizacao/auto/etc. out of life RAG.
+   * AP comparisons can disable this because Bradesco AP Premiavel is indexed
+   * with capitalizacao metadata, but is relevant as an AP product differential.
+   */
+  excludeNonLifeProductTypes?: boolean
+  /**
    * Canonical insurer names from `detectInsurers(question)`. Optional.
    * Used ONLY by `chooseRetrievalCorpus` to decide between
    * `match_documents` and `match_shadow_documents`. Slice 3C-a — no
@@ -164,6 +170,7 @@ export async function semanticSearchWithEmbedding(
     filter_insurer_id: options?.insurerId ?? null,
     filter_product_id: options?.productId ?? null,
     filter_source_type: options?.sourceType ?? null,
+    filter_exclude_non_life: options?.excludeNonLifeProductTypes ?? true,
   })
   const latencyMs = Date.now() - t0
 
@@ -206,6 +213,7 @@ export async function semanticSearchWithEmbedding(
       filter_insurer_id: options?.insurerId ?? null,
       filter_product_id: options?.productId ?? null,
       filter_source_type: options?.sourceType ?? null,
+      filter_exclude_non_life: options?.excludeNonLifeProductTypes ?? true,
     }, traceCommon).catch((err) => {
       console.warn(
         '[rag/search] shadow preview launcher failed:',
@@ -271,6 +279,7 @@ export async function lexicalSearch(
   return (data as DocumentSearchRow[])
     .filter((row) => row.metadata?.rag_exclude !== true && row.metadata?.rag_exclude !== 'true')
     .filter((row) => {
+      if (options?.excludeNonLifeProductTypes === false) return true
       const tipoProduto = String(row.metadata?.tipo_produto ?? '')
       return !['PGBL', 'VGBL', 'previdencia', 'capitalizacao', 'residencial', 'viagem', 'auto'].includes(tipoProduto)
     })
@@ -409,6 +418,7 @@ type ShadowRpcArgs = {
   filter_insurer_id: string | null
   filter_product_id: string | null
   filter_source_type: string | null
+  filter_exclude_non_life: boolean
 }
 
 type ShadowTraceCommon = {
