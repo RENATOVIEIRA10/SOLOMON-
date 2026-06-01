@@ -421,9 +421,10 @@ function scoreLexicalHit(
   const hits = terms.filter((term) => text.includes(term))
   const hitRatio = terms.length > 0 ? hits.length / terms.length : 0
   const rareTermBonus = hits.some((term) => /[0-9]/.test(term) || term.length >= 8) ? 0.12 : 0
+  const priorityTermBonus = hits.some((term) => term === 'premiavel' || term === 'premiaveis') ? 0.28 : 0
   const phraseBonus = queryNorm.length >= 12 && text.includes(queryNorm.slice(0, 80)) ? 0.1 : 0
 
-  return Math.min(0.92, 0.5 + hitRatio * 0.25 + rareTermBonus + phraseBonus)
+  return Math.min(0.95, 0.5 + hitRatio * 0.25 + rareTermBonus + priorityTermBonus + phraseBonus)
 }
 
 // ---------------------------------------------------------------------------
