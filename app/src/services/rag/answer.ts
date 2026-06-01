@@ -1010,7 +1010,7 @@ const INSURER_PATTERNS: Array<{ patterns: string[]; canonical: string }> = [
   { patterns: ['caixa vida', 'caixa seguradora'], canonical: 'Caixa' },
   { patterns: ['santander'], canonical: 'Santander' },
   { patterns: ['metlife', 'met life'], canonical: 'MetLife' },
-  { patterns: ['mag seguros', 'mag ', 'mongeral'], canonical: 'MAG' },
+  { patterns: ['mag seguros', 'mag', 'mongeral'], canonical: 'MAG' },
   { patterns: ['azos'], canonical: 'Azos' },
 ]
 
@@ -1022,11 +1022,16 @@ export function detectInsurers(question: string): string[] {
   const q = question.toLowerCase()
   const found: string[] = []
   for (const { patterns, canonical } of INSURER_PATTERNS) {
-    if (patterns.some((p) => q.includes(p))) {
+    if (patterns.some((p) => patternMatchesInsurer(q, p))) {
       found.push(canonical)
     }
   }
   return found
+}
+
+function patternMatchesInsurer(questionLower: string, pattern: string): boolean {
+  const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i').test(questionLower)
 }
 
 /**
