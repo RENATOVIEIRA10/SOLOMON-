@@ -369,6 +369,7 @@ function extractLexicalTerms(query: string, maxTerms: number): string[] {
 
 function lexicalTermWeight(term: string): number {
   let weight = term.length
+  if (term === 'premiavel' || term === 'premiaveis') weight += 20
   if (/[0-9]/.test(term)) weight += 8
   if (term.length <= 5 && /[a-z]/.test(term) && /[0-9]/.test(term)) weight += 6
   return weight
