@@ -43,7 +43,8 @@ const ANTHROPIC_TIMEOUT_MS = 15000
 // contexto de 15 chunks (leva 20-40s no gpt-4o-mini), entao abortava e o chat
 // caia em fallback degradado. Gemini 20s cobre prompt grande + thinking.
 const GEMINI_TIMEOUT_MS = 20000
-const OPENAI_TIMEOUT_MS = 30000
+const OPENAI_TIMEOUT_MS = 45000
+const SERVERLESS_BUDGET_MS = 55000
 
 // ---------------------------------------------------------------------------
 // Langfuse singleton (instantiated only if keys are present)
@@ -163,7 +164,16 @@ async function callLLMFallbackWithoutAnthropic(
     input: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
   })
   try {
-    const result = await callOpenAI(systemPrompt, userMessage, openaiKey)
+    const elapsedMs = Date.now() - start
+    const remainingBudgetMs = Math.max(10000, SERVERLESS_BUDGET_MS - elapsedMs)
+    const timeoutMs = Math.min(OPENAI_TIMEOUT_MS, remainingBudgetMs)
+    if (timeoutMs < OPENAI_TIMEOUT_MS) {
+      console.warn(
+        `[rag/llm] OpenAI timeout constrained by request budget: ${timeoutMs}ms ` +
+          `(elapsed=${elapsedMs}ms)`
+      )
+    }
+    const result = await callOpenAI(systemPrompt, userMessage, openaiKey, timeoutMs)
     const latencyMs = Date.now() - start
     gen?.end({
       output: result.text,
@@ -175,6 +185,7 @@ async function callLLMFallbackWithoutAnthropic(
   } catch (error) {
     const msg = (error as Error).message
     gen?.end({ level: 'ERROR', statusMessage: msg })
+    console.warn('[rag/llm] OpenAI failed:', msg)
     trace?.update({ output: null, metadata: { error: msg } })
     await safeFlush()
     throw error
@@ -407,13 +418,14 @@ export async function callGeminiJson(
 async function callOpenAI(
   systemPrompt: string,
   userMessage: string,
-  apiKey: string
+  apiKey: string,
+  timeoutMs = OPENAI_TIMEOUT_MS
 ): Promise<Omit<LLMResponse, 'latencyMs'>> {
   const client = new OpenAI({ apiKey })
   const model = 'gpt-4o-mini'
 
   const openaiController = new AbortController()
-  const openaiTimeoutId = setTimeout(() => openaiController.abort(), OPENAI_TIMEOUT_MS)
+  const openaiTimeoutId = setTimeout(() => openaiController.abort(), timeoutMs)
   let completion
   try {
     completion = await client.chat.completions.create(

@@ -11,6 +11,8 @@ import { ask, detectInsurers, resolveInsurerIds } from '@/services/rag/answer'
 import { detectRateIntent, queryRateTable, type RateIntent } from '@/services/rag/rate-lookup'
 import { getOptionalAuthUserId } from '@/lib/auth'
 
+export const maxDuration = 60
+
 interface AskRequestBody {
   question: string
   insurer?: string
