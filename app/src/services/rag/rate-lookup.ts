@@ -462,8 +462,16 @@ export async function queryRateTable(params: QueryRateTableParams): Promise<Rate
 
   if (productCodes.length > 1 || (productCodes.length > 0 && productHints.length > 1)) {
     const rows: RateRow[] = []
+    const codeProductHints = productHints.filter((hint) => hint !== 'DITA')
+    const codeProductHint = codeProductHints.length === 1 ? codeProductHints[0] : undefined
     for (const code of productCodes) {
-      rows.push(...(await queryRateTableSingle({ ...params, productCode: code, productCodes: undefined, productHints: undefined, productHint: undefined })))
+      rows.push(...(await queryRateTableSingle({
+        ...params,
+        productCode: code,
+        productCodes: undefined,
+        productHints: undefined,
+        productHint: codeProductHint,
+      })))
     }
 
     const coveredProductNames = new Set(rows.map((row) => normalizeProductName(row.product_name)))
@@ -518,6 +526,8 @@ async function queryRateTableSingle(params: QueryRateTableParams): Promise<RateR
       `product_code.eq.${sanitizePostgrestOrValue(productCodes[0].toUpperCase())}`,
     ]
     q = q.or(productFilters.join(','))
+  } else if (productCodes.length === 1 && productHints.length === 1) {
+    q = q.eq('product_code', productCodes[0].toUpperCase()).ilike('product_name', `%${productHints[0]}%`)
   } else if (productCodes.length === 1) {
     q = q.eq('product_code', productCodes[0].toUpperCase())
   } else if (productHints.length >= 2) {
