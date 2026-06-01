@@ -324,10 +324,11 @@ export async function ask(
         })
         nameResults.push(...r)
       }
+      const productBoostedCandidates = boostByProductMatch(nameResults, queryTokens)
       const locallyRanked =
-        shouldRerankWithinEntity && nameResults.length > perInsurer
-          ? await rerankWithinEntity(expandedQuery, nameResults, perInsurer)
-          : nameResults
+        shouldRerankWithinEntity && productBoostedCandidates.length > perInsurer
+          ? await rerankWithinEntity(expandedQuery, productBoostedCandidates, perInsurer)
+          : productBoostedCandidates
       const boosted = boostByProductMatch(locallyRanked, queryTokens)
       const trimmed = boosted.slice(0, perInsurer)
       console.log(`[rag/ask] ${name}: ${nameResults.length} fetched, ${trimmed.length} after product-boost (across ${ids.length} insurer row(s))`)
