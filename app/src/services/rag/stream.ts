@@ -23,6 +23,7 @@ import {
   LOW_CONFIDENCE_THRESHOLD,
   detectInsurers,
   resolveInsurerIds,
+  questionImpliesOtherInsurers,
   structuredSearch,
   loadEnrichment,
   diversifyResults,
@@ -72,6 +73,8 @@ export async function* askStream(
   try {
     // ---- 1. Search (mirror of ask()) ----
     const mentionedInsurers = detectInsurers(question);
+    const compareIntent =
+      mentionedInsurers.length === 1 && questionImpliesOtherInsurers(question);
     const expandedQuery = expandQueryWithJargon(question);
 
     if (mentionedInsurers.length === 1) {
@@ -102,17 +105,24 @@ export async function* askStream(
               intent.age !== undefined &&
               intent.gender !== undefined &&
               intent.capital !== undefined;
+            const hasProductCodeRate =
+              intent.productCode !== undefined &&
+              intent.age !== undefined &&
+              intent.gender !== undefined;
             const hasProductCodeComparison =
               (intent.productCodes?.length ?? 0) >= 2 &&
               intent.age !== undefined &&
               intent.gender !== undefined;
-            const hasEnoughDimensions = hasAgeAndCapital || hasProductCodeFull || hasProductCodeComparison;
+            const hasEnoughDimensions = hasAgeAndCapital || hasProductCodeFull || hasProductCodeRate || hasProductCodeComparison;
             const confidence = hasEnoughDimensions ? 1.0 : 0.4;
             let answer = formatRateAnswer({
               insurerName: mentionedInsurers[0],
               intent,
               rows: rateRows,
             });
+            if (compareIntent) {
+              answer += `\n\n**Comparativo com outras seguradoras:** encontrei taxa estruturada apenas para ${mentionedInsurers[0]} nesta consulta. Para comparar premio exato com as demais seguradoras, e necessario ter a tabela/cotacao correspondente importada ou informada.`;
+            }
 
             if (!hasEnoughDimensions) {
               answer = `> [Aviso] Consulta com parametros incompletos. Informe idade, sexo e capital segurado para garantir taxa correta.\n\n${answer}`;

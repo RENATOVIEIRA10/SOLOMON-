@@ -225,11 +225,15 @@ export async function ask(
             intent.age !== undefined &&
             intent.gender !== undefined &&
             intent.capital !== undefined
+          const hasProductCodeRate =
+            intent.productCode !== undefined &&
+            intent.age !== undefined &&
+            intent.gender !== undefined
           const hasProductCodeComparison =
             (intent.productCodes?.length ?? 0) >= 2 &&
             intent.age !== undefined &&
             intent.gender !== undefined
-          const hasEnoughDimensions = hasAgeAndCapital || hasProductCodeFull || hasProductCodeComparison
+          const hasEnoughDimensions = hasAgeAndCapital || hasProductCodeFull || hasProductCodeRate || hasProductCodeComparison
           const confidence = hasEnoughDimensions ? 1.0 : 0.4
 
           let answer = formatRateAnswer({
