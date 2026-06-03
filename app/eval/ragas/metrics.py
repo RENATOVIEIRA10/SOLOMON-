@@ -33,6 +33,8 @@ import os
 def build_evaluator_llm():
     """Constroi judge LLM baseado em JUDGE_BACKEND env (default: anthropic)."""
     backend = os.environ.get("JUDGE_BACKEND", "anthropic").lower()
+    if backend == "openrouter":
+        return _build_openrouter_judge()
     if backend == "gemini":
         return _build_gemini_judge()
     if backend == "ollama":
@@ -101,6 +103,29 @@ def _build_ollama_judge():
         temperature=0.0,
         max_tokens=8192,
         timeout=180,  # kimi pode demorar mais em reasoning
+    )
+    return LangchainLLMWrapper(chat)
+
+
+def _build_openrouter_judge():
+    """Judge via OpenRouter (OpenAI-compatible endpoint)."""
+    from langchain_openai import ChatOpenAI
+    from ragas.llms import LangchainLLMWrapper
+
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENROUTER_API_KEY nao definido — exporta antes de rodar.")
+
+    base_url = "https://openrouter.ai/api/v1"
+    model = os.environ.get("OPENROUTER_JUDGE_MODEL", "anthropic/claude-3-haiku")
+
+    chat = ChatOpenAI(
+        model=model,
+        base_url=base_url,
+        api_key=api_key,
+        temperature=0.0,
+        max_tokens=8192,
+        timeout=180,
     )
     return LangchainLLMWrapper(chat)
 
