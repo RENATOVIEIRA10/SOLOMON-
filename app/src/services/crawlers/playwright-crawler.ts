@@ -24,7 +24,7 @@ import type { Browser, Page, BrowserContext } from 'playwright'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join, basename } from 'node:path'
-import { LIFE_INSURANCE_KEYWORDS, type CrawlerConfig } from './crawler-config'
+import type { CrawlerConfig } from './crawler-config'
 
 // ---------------------------------------------------------------------------
 // Config

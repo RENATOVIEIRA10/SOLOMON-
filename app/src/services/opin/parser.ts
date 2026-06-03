@@ -16,18 +16,15 @@
 import type { TablesInsert } from '@/types/database'
 import type { OPINProduct, FetchResult } from './fetcher'
 
-/** Valid coverage types in our database CHECK constraint */
-const VALID_COVERAGE_TYPES = [
-  'MORTE',
-  'INVALIDEZ',
-  'DOENCA_GRAVE',
-  'DIT',
-  'DIH',
-  'FUNERAL',
-  'AP',
-] as const
-
-type CoverageType = (typeof VALID_COVERAGE_TYPES)[number]
+/** Valid coverage types in our database CHECK constraint. */
+type CoverageType =
+  | 'MORTE'
+  | 'INVALIDEZ'
+  | 'DOENCA_GRAVE'
+  | 'DIT'
+  | 'DIH'
+  | 'FUNERAL'
+  | 'AP'
 
 /**
  * Maps OPIN coverage type strings to our normalized enum.

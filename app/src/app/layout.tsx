@@ -23,6 +23,8 @@ const cormorant = Cormorant_Garamond({
   display: "swap",
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app-atalaia.vercel.app";
+
 export const viewport: Viewport = {
   themeColor: "#0A0A0A",
   width: "device-width",
@@ -32,6 +34,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: {
     default: "SOLOMON — Seu Consultor Privado de Seguros de Vida",
     template: "%s — SOLOMON",

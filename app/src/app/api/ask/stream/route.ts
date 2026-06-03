@@ -46,6 +46,21 @@ export async function POST(request: NextRequest) {
   if (body.history && !Array.isArray(body.history)) {
     return errorResponse('Campo "history" deve ser um array.', 400);
   }
+  if (body.history) {
+    for (const msg of body.history) {
+      if (
+        !msg ||
+        !["user", "assistant"].includes(msg.role) ||
+        typeof msg.content !== "string" ||
+        msg.content.length > 4000
+      ) {
+        return errorResponse(
+          'Cada item de "history" deve ter role ("user" ou "assistant") e content string.',
+          400
+        );
+      }
+    }
+  }
 
   // Broker attribution from the verified session only (Phase 5.2). Resolved
   // before the stream starts (cookies() must run in request scope).

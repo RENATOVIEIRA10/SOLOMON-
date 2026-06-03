@@ -47,6 +47,18 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+    if (body.description.length > 4000) {
+      return NextResponse.json(
+        { error: "description deve ter no maximo 4000 caracteres" },
+        { status: 400 }
+      );
+    }
+    if (body.insurerName.length > 120 || body.claimType.length > 120 || (body.productHint?.length ?? 0) > 160) {
+      return NextResponse.json(
+        { error: "campos de identificacao excedem o tamanho maximo" },
+        { status: 400 }
+      );
+    }
 
     if (body.brokerClientId) {
       const ownsClient = await brokerOwnsClient(brokerRowId, body.brokerClientId);

@@ -55,6 +55,23 @@ export async function POST(request: NextRequest) {
   }
 
   const supabase = createServiceClient()
+
+  const { data: conversation, error: conversationError } = await supabase
+    .from('conversations')
+    .select('id')
+    .eq('id', conversation_id)
+    .eq('broker_id', broker_id)
+    .maybeSingle()
+
+  if (conversationError) {
+    console.error('[api/feedback] conversation ownership check failed:', conversationError.message)
+    return NextResponse.json({ error: 'Failed to validate conversation' }, { status: 500 })
+  }
+
+  if (!conversation) {
+    return NextResponse.json({ error: 'conversation not found' }, { status: 404 })
+  }
+
   const { data, error } = await supabase
     .from('conversation_feedback')
     .insert({

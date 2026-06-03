@@ -604,7 +604,9 @@ function buildRiskResult(params: {
       "Condicoes gerais atualizadas da seguradora",
       "Apolice/proposta do segurado",
     ],
-    laudoTerms: [],
+    laudoTerms: [
+      "Termos clinicos e datas do evento nos documentos medicos",
+    ],
     riskFlags: params.riskFlags,
     humanReviewRequired: true,
     legalDisclaimer: LEGAL_DISCLAIMER,
