@@ -1,4 +1,4 @@
-/**
+﻿/**
  * RAG Answer Orchestrator
  *
  * Main entry point for the SOLOMON RAG engine.
@@ -15,6 +15,12 @@ import { auditCitations, type Citation } from './citation'
 import { RAG } from '@/config/constants'
 import { expandQueryWithJargon } from '@/config/jargon'
 import { detectRateIntent, queryRateTable, formatRateAnswer } from './rate-lookup'
+import {
+  detectComparativeQuery,
+  decomposeComparativeQuery,
+  balancedMerge,
+  dedupeChunks,
+} from './query-decomposer'
 
 export const SYSTEM_PROMPT_TEMPLATE = `Voce e SOLOMON, o consultor privado de seguros de vida mais inteligente do Brasil.
 Voce NAO e um buscador de texto. Voce e um ESPECIALISTA que LE, INTERPRETA e RACIOCINA sobre condicoes gerais como um corretor senior com 20 anos de experiencia faria.
@@ -412,24 +418,88 @@ export async function ask(
     }
   }
 
-  // 1c. Cohere Rerank 3.5 (Sessao 3, 2026-04-28): cross-encoder corta ruido
-  // pos-retrieval. Tolerante: se COHERE_API_KEY ausente ou Cohere falha,
-  // retorna similarity order.
+  // 1c. Cohere Rerank + Query Decomposition (Fase 3, 2026-06-03)
   //
-  // SKIP em queries comparativas pra preservar diversidade:
-  // (a) Padrao B (compareIntent: 1 insurer + "outras")
-  // (b) Padrao C (global: 0 insurers + questionImpliesComparison)
-  // (c) Multi-insurer explicito: 2+ insurers detectadas
-  // (d) Single-insurer multi-produto: 1 insurer + comparison pattern
-  //     (ex: "WL10G vs WL00G", "DITA versus DIT MAC+IPAM"). Cohere
-  //     reranqueando 15 chunks pra 12 podia descartar chunk de produto
-  //     B. Eval pos-Cohere v2 mostrou CR comparison ficando em 0.02
-  //     mesmo com skip multi-insurer.
+  // Para queries comparativas (2+ seguradoras ou trigger de comparacao):
+  //   detectComparativeQuery (heuristica) -> decomposeComparativeQuery (Gemini JSON)
+  //   -> retrieval fan-out por entidade -> rerankWithCohere por entidade (com fallback)
+  //   -> balancedMerge -> dedupeChunks.
+  //
+  // Para queries simples (single-insurer sem comparacao):
+  //   Cohere Rerank global como antes.
   const isMultiInsurerExplicit = mentionedInsurers.length >= 2
   const isComparativeGlobal = mentionedInsurers.length === 0 && questionImpliesComparison(question)
   const isSingleInsurerCompare = mentionedInsurers.length === 1 && questionImpliesComparison(question)
-  const skipRerank = compareIntent || isComparativeGlobal || isMultiInsurerExplicit || isSingleInsurerCompare
-  if (!skipRerank && searchResults.length > RAG.rerankK) {
+  const isComparativeContext = compareIntent || isComparativeGlobal || isMultiInsurerExplicit || isSingleInsurerCompare
+
+  if (isComparativeContext && detectComparativeQuery(question)) {
+    const decomposition = await decomposeComparativeQuery(question)
+
+    if (decomposition.is_comparative && decomposition.sub_queries.length >= 2 && decomposition.confidence >= 0.5) {
+      console.log(
+        '[rag/ask] Fase3 decomposition active: ' + decomposition.sub_queries.length + ' sub-queries ' +
+        '(confidence=' + decomposition.confidence + ') axis=' + (decomposition.comparison_axis ?? []).join(', ')
+      )
+
+      const MAX_PER_ENTITY = 5
+      const FINAL_TOP_K = RAG.topK + 2
+      const queryEmbeddingFase3 = await embedQuery(expandedQuery)
+
+      const bucketResults = await Promise.allSettled(
+        decomposition.sub_queries.map(async (sq) => {
+          const candidates: SearchResult[] = []
+          if (sq.entity_type === 'insurer') {
+            const ids = await resolveInsurerIds([sq.entity])
+            for (const [, insurerIds] of ids) {
+              for (const id of insurerIds) {
+                const r = await hybridSearchWithEmbedding(sq.query, queryEmbeddingFase3, {
+                  ...corpusCtx,
+                  insurerId: id,
+                  topK: MAX_PER_ENTITY * 3,
+                  excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
+                })
+                candidates.push(...r)
+              }
+            }
+          } else {
+            const r = await hybridSearchWithEmbedding(sq.query, queryEmbeddingFase3, {
+              ...corpusCtx,
+              topK: MAX_PER_ENTITY * 3,
+              excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
+            })
+            candidates.push(...r)
+          }
+
+          let reranked: SearchResult[]
+          try {
+            reranked = candidates.length > MAX_PER_ENTITY
+              ? await rerankWithCohere(sq.query, candidates, MAX_PER_ENTITY)
+              : candidates
+          } catch (rerankError) {
+            console.warn('[rag/ask] Fase3 rerank fallback for entity:', sq.entity, (rerankError as Error).message)
+            reranked = candidates.slice(0, MAX_PER_ENTITY)
+          }
+          console.log('[rag/ask] Fase3 entity=' + sq.entity + ' (' + sq.entity_type + '): ' + candidates.length + ' fetched -> ' + reranked.length + ' after rerank')
+          return { entity: sq.entity, results: reranked }
+        })
+      )
+
+      const successfulBuckets: Array<{ entity: string; results: SearchResult[] }> = []
+      for (const r of bucketResults) {
+        if (r.status === 'fulfilled') successfulBuckets.push(r.value)
+      }
+
+      if (successfulBuckets.length >= 2) {
+        const merged = balancedMerge(successfulBuckets, MAX_PER_ENTITY, FINAL_TOP_K)
+        searchResults = dedupeChunks(merged)
+        console.log('[rag/ask] Fase3 final: ' + searchResults.length + ' chunks from ' + successfulBuckets.length + ' entities')
+      } else {
+        console.log('[rag/ask] Fase3 fallback: <2 successful buckets, keeping existing results')
+      }
+    } else {
+      console.log('[rag/ask] Fase3 skipped: is_comparative=' + decomposition.is_comparative + ' sub_queries=' + decomposition.sub_queries.length + ' confidence=' + decomposition.confidence)
+    }
+  } else if (!isComparativeContext && searchResults.length > RAG.rerankK) {
     searchResults = await rerankWithCohere(question, searchResults, RAG.rerankK)
   }
 

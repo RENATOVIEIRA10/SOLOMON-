@@ -1,4 +1,4 @@
-"""
+﻿"""
 SOLOMON Ragas eval harness.
 
 Le questions.jsonl, chama /api/ask com evalMode=true para cada pergunta,
@@ -30,6 +30,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 from typing import Any
+from strip_synthetic_tags import strip_synthetic_tags
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_ENDPOINT = "https://app-atalaia.vercel.app/api/ask"
@@ -247,10 +248,14 @@ def build_ragas_dataset(records: list[dict[str, Any]], json_mode_isolated: bool 
         # Ragas exige pelo menos um context — se nao ha, stub.
         if not contexts:
             contexts = ["<nenhum chunk recuperado>"]
+        # Fase 4 (2026-06-03): strip pre-sinistro synthetic tags ONLY from the
+        # payload sent to the Ragas judge. The saved dataset (raw response) is
+        # NOT modified — only the judge-facing 'answer' field is cleaned here.
+        answer_for_judge = strip_synthetic_tags(answer)
         rows.append(
             {
                 "question": r["question"],
-                "answer": answer,
+                "answer": answer_for_judge,
                 "contexts": contexts,
                 "ground_truth": r["ground_truth"],
                 # extras usados no report
