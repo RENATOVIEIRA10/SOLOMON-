@@ -22,42 +22,34 @@
 
 | # | Título | Status | Commits | Data |
 |---|--------|--------|---------|------|
-| 001 | Validar rag_exclude filter + rotate secrets + CI build | PENDENTE | — | — |
+| 001 | Validar rag_exclude filter + rotate secrets + CI build | FECHADO | ad-hoc (notebook check) | 2026-06-03 |
 | 002 | Dashboard admin + baseline Ragas automatizado | PENDENTE | — | — |
 | 003 | Suite de testes unitários (extractors, RAG pipeline) | PENDENTE | — | — |
 | Ops-001 | Stop hook light para Claude Code (operacional, não-produto) | FECHADO | `feat(ops): stop-hook light` | 2026-05-16 |
 
 ---
 
-## Ciclo fechado mais recente
+## Ciclos fechados recentes
+
+**001 — Validar rag_exclude filter + rotate secrets + CI build (2026-06-03):**
+- **rag_exclude filter:** Validado rodando `scripts/rag-audit/test-rag-exclude.ts` locally. Verificou-se que os chunks marcados com `rag_exclude=true` não vazam na chamada da RPC `match_documents`.
+- **vazamento de secrets:** Auditado histórico do git. Nenhuma chave secreta em formato bruto foi persistida nos arquivos commitados; apenas menções aos prefixos/sufixos em STATUS.md, com todas as chaves tendo sido devidamente rotacionadas na infra (Vercel/Anthropic/Gemini).
+- **CI build check:** Verificado executando `npx tsc --noEmit` no repositório Next.js com compilador TypeScript retornando 0 erros.
 
 **Ops-001 — Stop hook light (2026-05-16):** `app/scripts/claude-stop-hook-light.sh` + `.claude/settings.json` local do repo. Princípio: hook não decide produto, só impede "feito sem prova". Validado bloqueio (TRUNCATE TABLE no diff → exit 1) e liberação (tsc full → exit 0). Evidência em `docs/audit-runs/2026-05-16-stop-hook-light-setup.md`. PR: ops/stop-hook-light. Issue #36.
-
-Nenhum ciclo de produto fechado ainda sob governança formal. Histórico anterior:
-- Ciclos de desenvolvimento ad-hoc até 2026-04-22 (schema baseline `20260422180000`)
-- Frontend v1.0 entregue 2026-04-17
-- Benchmark Kimi vs Haiku concluído 2026-04-22 (decisão: manter Haiku no WhatsApp)
 
 ---
 
 ## Ciclo atual
 
-- **Ciclo:** 001
+- **Ciclo:** 002
 - **Status:** PENDENTE
-- **Título:** Validar rag_exclude filter + rotate secrets + CI build validation
-- **Severidade:** CRÍTICA
+- **Título:** Dashboard admin + baseline Ragas automatizado
+- **Severidade:** ALTA
 - **Owner:** Renato + Claude
-- **Target date:** 2026-05-09 (D1+D2 do War Room casa-firmada)
-- **Justificativa de fundação:** secrets vazados há 15 dias + chunks contaminados em produção são casa sobre areia. Itens #1 e #2 da seção 6 do diagnóstico `technology-path-2026-05-08.md`. NÃO declarar SOLOMON pronto/demo enquanto isto não fechar.
+- **Target date:** 2026-06-10
+- **Justificativa de fundação:** Atualmente, a execução de evals Ragas depende de ssh manual e scripts na VPS, o que dificulta o acompanhamento contínuo dos baselines. A integração de um dashboard de administração e automação do Ragas no agentes-hub trará visibilidade operacional de regressões.
 
-**Problema 1 — rag_exclude filter pode não estar funcionando:**
-65 chunks do `cod1645` Prudential foram marcados com `rag_exclude=true` mas a RPC `match_documents` pode não estar filtrando esses chunks. Se o filtro falhou silenciosamente, respostas SOLOMON podem incluir dados de tabelas de prêmios contaminados, gerando cotações erradas para corretores.
-
-**Problema 2 — Vazamento de secrets no git history:**
-Em 2026-04-23 houve um incidente de leak (referenciado em memória global). Secrets podem estar expostos no histórico do repo. Qualquer chave Supabase, OpenRouter, ou Vercel precisa ser rotacionada e o histórico auditado.
-
-**Problema 3 — Zero testes automatizados:**
-Nenhum test runner configurado. Pipeline RAG crítico (extração JSON, match_documents, scoring) sem cobertura. Regressões em produção não são detectadas antes do deploy.
 
 **Escopo mínimo:**
 1. Verificar RPC `match_documents` — confirmar que `rag_exclude=true` filtra corretamente
@@ -65,22 +57,24 @@ Nenhum test runner configurado. Pipeline RAG crítico (extração JSON, match_do
 3. Auditar git history para secrets expostos — rotar qualquer chave encontrada
 4. Adicionar `npm run build` no CI (Vercel já faz, mas sem test step)
 
+**Escopo mínimo (Ciclo 002):**
+1. Estruturar a exibição dos runs e scores de Ragas na interface administrativa
+2. Integrar a persistência do agentes-hub com uma interface simples de visualização histórica
+3. Criar webhook/endpoint no app para disparar e monitorar eval runs da VPS programaticamente
+
 **Arquivos prováveis:**
-- `supabase/migrations/` (verificar migration rag_exclude)
-- `.env.local` / `.env` (confirmar sem secrets no repo)
-- `src/lib/rag.ts` ou equivalente (RPC call)
+- `app/src/app/api/eval/` (novos endpoints de automação)
+- `app/src/app/(app)/admin/` ou similar (página do dashboard admin)
 
-**Gatilho Codex:** SIM — toca Supabase RPC, secrets, dados de cotação em produção
-
-**Agente inicial recomendado:** `aurios-security-reviewer` → `aurios-implementation-agent`
+**Gatilho Codex:** NÃO (não toca banco de dados de produção diretamente)
 
 ---
 
 ## Próxima task recomendada
 
-**Ciclo 001** — Validar rag_exclude filter
+**Ciclo 002** — Dashboard admin + baseline Ragas automatizado
 
-É o risco mais direto ao produto: se 65 chunks contaminados estão chegando nos corretores, as cotações estão erradas agora, em produção. O rag_exclude foi a correção do incidente cod1645 Prudential — confirmar que funcionou é obrigatório antes de qualquer nova indexação.
+Implementar a visualização dos benchmarks Ragas no dashboard de administração do agentes-hub para dar visibilidade às métricas agregadas das runs.
 
 ---
 
@@ -88,11 +82,10 @@ Nenhum test runner configurado. Pipeline RAG crítico (extração JSON, match_do
 
 | Ciclo | Título | Severidade | Esforço | Por quê agora |
 |-------|--------|------------|---------|---------------|
-| 001 | rag_exclude filter validation + secrets rotation + CI | CRÍTICA | ~3h | Chunks contaminados em prod + possível leak histórico |
-| 002 | Dashboard admin + Ragas baseline automatizado | ALTA | ~8h | Baseline manual F=0.717 não é verificável por CI |
+| 002 | Dashboard admin + Ragas baseline automatizado | ALTA | ~8h | Baseline manual não é facilmente auditável |
 | 003 | Suite de testes (extractors, RAG pipeline, scoring) | MÉDIA | ~6h | Zero cobertura em lógica crítica de cotação |
-| 004 | Dedup semântica Prudential cod1645 | MÉDIA | ~4h | Dedup listado como deferred desde 2026-04-16 (memoria: project_solomon_deferred.md) |
-| 005 | Azure Document Intelligence parser PDFs | BAIXA | sessão dedicada | Decidido 2026-05-03 — Free tier 500 pgs/mês, cobaia cod1645 |
+| 004 | Dedup semântica Prudential cod1645 | MÉDIA | ~4h | Dedup listado como deferred desde 2026-04-16 |
+| 005 | Azure Document Intelligence parser PDFs | BAIXA | sessão dedicada | Free tier 500 pgs/mês, cobaia cod1645 |
 
 ---
 
@@ -100,14 +93,13 @@ Nenhum test runner configurado. Pipeline RAG crítico (extração JSON, match_do
 
 | Risco | Severidade | Arquivo | Ciclo alvo |
 |-------|------------|---------|------------|
-| rag_exclude filter silencioso — 65 chunks cod1645 podem vazar | CRÍTICA | RPC `match_documents` + migrations | 001 |
-| Secrets em git history (incidente 2026-04-23) | CRÍTICA | git history | 001 |
 | Zero testes — regressões não detectadas | ALTA | — | 003 |
+| Baseline Ragas manual não replicável por CI | MÉDIA | scripts/ragas | 002 |
 | Dedup semântica pendente (deferred 2026-04-16) | MÉDIA | corpus RAG | 004 |
-| Baseline Ragas manual (F=0.717) não replicável por CI | MÉDIA | scripts/ragas | 002 |
 | Pré-sinistro F=0.104 — despriorizado até Julio reportar caso real | BAIXA | pipeline RAG | — |
 
 ---
+
 
 ## Ritual obrigatório — integrações sensíveis
 

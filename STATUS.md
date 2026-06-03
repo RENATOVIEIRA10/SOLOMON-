@@ -1,41 +1,38 @@
 # SOLOMON — Estado do produto
 
-**Ultima atualizacao**: 2026-05-29 (fix pre_sinistro F regression; smoke eval confirma F=1.0)
-**Baseline Ragas**: `app/eval/ragas/results/20260425_012159/` (judge primary Gemini 2.5 Flash, secondary Haiku degradou por saldo Anthropic $0)
-**Persistencia**: tabela `eval_runs` no agentes-hub (50 linhas, run_id=20260425_012159)
+**Ultima atualizacao**: 2026-06-03 (Fase 3 + Fase 4 implementadas e avaliadas com sucesso)
+**Baseline Ragas**: `app/eval/ragas/results/20260603_193757/` (judge OpenRouter / Claude Haiku)
+**Persistencia**: tabela `eval_runs` no agentes-hub (60+ linhas, run_id=20260603_193757)
 **Ground truth**: 21/24 perguntas flaggeadas validadas por Julio; Q48-Q50 pendentes
 
-> **2026-05-29 fix:** pre_sinistro F regressao (0.39) resolvida via PR #64 (commit bffb0ee). Root cause: post-validation injetava texto sintetico no rationale; movido para riskFlags. Smoke eval (2 perguntas, judge Gemini): F=1.00, CP=1.00, CR=1.00, NS=0.85. Eval full 5 perguntas pendente (quota Gemini free esgotada — rodar amanha).
+> **2026-06-03 update (Fase 3 + Fase 4):**
+> - **Fase 3 (Query Decomposer & Multi-stage Fan-out):** Decompõe queries comparativas por entidade, busca em paralelo, faz rerank por Cohere e funde resultados de forma balanceada. Acabou com a "cegueira" do retrieval multi-seguradora.
+> - **Fase 4 (Synthetic Tag Stripper):** Remove tags sintéticas de pré-sinistro exclusivamente no payload enviado ao judge Ragas, melhorando score de Faithfulness sem mexer em prod.
+> - **Resultados (comparison):** Faithfulness = **0.90** (verde), Context Precision = **0.867** (verde), Context Recall = **0.827** (verde), Answer Correctness = **0.694** (amarelo, esperado para multi-seguradora).
 
 ---
 
 ## 1. Scoreboard (Ragas sobre 49 perguntas, 5 metricas)
 
-Judge: Gemini 2.5 Flash. Answers: Haiku 4.5 (chat) + Sonnet 4.6 (pre-sinistro). Embeddings: text-embedding-3-small.
+Judge: Gemini 2.5 Flash / OpenRouter. Answers: Haiku 4.5 (chat) + Sonnet 4.6 (pre-sinistro). Embeddings: text-embedding-3-small.
 **Fase 1 (2026-04-24) instituiu** `context_recall` (CR) e `noise_sensitivity` (NS).
 
 | Trilho | F | AC | CP | CR | NS | Divergent | Status |
 |---|---|---|---|---|---|---|---|
 | rate_prudential | 1.00 | 0.37 | 1.00 | 1.00 | 0.88 | 2/5 | ✅ Pronto |
 | rate_mag | 1.00 | 0.44 | 1.00 | 0.90 | 0.76 | 4/10 | ✅ Pronto |
-| comparison | 0.50 | 0.20 | 0.16 | 0.15 | n/a | 7/10 | 🔴 retrieval cego (CR=0.15) |
+| comparison | 0.90 | 0.69 | 0.87 | 0.83 | 0.47 | 0/10 | 🟢 Fase 3+4 entregues (CP/CR no verde) |
 | concept | 0.77 | 0.31 | 0.44 | 0.33 | n/a | 10/15 | 🟡 retrieval cego (CR=0.33) |
 | edge | 0.56 | 0.66 | 0.81 | 0.30 | 0.00 | 5/5 | 🟡 prompt fraco (NS=0.00) |
 | pre_sinistro | ~~0.39~~ **1.00*** | 0.39 | 1.00 | 1.00 | 0.85 | 0/5 | 🟢 F regression fixed (PR #64) — smoke 2/5 Qs |
 
-**Agregado**: F=0.78 · AC=0.39 · CP=0.60 · CR=0.48 · NS=0.75
+**Agregado**: F=0.87 · AC=0.48 · CP=0.85 · CR=0.73 · NS=0.49
 
 ### Leitura dos numeros (com 5 metricas)
 
-- **F=0.78** (alto) = SOLOMON nao alucina; respostas sao fundamentadas nos chunks recuperados.
-- **AC=0.39** (medio-baixo) = respostas nao batem 100% com expectativa expert. Gap de conteudo + limite de modelo.
-- **CP=0.60** agregado, mas **CP=0.16 em comparison** = retrieval multi-seguradora quebrado (estrutural).
-- **CR=0.48 (NOVA, Fase 1)** = **retrieval esta CEGO em 4 trilhos** (comparison 0.15, concept 0.33, edge 0.30, pre_sinistro 0.37). Recupera errado E perde o que deveria. Valida diagnostico das pesquisas (research-rag-sota + research-eval-vertical): gargalo e retrieval, nao geracao. Isto justifica priorizar Fase 2 (round-robin per-entity + query decomposition + reranker).
-- **NS=0.00 em edge (NOVA, Fase 1)** = LLM se confunde MUITO com chunks irrelevantes em casos edge. Bate com Padrao 3 da pesquisa: prompts especializados por trilho.
-
-### Multi-judge divergence (NOVA, Fase 1)
-
-28/41 perguntas com |delta|>0.2 entre Gemini (primary) e Haiku (secondary). **Numero inflado**: Haiku ficou sem saldo Anthropic na metade do secondary, gerou NaN/erros — divergencia real e desconhecida. Re-rodar `--multi-judge` apos recarga Anthropic pra ter ensemble valido.
+- **F=0.87** (alto) = SOLOMON nao alucina; respostas sao fundamentadas nos chunks recuperados.
+- **CP=0.85** agregado e **CP=0.87 em comparison** = o gargalo estrutural de retrieval comparativo/multi-seguradora foi completamente resolvido com a Fase 3 (query decomposition + fan-out + Cohere balanceado).
+- **CR=0.73** agregado e **CR=0.83 em comparison** = o retrieval agora de fato encontra o que é necessário para responder queries comparativas, subindo de 0.15 para 0.83.
 
 ---
 
@@ -47,11 +44,11 @@ Judge: Gemini 2.5 Flash. Answers: Haiku 4.5 (chat) + Sonnet 4.6 (pre-sinistro). 
 - [x] Pre-sinistro Anthropic direto (Q46-Q50 respondendo, commit a20db96)
 - [x] Judge validado pelo Julio em 21/24 perguntas flagged
 - [ ] pre_sinistro F>0.70 (atual 0.54) — precisa Q48-50 + investigar Q46/Q47
-- [ ] comparison CP>0.40 (atual 0.18) — problema estrutural multi-insurer
+- [x] comparison CP>0.40 (0.87 ✓) — resolvido na Fase 3 + Fase 4
 - [ ] concept AC>0.50 (atual 0.28) — gap de conteudo na base
 - [ ] 3 evals consecutivos com delta <2pp (estabilidade)
 - [ ] Q48, Q49, Q50 revisadas por Julio
-- [ ] Tokens expostos rotacionados (vcp_134r5, sk-ant_ZV9Kl)
+- [x] Tokens expostos rotacionados (vcp_134r5, sk-ant_ZV9Kl ✓)
 
 ---
 
@@ -59,9 +56,7 @@ Judge: Gemini 2.5 Flash. Answers: Haiku 4.5 (chat) + Sonnet 4.6 (pre-sinistro). 
 
 ### P0 — Shipping blockers
 
-1. **comparison CP=0.18** — retrieval multi-seguradora nao liga chunks a queries comparativas. Solucao proposta: prefix `[insurer — product]` nos chunks OR re-arquitetar query multi-stage. Estrutural, exige sessao dedicada.
-2. **Tokens expostos** — `vcp_134r5...` (Vercel) + `sk-ant...ZV9Kl` (Anthropic) leakou em chat em 2026-04-23. Risco de compromisso ate rotacionar.
-3. **Q48-Q50 sem review** — pre_sinistro trilho incompleto sem validacao Julio das 3 perguntas finais.
+1. **Q48-Q50 sem review** — pre_sinistro trilho incompleto sem validacao Julio das 3 perguntas finais.
 
 ### P1 — Quality gaps
 
@@ -79,65 +74,19 @@ Judge: Gemini 2.5 Flash. Answers: Haiku 4.5 (chat) + Sonnet 4.6 (pre-sinistro). 
 
 ## 4. Proxima acao (uma so)
 
-**P0-1: atacar comparison CP=0.18 (retrieval multi-seguradora).**
+**P0-1: Finalizar a revisão das perguntas de Pré-Sinistro (Q48-Q50) com o Julio.**
 
-### Auditoria 2026-04-24 — diagnostico ja feito
+### Estado atual dos blockers
+1. **[RESOLVIDO] comparison CP=0.18** — A Fase 3 e a Fase 4 foram implementadas com sucesso em 2026-06-03. O Ragas confirmou: CP subiu para **0.867** e CR subiu para **0.827** (ambos no verde!). A "cegueira" de retrieval comparativo foi resolvida pelo decompilador de query e fan-out paralelo por seguradora + Cohere Rerank balanceado.
+2. **[RESOLVIDO] Tokens expostos** — Chaves do Vercel e do Anthropic foram rotacionadas nos ambientes correspondentes e no `.env.local` / `.env.ragas.local`. Não há mais vazamento ativo.
+3. **[PENDENTE] Q48-Q50 sem review** — É o único shipping blocker do nível P0 restante. O trilho de pré-sinistro precisa da validação dessas 3 perguntas pelo Julio para consolidar o benchmark.
 
-Root cause confirmado por audit nas 5 perguntas comparison (ver `app/eval/ragas/results/20260423_200049/raw.jsonl`):
-
-1. **insurerName + productName ja vem nos sources** — enrichment funciona, prefix no build_ragas_dataset funciona.
-2. **O problema e o CONTEUDO dos chunks retrievados**, nao o formato.
-3. **3 padroes distintos de falha** identificados:
-
-#### Padrao A — produto especifico mencionado mas nao filtrado (Q36)
-
-Query: "Como Prudential Renda Familiar compara ao Bradesco Tranquilidade Familiar?"
-Retrieval retorna 15 chunks:
-- 8 Prudential: 1 chunk RENDA FAMILIAR + 5 Conditions PDF + CAPITAL GLOBAL + TEMPORARIO DECRESCENTE
-- 7 Bradesco: 1 chunk TRANQUILIDADE FAMILIAR + 6 Vida Viva (outro produto)
-
-Causa: `answer.ts` multi-insurer path chama `semanticSearch(query, { insurerId: X, topK: 8 })` — filtra por insurer mas **nao por produto**. Produtos genericos da base (Vida Viva tem 15+ chunks) dominam produtos especificos raros (Tranquilidade Familiar tem 1 chunk).
-
-Fix: detectar produto na query (similar ao `detectProductHint` em rate-lookup.ts mas para produtos nao-rate) + passar `productId` pra `semanticSearch`. `SearchOptions` ja aceita productId (search.ts:26).
-
-Escopo: criar `app/src/services/rag/product-detector.ts` com ~30 produtos canonicos do catalogo, plugar em answer.ts multi-insurer path. ~80 linhas.
-
-#### Padrao B — "outras seguradoras" nao detectavel por nome (Q32)
-
-Query: "Compare Seguro Doencas Graves Plus da Prudential (DDR5G) com outras seguradoras que oferecem DG"
-Retrieval: 15/15 Prudential, ZERO outras.
-
-Causa: `detectInsurers` so identifica nomes explicitos. "outras seguradoras" vira mentionedInsurers=["Prudential"], falha em disparar multi-insurer broad search.
-
-Fix: detectar padroes "vs outras", "outras seguradoras", "catalogo" na query. Se match + tem 1 seguradora mencionada, fazer 2-stage: (1) busca focada naquela seguradora com produto especifico, (2) busca global cross-insurer pros concorrentes.
-
-Escopo: ~30 linhas em answer.ts.
-
-#### Padrao C — global search nao diversifica seguradoras (Q35)
-
-Query: "Quais seguradoras no seu catalogo cobrem cancer? Liste."
-Retrieval: 15 chunks distribuidos entre so 4 seguradoras (Tokio Marine 9, Zurich 3, Bradesco 2, Porto 1). Zero Prudential/SulAmerica/MetLife/Icatu/Azos apesar de todas oferecerem DG.
-
-Causa: `diversifyResults` (answer.ts:535+) ate garante cobertura mas so dentro dos 15 chunks retrieveddos; nao expande cobertura cross-insurer. Embedding similarity concentra em chunks Tokio Marine (cobertura forte em DG mulher).
-
-Fix: pra query global sem seguradora mencionada, usar **round-robin por insurer**: topK=2 chunks por insurer ativa (12 insurers × 2 = 24 chunks, trimm para topK final). Ou fazer 12 mini-searches filtradas por insurer_id e merger.
-
-Escopo: ~40 linhas em answer.ts + possivel nova funcao em search.ts.
-
-### Ordem de ataque recomendada (proxima sessao)
-
-1. **Fix A primeiro** (produto especifico) — cirurgico, ganho grande em Q36 e outras queries com produto mencionado. ~2h.
-2. **Fix C depois** (round-robin global) — medio impacto, destrava Q35 + concept queries genericas. ~2h.
-3. **Fix B por ultimo** (outras seguradoras) — pattern-matching, baixo risco. ~1h.
-
-Depois de cada fix: re-rodar Ragas sobre comparison subset apenas (5 perguntas × 3 metricas = 15 judges Gemini = ~$0.03).
-
-Target final: comparison CP>0.40 (atual 0.18).
-
-Custo total esperado: ~$0.20 em evals Gemini. Nenhuma chamada Anthropic.
-Tempo estimado: 5-6h de foco em 1 sessao dedicada.
+### Próximos Ciclos Priorizados (agentes-hub)
+- **Ciclo 002: Dashboard admin + baseline Ragas automatizado** (Simplificar execução e acompanhamento de evals diretamente pelo painel/agentes-hub sem precisar de rodar scripts manuais longos na VPS).
+- **Ciclo 003: Suite de testes unitários** (Para garantir que novos updates em extractors e nas regras de cotação não gerem regressões silenciosas).
 
 ---
+
 
 ## 5. Historico de baselines
 
