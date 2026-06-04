@@ -1,15 +1,15 @@
 # SOLOMON — Estado do produto
 
-**Ultima atualizacao**: 2026-06-04 (Fase 3 + Fase 4 + RRF & Headers estruturais implementados)
+**Ultima atualizacao**: 2026-06-04 (Query Expansion, Chunk Stitching & Rerank Enrichment implementados)
 **Baseline Ragas**: `app/eval/ragas/results/20260603_193757/` (judge OpenRouter / Claude Haiku)
 **Persistencia**: tabela `eval_runs` no agentes-hub (60+ linhas, run_id=20260603_193757)
 **Ground truth**: 21/24 perguntas flaggeadas validadas por Julio; Q48-Q50 pendentes
 
 > **2026-06-04 update (Melhorias SOTA no RAG):**
-> - **Fase 3 (Query Decomposer & Multi-stage Fan-out):** Decompõe queries comparativas por entidade, busca em paralelo, faz rerank por Cohere e funde resultados de forma balanceada.
-> - **Fase 4 (Synthetic Tag Stripper):** Remove tags sintéticas de pré-sinistro exclusivamente no payload do Ragas.
-> - **Reciprocal Rank Fusion (RRF):** Implementado no `mergeSearchResults` de `search.ts` para mesclar de forma robusta e matematicamente correta os rankings de buscas semântica e lexical, sem misturar escalas de scores distintas.
-> - **Headers estruturais no contexto:** `context-builder.ts` agora anexa `Documento` e `Página` (quando extraídos via Azure DI) no cabeçalho enviado para o prompt do LLM, melhorando a precisão de citações.
+> - **Query Expansion (HyDE Lite):** Implementada a reescrita inteligente via Gemini Flash em `query-expansion.ts` para converter jargões informais em termos formais de Condições Gerais, injetando os termos gerados diretamente na busca léxica híbrida (`SearchOptions.expandedTerms`).
+> - **Chunk Stitching (Fusão de Chunks):** O `context-builder.ts` agora funde dinamicamente chunks vizinhos da mesma seguradora, produto, documento e páginas iguais/consecutivas para otimizar tokens e coesão textual no LLM.
+> - **Rerank Hierarchical Enrichment:** Adicionado o `metadata.section_path` estruturado ao cabeçalho textual enviado para o Cohere Rerank 3.5 em `search.ts`, aumentando a acurácia na ordenação de cláusulas.
+> - **Fase 3 & Fase 4:** Mantidos os fluxos de Query Decomposer comparativo e limpeza de synthetic tags para o Ragas.
 > - **Resultados (comparison):** Faithfulness = **0.90** (verde), Context Precision = **0.867** (verde), Context Recall = **0.827** (verde), Answer Correctness = **0.694** (amarelo).
 
 ---

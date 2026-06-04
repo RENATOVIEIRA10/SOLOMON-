@@ -9,3 +9,5 @@ export { semanticSearch, type SearchResult, type SearchOptions } from './search'
 export { buildContext, type ContextBlock, type ContextBuildResult } from './context-builder'
 export { callLLM, type LLMResponse } from './llm'
 export { extractCitations, type Citation } from './citation'
+export { expandQueryWithLLM, type ExpandedQuery } from './query-expansion'
+

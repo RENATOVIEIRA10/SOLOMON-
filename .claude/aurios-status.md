@@ -43,7 +43,7 @@
 ## Ciclo atual
 
 - **Ciclo:** 002
-- **Status:** PENDENTE
+- **Status:** EM ANDAMENTO (Melhorias RAG SOTA integradas em 2026-06-04)
 - **Título:** Dashboard admin + baseline Ragas automatizado
 - **Severidade:** ALTA
 - **Owner:** Renato + Claude
@@ -58,9 +58,10 @@
 4. Adicionar `npm run build` no CI (Vercel já faz, mas sem test step)
 
 **Escopo mínimo (Ciclo 002):**
-1. Estruturar a exibição dos runs e scores de Ragas na interface administrativa
-2. Integrar a persistência do agentes-hub com uma interface simples de visualização histórica
-3. Criar webhook/endpoint no app para disparar e monitorar eval runs da VPS programaticamente
+1. [x] Integrar melhorias SOTA no RAG (Query Expansion HyDE Lite + Chunk Stitching + Rerank section_path enrichment)
+2. [ ] Estruturar a exibição dos runs e scores de Ragas na interface administrativa
+3. [ ] Integrar a persistência do agentes-hub com uma interface simples de visualização histórica
+4. [ ] Criar webhook/endpoint no app para disparar e monitorar eval runs da VPS programaticamente
 
 **Arquivos prováveis:**
 - `app/src/app/api/eval/` (novos endpoints de automação)

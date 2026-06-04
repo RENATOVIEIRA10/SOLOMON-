@@ -14,6 +14,7 @@ import { callLLM, type LLMResponse } from './llm'
 import { auditCitations, type Citation } from './citation'
 import { RAG } from '@/config/constants'
 import { expandQueryWithJargon } from '@/config/jargon'
+import { expandQueryWithLLM } from './query-expansion'
 import { detectRateIntent, queryRateTable, formatRateAnswer } from './rate-lookup'
 import {
   detectComparativeQuery,
@@ -293,9 +294,11 @@ export async function ask(
     }
   }
 
-  // 0b. Expand query with jargon → technical terms so embedding captures both
-  // the corretor's shorthand and the exact phrasing used in insurer PDFs.
-  const expandedQuery = expandQueryWithJargon(question)
+  // 0b. Expand query using Gemini Flash for formal Insurance RAG terms.
+  const llmExpanded = await expandQueryWithLLM(question)
+  console.log(`[rag/ask] LLM Query Expansion: formal_query="${llmExpanded.formal_query}" | terms=[${llmExpanded.expanded_terms.join(', ')}]`)
+
+  const expandedQuery = expandQueryWithJargon(llmExpanded.formal_query)
   if (expandedQuery !== question) {
     console.log(`[rag/ask] Jargon expansion: "${question}" → "${expandedQuery}"`)
   }
@@ -327,6 +330,7 @@ export async function ask(
           topK: perInsurerFetch,
           sourceType: rateIntentDetected ? 'rate_table_pdf' : undefined,
           excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
+          expandedTerms: llmExpanded.expanded_terms,
         })
         nameResults.push(...r)
       }
@@ -354,6 +358,7 @@ export async function ask(
         insurerId: options?.insurerFilter,
         topK: RAG.fetchK,
         excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
+        expandedTerms: llmExpanded.expanded_terms,
       })
     }
 
@@ -386,6 +391,7 @@ export async function ask(
       insurerId: options.insurerFilter,
       topK: RAG.globalTopK,
       excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
+      expandedTerms: llmExpanded.expanded_terms,
     })
   } else if (questionImpliesComparison(question)) {
     // Padrao C: round-robin per-entity SO em queries comparativas explicitas.
@@ -401,6 +407,7 @@ export async function ask(
       ...corpusCtx,
       topK: RAG.globalTopK,
       excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
+      expandedTerms: llmExpanded.expanded_terms,
     })
   }
 
@@ -457,6 +464,7 @@ export async function ask(
                   insurerId: id,
                   topK: MAX_PER_ENTITY * 3,
                   excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
+                  expandedTerms: llmExpanded.expanded_terms,
                 })
                 candidates.push(...r)
               }
@@ -466,6 +474,7 @@ export async function ask(
               ...corpusCtx,
               topK: MAX_PER_ENTITY * 3,
               excludeNonLifeProductTypes: !allowsApCapitalizacaoDifferentials,
+              expandedTerms: llmExpanded.expanded_terms,
             })
             candidates.push(...r)
           }
