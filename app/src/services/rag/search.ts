@@ -331,6 +331,17 @@ export function mergeSearchResults(
   secondary: SearchResult[],
   limit: number
 ): SearchResult[] {
+  const rrfScores = new Map<string, number>()
+  const k = 60 // Standard RRF parameter
+
+  primary.forEach((result, idx) => {
+    rrfScores.set(result.id, (rrfScores.get(result.id) ?? 0) + 1 / (k + idx + 1))
+  })
+
+  secondary.forEach((result, idx) => {
+    rrfScores.set(result.id, (rrfScores.get(result.id) ?? 0) + 1 / (k + idx + 1))
+  })
+
   const byId = new Map<string, SearchResult>()
 
   for (const result of [...primary, ...secondary]) {
@@ -341,7 +352,11 @@ export function mergeSearchResults(
   }
 
   return [...byId.values()]
-    .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
+    .sort((a, b) => {
+      const scoreA = rrfScores.get(a.id) ?? 0
+      const scoreB = rrfScores.get(b.id) ?? 0
+      return scoreB - scoreA
+    })
     .slice(0, limit)
 }
 

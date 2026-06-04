@@ -16,6 +16,8 @@ export interface ContextBlock {
   susepProcess: string | null
   sourceUrl: string | null
   content: string
+  page?: number | string
+  sourceDoc?: string
 }
 
 export interface ContextBuildResult {
@@ -62,6 +64,8 @@ export function buildContext(
       susepProcess,
       sourceUrl: result.source_url,
       content: result.content,
+      page: result.metadata?.page as number | string | undefined,
+      sourceDoc: result.metadata?.source_doc as string | undefined,
     }
 
     // Check if adding this block would exceed the limit
@@ -88,7 +92,14 @@ export function buildContext(
 function formatBlock(block: ContextBlock): string {
   const lines: string[] = []
 
-  lines.push(`[${block.index}] ${block.insurerName} — ${block.productName}`)
+  let header = `[${block.index}] ${block.insurerName} — ${block.productName}`
+  if (block.sourceDoc) {
+    header += ` | Documento: ${block.sourceDoc}`
+  }
+  if (block.page !== undefined && block.page !== null && block.page !== '') {
+    header += ` | Página: ${block.page}`
+  }
+  lines.push(header)
 
   if (block.susepProcess) {
     lines.push(`Processo SUSEP: ${block.susepProcess}`)
