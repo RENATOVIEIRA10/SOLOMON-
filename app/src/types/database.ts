@@ -366,6 +366,30 @@ export type Database = {
           },
         ]
       }
+      corpus_routing: {
+        Row: {
+          insurer_name: string
+          mode: string
+          mode_set_at: string
+          mode_set_by: string
+          notes: string | null
+        }
+        Insert: {
+          insurer_name: string
+          mode?: string
+          mode_set_at?: string
+          mode_set_by: string
+          notes?: string | null
+        }
+        Update: {
+          insurer_name?: string
+          mode?: string
+          mode_set_at?: string
+          mode_set_by?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
       coverages: {
         Row: {
           created_at: string
@@ -406,6 +430,60 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "coverages_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      document_toc: {
+        Row: {
+          created_at: string
+          end_page: number
+          id: string
+          insurer_id: string
+          product_id: string | null
+          section_path: string
+          section_title: string
+          source_doc: string
+          start_page: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          end_page: number
+          id?: string
+          insurer_id: string
+          product_id?: string | null
+          section_path: string
+          section_title: string
+          source_doc: string
+          start_page: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          end_page?: number
+          id?: string
+          insurer_id?: string
+          product_id?: string | null
+          section_path?: string
+          section_title?: string
+          source_doc?: string
+          start_page?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_toc_insurer_id_fkey"
+            columns: ["insurer_id"]
+            isOneToOne: false
+            referencedRelation: "insurers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_toc_product_id_fkey"
             columns: ["product_id"]
             isOneToOne: false
             referencedRelation: "products"
@@ -1125,6 +1203,87 @@ export type Database = {
           },
         ]
       }
+      retrieval_traces: {
+        Row: {
+          chunks_returned: number
+          corpus: string
+          fallback_reason: string | null
+          fallback_used: boolean
+          id: number
+          insurer_name: string | null
+          latency_ms: number
+          mode: string
+          request_id: string
+          rerank_used: boolean
+          source: string
+          ts: string
+          user_question_hash: string | null
+        }
+        Insert: {
+          chunks_returned: number
+          corpus: string
+          fallback_reason?: string | null
+          fallback_used?: boolean
+          id?: number
+          insurer_name?: string | null
+          latency_ms: number
+          mode?: string
+          request_id: string
+          rerank_used?: boolean
+          source: string
+          ts?: string
+          user_question_hash?: string | null
+        }
+        Update: {
+          chunks_returned?: number
+          corpus?: string
+          fallback_reason?: string | null
+          fallback_used?: boolean
+          id?: number
+          insurer_name?: string | null
+          latency_ms?: number
+          mode?: string
+          request_id?: string
+          rerank_used?: boolean
+          source?: string
+          ts?: string
+          user_question_hash?: string | null
+        }
+        Relationships: []
+      }
+      sales_leads: {
+        Row: {
+          company: string
+          created_at: string | null
+          email: string | null
+          id: string
+          name: string
+          notes: string | null
+          score: number | null
+          source: string
+        }
+        Insert: {
+          company: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          score?: number | null
+          source?: string
+        }
+        Update: {
+          company?: string
+          created_at?: string | null
+          email?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          score?: number | null
+          source?: string
+        }
+        Relationships: []
+      }
       simulations: {
         Row: {
           broker_id: string
@@ -1256,6 +1415,22 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      fetch_chunks_by_toc: {
+        Args: {
+          filter_insurer_id: string
+          filter_product_id: string
+          section_query: string
+        }
+        Returns: {
+          content: string
+          id: string
+          insurer_id: string
+          metadata: Json
+          product_id: string
+          source_type: string
+          source_url: string
+        }[]
+      }
       get_broker_activity_summary: { Args: never; Returns: Json }
       get_broker_id: { Args: never; Returns: string }
       get_pdfs_sem_data_detectada: {
@@ -1269,6 +1444,28 @@ export type Database = {
         Returns: number
       }
       match_documents: {
+        Args: {
+          filter_exclude_non_life?: boolean
+          filter_insurer_id?: string
+          filter_product_id?: string
+          filter_source_type?: string
+          filter_tipo_produto?: string
+          match_count?: number
+          match_threshold?: number
+          query_embedding: string
+        }
+        Returns: {
+          content: string
+          id: string
+          insurer_id: string
+          metadata: Json
+          product_id: string
+          similarity: number
+          source_type: string
+          source_url: string
+        }[]
+      }
+      match_shadow_documents: {
         Args: {
           filter_exclude_non_life?: boolean
           filter_insurer_id?: string

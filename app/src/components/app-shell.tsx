@@ -13,6 +13,7 @@ import {
   BookOpen,
   Bell,
   LogOut,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -41,6 +42,7 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Clientes", shortLabel: "Clientes", href: "/clientes", icon: Users },
   { label: "Base", shortLabel: "Base", href: "/base", icon: BookOpen },
   { label: "Alertas", shortLabel: "Alertas", href: "/alertas", icon: Bell },
+  { label: "Admin", shortLabel: "Admin", href: "/admin", icon: Activity },
   { label: "Perfil", shortLabel: "Perfil", href: "/perfil", icon: User },
 ];
 

@@ -369,10 +369,97 @@ export function mergeSearchResults(
     .slice(0, limit)
 }
 
+export interface ExhaustiveIntent {
+  isExhaustive: boolean
+  sectionQuery: string
+}
+
+/**
+ * Detects if a query has an exhaustive retrieval intent (e.g. asking for exclusions or grace periods).
+ */
+export function detectExhaustiveIntent(query: string): ExhaustiveIntent {
+  const normalized = query
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+
+  // Match common Portuguese terms for exclusions
+  if (
+    normalized.includes('exclusao') ||
+    normalized.includes('exclusoes') ||
+    normalized.includes('excluido') ||
+    normalized.includes('excluidos')
+  ) {
+    return { isExhaustive: true, sectionQuery: 'exclus' }
+  }
+
+  // Match common Portuguese terms for grace periods (carências)
+  if (
+    normalized.includes('carencia') ||
+    normalized.includes('carencias')
+  ) {
+    return { isExhaustive: true, sectionQuery: 'carenc' }
+  }
+
+  return { isExhaustive: false, sectionQuery: '' }
+}
+
+/**
+ * PageIndex Lite: Fetches complete sections from General Conditions using TOC mapping.
+ * Bypasses pgvector and returns chunks in sequential order.
+ */
+export async function fetchChunksByToc(
+  insurerId: string,
+  productId: string | null | undefined,
+  sectionQuery: string
+): Promise<SearchResult[]> {
+  const supabase = createServiceClient()
+  const { data, error } = await supabase.rpc('fetch_chunks_by_toc', {
+    filter_insurer_id: insurerId,
+    filter_product_id: (productId ?? null) as any,
+    section_query: sectionQuery,
+  })
+
+  if (error) {
+    console.warn(`[rag/search] fetch_chunks_by_toc failed: ${error.message}`)
+    return []
+  }
+
+  if (!data || data.length === 0) {
+    return []
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as Array<Record<string, any>>).map((row) => ({
+    id: row.id as string,
+    content: row.content as string,
+    similarity: 1.0, // Exact section fetch similarity anchor
+    metadata: (row.metadata as Record<string, unknown>) ?? {},
+    source_url: (row.source_url as string) ?? null,
+    source_type: row.source_type as string,
+    product_id: (row.product_id as string) ?? null,
+    insurer_id: (row.insurer_id as string) ?? null,
+  }))
+}
+
 export async function hybridSearch(
   query: string,
   options?: SearchOptions
 ): Promise<SearchResult[]> {
+  if (options?.insurerId) {
+    const { isExhaustive, sectionQuery } = detectExhaustiveIntent(query)
+    if (isExhaustive) {
+      console.log(`[rag/search] Exhaustive intent detected for query "${query}". Fetching via TOC.`)
+      const tocChunks = await fetchChunksByToc(options.insurerId, options.productId, sectionQuery)
+      if (tocChunks.length > 0) {
+        console.log(`[rag/search] TOC fetch successful: returned ${tocChunks.length} chunks.`)
+        const topK = options.topK ?? RAG.topK
+        return tocChunks.slice(0, topK)
+      }
+      console.log(`[rag/search] TOC fetch returned 0 chunks, falling back to hybridSearch.`)
+    }
+  }
+
   const topK = options?.topK ?? RAG.topK
   const [semantic, lexical] = await Promise.all([
     semanticSearch(query, options),
@@ -387,6 +474,20 @@ export async function hybridSearchWithEmbedding(
   queryEmbedding: number[],
   options?: SearchOptions
 ): Promise<SearchResult[]> {
+  if (options?.insurerId) {
+    const { isExhaustive, sectionQuery } = detectExhaustiveIntent(query)
+    if (isExhaustive) {
+      console.log(`[rag/search] Exhaustive intent detected for query "${query}" (with embedding). Fetching via TOC.`)
+      const tocChunks = await fetchChunksByToc(options.insurerId, options.productId, sectionQuery)
+      if (tocChunks.length > 0) {
+        console.log(`[rag/search] TOC fetch successful: returned ${tocChunks.length} chunks.`)
+        const topK = options.topK ?? RAG.topK
+        return tocChunks.slice(0, topK)
+      }
+      console.log(`[rag/search] TOC fetch returned 0 chunks, falling back to hybridSearchWithEmbedding.`)
+    }
+  }
+
   const topK = options?.topK ?? RAG.topK
   const [semantic, lexical] = await Promise.all([
     semanticSearchWithEmbedding(queryEmbedding, options),
