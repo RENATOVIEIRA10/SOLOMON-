@@ -1,14 +1,16 @@
 # SOLOMON — Estado do produto
 
-**Ultima atualizacao**: 2026-06-03 (Fase 3 + Fase 4 implementadas e avaliadas com sucesso)
+**Ultima atualizacao**: 2026-06-04 (Fase 3 + Fase 4 + RRF & Headers estruturais implementados)
 **Baseline Ragas**: `app/eval/ragas/results/20260603_193757/` (judge OpenRouter / Claude Haiku)
 **Persistencia**: tabela `eval_runs` no agentes-hub (60+ linhas, run_id=20260603_193757)
 **Ground truth**: 21/24 perguntas flaggeadas validadas por Julio; Q48-Q50 pendentes
 
-> **2026-06-03 update (Fase 3 + Fase 4):**
-> - **Fase 3 (Query Decomposer & Multi-stage Fan-out):** Decompõe queries comparativas por entidade, busca em paralelo, faz rerank por Cohere e funde resultados de forma balanceada. Acabou com a "cegueira" do retrieval multi-seguradora.
-> - **Fase 4 (Synthetic Tag Stripper):** Remove tags sintéticas de pré-sinistro exclusivamente no payload enviado ao judge Ragas, melhorando score de Faithfulness sem mexer em prod.
-> - **Resultados (comparison):** Faithfulness = **0.90** (verde), Context Precision = **0.867** (verde), Context Recall = **0.827** (verde), Answer Correctness = **0.694** (amarelo, esperado para multi-seguradora).
+> **2026-06-04 update (Melhorias SOTA no RAG):**
+> - **Fase 3 (Query Decomposer & Multi-stage Fan-out):** Decompõe queries comparativas por entidade, busca em paralelo, faz rerank por Cohere e funde resultados de forma balanceada.
+> - **Fase 4 (Synthetic Tag Stripper):** Remove tags sintéticas de pré-sinistro exclusivamente no payload do Ragas.
+> - **Reciprocal Rank Fusion (RRF):** Implementado no `mergeSearchResults` de `search.ts` para mesclar de forma robusta e matematicamente correta os rankings de buscas semântica e lexical, sem misturar escalas de scores distintas.
+> - **Headers estruturais no contexto:** `context-builder.ts` agora anexa `Documento` e `Página` (quando extraídos via Azure DI) no cabeçalho enviado para o prompt do LLM, melhorando a precisão de citações.
+> - **Resultados (comparison):** Faithfulness = **0.90** (verde), Context Precision = **0.867** (verde), Context Recall = **0.827** (verde), Answer Correctness = **0.694** (amarelo).
 
 ---
 

@@ -31,6 +31,66 @@ export interface EnrichmentData {
 }
 
 /**
+ * Merges consecutive search results that belong to the same insurer, product,
+ * and document (source_doc) when they share the same page or have adjacent pages.
+ * This resolves segment fragmentation and reduces formatting overhead.
+ */
+function mergeAdjacentResults(results: SearchResult[]): SearchResult[] {
+  if (results.length <= 1) return results
+
+  const merged: SearchResult[] = []
+  let current = { ...results[0] }
+
+  for (let i = 1; i < results.length; i++) {
+    const next = results[i]
+
+    const sameInsurer = current.insurer_id === next.insurer_id
+    const sameProduct = current.product_id === next.product_id
+    
+    const docCurrent = (current.metadata?.source_doc as string | undefined) ?? ''
+    const docNext = (next.metadata?.source_doc as string | undefined) ?? ''
+    const sameDoc = docCurrent !== '' && docCurrent === docNext
+
+    const pageCurrentStr = String(current.metadata?.page ?? '')
+    const pageNextStr = String(next.metadata?.page ?? '')
+    const samePage = pageCurrentStr !== '' && pageCurrentStr === pageNextStr
+
+    let isAdjacentPage = false
+    let pageCurrentNum = NaN
+    let pageNextNum = NaN
+    if (!samePage && pageCurrentStr !== '' && pageNextStr !== '') {
+      pageCurrentNum = Number(current.metadata?.page)
+      pageNextNum = Number(next.metadata?.page)
+      isAdjacentPage = !isNaN(pageCurrentNum) && !isNaN(pageNextNum) && Math.abs(pageCurrentNum - pageNextNum) <= 1
+    }
+
+    if (sameInsurer && sameProduct && sameDoc && (samePage || isAdjacentPage)) {
+      const separator = samePage 
+        ? '\n\n' 
+        : `\n\n--- [Página ${pageNextNum}] ---\n\n`
+      
+      current.content += separator + next.content
+
+      if (isAdjacentPage) {
+        const existingPageStr = String(current.metadata?.page ?? '')
+        if (!existingPageStr.includes(pageNextStr)) {
+          current.metadata = {
+            ...(current.metadata ?? {}),
+            page: `${existingPageStr}-${pageNextStr}`
+          }
+        }
+      }
+    } else {
+      merged.push(current)
+      current = { ...next }
+    }
+  }
+
+  merged.push(current)
+  return merged
+}
+
+/**
  * Groups results by insurer + product and builds numbered reference blocks.
  * Truncates if total context exceeds MAX_CONTEXT_CHARS.
  */
@@ -42,11 +102,13 @@ export function buildContext(
     return { contextText: '', sources: [] }
   }
 
+  const mergedResults = mergeAdjacentResults(results)
+
   const sources: ContextBlock[] = []
   let totalChars = 0
 
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i]
+  for (let i = 0; i < mergedResults.length; i++) {
+    const result = mergedResults[i]
 
     const insurerName = enrichment?.insurers.get(result.insurer_id ?? '')
       ?? (result.metadata?.insurer_name as string)

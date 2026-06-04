@@ -660,6 +660,7 @@ export function buildRerankDocument(candidate: SearchResult): string {
     metadata.product_name ? `Produto: ${String(metadata.product_name)}` : null,
     metadata.product_code ? `Codigo: ${String(metadata.product_code)}` : null,
     metadata.coverage_name ? `Cobertura: ${String(metadata.coverage_name)}` : null,
+    metadata.section_path ? `Secao Hierarquica: ${String(metadata.section_path)}` : null,
     candidate.source_type ? `Tipo de fonte: ${candidate.source_type}` : null,
   ].filter(Boolean)
 
