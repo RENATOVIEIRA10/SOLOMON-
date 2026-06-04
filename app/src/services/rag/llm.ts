@@ -173,7 +173,35 @@ async function callLLMFallbackWithoutAnthropic(
     }
     const combinedMsg = geminiErrors.join(' | ')
     gen?.end({ level: 'ERROR', statusMessage: combinedMsg })
-    console.warn('[rag/llm] All Gemini keys failed, trying OpenAI:', combinedMsg)
+    console.warn('[rag/llm] All Gemini keys failed, trying OpenRouter fallback:', combinedMsg)
+  }
+
+  // 2b. Try Gemini via OpenRouter
+  const openrouterKey = process.env.OPENROUTER_API_KEY
+  if (openrouterKey) {
+    const genOpenRouter = trace?.generation({
+      name: 'openrouter.gemini.flash',
+      model: 'google/gemini-2.5-flash',
+      input: { systemPrompt: systemPrompt.slice(0, 500), userMessage },
+    })
+    try {
+      console.log('[rag/llm] Trying OpenRouter fallback with google/gemini-2.5-flash')
+      const result = await callOpenRouter(systemPrompt, userMessage, 'google/gemini-2.5-flash', {
+        timeoutMs: GEMINI_TIMEOUT_MS,
+      })
+      const latencyMs = Date.now() - start
+      genOpenRouter?.end({
+        output: result.text,
+        usage: { totalTokens: result.tokensUsed },
+      })
+      trace?.update({ output: result.text })
+      await safeFlush()
+      return { ...result, latencyMs }
+    } catch (error) {
+      const msg = (error as Error).message
+      genOpenRouter?.end({ level: 'ERROR', statusMessage: msg })
+      console.warn('[rag/llm] OpenRouter fallback failed, trying OpenAI:', msg)
+    }
   }
 
   // 3. Fallback to OpenAI
@@ -181,7 +209,7 @@ async function callLLMFallbackWithoutAnthropic(
   if (!openaiKey) {
     trace?.update({ output: null, metadata: { error: 'no_keys' } })
     await safeFlush()
-    throw new Error('[rag/llm] No LLM API key available (ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENAI_API_KEY all missing)')
+    throw new Error('[rag/llm] No LLM API key available (ANTHROPIC_API_KEY, GEMINI_API_KEY, OPENROUTER_API_KEY, OPENAI_API_KEY all missing)')
   }
 
   const gen = trace?.generation({
@@ -360,26 +388,87 @@ export interface GeminiJsonOptions {
   thinkingBudget?: number
 }
 
-/**
- * Chama Gemini com `responseMimeType: 'application/json'` — forca o modelo a
- * devolver JSON valido sem fences/preambulo. Usado pelos paths que ate Wave A.1
- * dependiam de Anthropic SDK direto (compare/pre-sinistro). Mesma chave do
- * GEMINI_API_KEY ja em prod (validada via fallback chain do ask()).
- *
- * `systemInstruction` separa do `contents` — Gemini honra como instrucao
- * persistente sem custo de tokens em cada turn. `userMessage` vai no role=user.
- */
-export async function callGeminiJson(
+async function callOpenRouter(
   systemPrompt: string,
   userMessage: string,
-  options: GeminiJsonOptions = {}
+  model: string,
+  options: { responseMimeType?: string; temperature?: number; maxOutputTokens?: number; timeoutMs?: number } = {}
 ): Promise<Omit<LLMResponse, 'latencyMs'>> {
-  const apiKey = process.env.GEMINI_API_KEY
+  const apiKey = process.env.OPENROUTER_API_KEY
   if (!apiKey) {
-    throw new Error('GEMINI_API_KEY nao configurada')
+    throw new Error('OPENROUTER_API_KEY nao configurada')
   }
 
-  const model = options.model ?? GEMINI_MODEL
+  const url = 'https://openrouter.ai/api/v1/chat/completions'
+  const headers: Record<string, string> = {
+    'Authorization': `Bearer ${apiKey.trim()}`,
+    'Content-Type': 'application/json',
+  }
+
+  const messages = []
+  if (systemPrompt) {
+    messages.push({ role: 'system', content: systemPrompt })
+  }
+  messages.push({ role: 'user', content: userMessage })
+
+  const body: Record<string, any> = {
+    model,
+    messages,
+    temperature: options.temperature ?? 0.3,
+  }
+
+  if (options.maxOutputTokens) {
+    body.max_tokens = options.maxOutputTokens
+  }
+
+  if (options.responseMimeType === 'application/json') {
+    body.response_format = { type: 'json_object' }
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? 25000)
+
+  let response
+  try {
+    response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    })
+  } finally {
+    clearTimeout(timeoutId)
+  }
+
+  if (!response.ok) {
+    const errorBody = await response.text()
+    throw new Error(`OpenRouter API error ${response.status}: ${errorBody}`)
+  }
+
+  const data = await response.json()
+  const text = data?.choices?.[0]?.message?.content
+  if (!text) {
+    throw new Error('OpenRouter returned empty response')
+  }
+
+  const promptTokens = data?.usage?.prompt_tokens ?? 0
+  const completionTokens = data?.usage?.completion_tokens ?? 0
+  const tokensUsed = promptTokens + completionTokens
+
+  return {
+    text,
+    model,
+    tokensUsed,
+  }
+}
+
+async function callGeminiJsonDirect(
+  systemPrompt: string,
+  userMessage: string,
+  apiKey: string,
+  model: string,
+  options: GeminiJsonOptions
+): Promise<Omit<LLMResponse, 'latencyMs'>> {
   const temperature = options.temperature ?? 0.2
   const maxOutputTokens = options.maxOutputTokens ?? 4096
   const timeoutMs = options.timeoutMs ?? 25000
@@ -427,10 +516,8 @@ export async function callGeminiJson(
   const text = candidate?.content?.parts?.[0]?.text
   const finishReason = candidate?.finishReason
 
-  // Wave A.4: log estruturado pra diagnosticar truncamento (MAX_TOKENS) vs
-  // outras falhas. thoughtsTokenCount aparece em Gemini 2.5+ com reasoning.
   console.log(
-    `[gemini-json] model=${model} finishReason=${finishReason} ` +
+    `[gemini-json-direct] model=${model} finishReason=${finishReason} ` +
       `promptTokens=${data?.usageMetadata?.promptTokenCount ?? 0} ` +
       `outputTokens=${data?.usageMetadata?.candidatesTokenCount ?? 0} ` +
       `thoughtsTokens=${data?.usageMetadata?.thoughtsTokenCount ?? 0} ` +
@@ -449,6 +536,45 @@ export async function callGeminiJson(
     (data?.usageMetadata?.candidatesTokenCount ?? 0)
 
   return { text, model, tokensUsed }
+}
+
+export async function callGeminiJson(
+  systemPrompt: string,
+  userMessage: string,
+  options: GeminiJsonOptions = {}
+): Promise<Omit<LLMResponse, 'latencyMs'>> {
+  const apiKey = process.env.GEMINI_API_KEY
+  const openrouterKey = process.env.OPENROUTER_API_KEY
+
+  if (!apiKey && !openrouterKey) {
+    throw new Error('Nenhuma chave disponivel para Gemini JSON (GEMINI_API_KEY e OPENROUTER_API_KEY ausentes)')
+  }
+
+  const model = options.model ?? GEMINI_MODEL
+
+  if (apiKey) {
+    try {
+      return await callGeminiJsonDirect(systemPrompt, userMessage, apiKey, model, options)
+    } catch (error) {
+      console.warn('[rag/llm] Gemini JSON direto falhou, tentando OpenRouter:', (error as Error).message)
+      if (!openrouterKey) {
+        throw error
+      }
+    }
+  }
+
+  if (openrouterKey) {
+    const openrouterModel = model === 'gemini-2.5-flash' ? 'google/gemini-2.5-flash' : model
+    console.log(`[rag/llm] Chamando Gemini JSON via OpenRouter (${openrouterModel})`)
+    return callOpenRouter(systemPrompt, userMessage, openrouterModel, {
+      responseMimeType: 'application/json',
+      temperature: options.temperature,
+      maxOutputTokens: options.maxOutputTokens,
+      timeoutMs: options.timeoutMs,
+    })
+  }
+
+  throw new Error('Falha inexplicavel no fluxo de chaves do Gemini JSON')
 }
 
 /**
