@@ -374,6 +374,25 @@ export interface ExhaustiveIntent {
   sectionQuery: string
 }
 
+type TocChunkRow = {
+  id: string
+  content: string
+  metadata: Record<string, unknown> | null
+  source_url: string | null
+  source_type: string
+  product_id: string | null
+  insurer_id: string | null
+}
+
+type FetchChunksByTocRpc = (
+  fn: 'fetch_chunks_by_toc',
+  args: {
+    filter_insurer_id: string
+    filter_product_id: string | null
+    section_query: string
+  }
+) => Promise<{ data: TocChunkRow[] | null; error: { message: string } | null }>
+
 /**
  * Detects if a query has an exhaustive retrieval intent (e.g. asking for exclusions or grace periods).
  */
@@ -390,7 +409,7 @@ export function detectExhaustiveIntent(query: string): ExhaustiveIntent {
     normalized.includes('excluido') ||
     normalized.includes('excluidos')
   ) {
-    return { isExhaustive: true, sectionQuery: 'exclus' }
+    return { isExhaustive: true, sectionQuery: 'exclu' }
   }
 
   // Match common Portuguese terms for grace periods (carências)
@@ -414,9 +433,10 @@ export async function fetchChunksByToc(
   sectionQuery: string
 ): Promise<SearchResult[]> {
   const supabase = createServiceClient()
-  const { data, error } = await supabase.rpc('fetch_chunks_by_toc', {
+  const fetchChunksByTocRpc = supabase.rpc as unknown as FetchChunksByTocRpc
+  const { data, error } = await fetchChunksByTocRpc('fetch_chunks_by_toc', {
     filter_insurer_id: insurerId,
-    filter_product_id: (productId ?? null) as any,
+    filter_product_id: productId ?? null,
     section_query: sectionQuery,
   })
 
@@ -429,16 +449,15 @@ export async function fetchChunksByToc(
     return []
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data as Array<Record<string, any>>).map((row) => ({
-    id: row.id as string,
-    content: row.content as string,
+  return data.map((row) => ({
+    id: row.id,
+    content: row.content,
     similarity: 1.0, // Exact section fetch similarity anchor
-    metadata: (row.metadata as Record<string, unknown>) ?? {},
-    source_url: (row.source_url as string) ?? null,
-    source_type: row.source_type as string,
-    product_id: (row.product_id as string) ?? null,
-    insurer_id: (row.insurer_id as string) ?? null,
+    metadata: row.metadata ?? {},
+    source_url: row.source_url,
+    source_type: row.source_type,
+    product_id: row.product_id,
+    insurer_id: row.insurer_id,
   }))
 }
 
