@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { Copy, Check, ThumbsUp, ThumbsDown, ExternalLink, AlertTriangle } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
 
 export type Citation = {
@@ -51,7 +51,7 @@ export function MessageBubble({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.2, ease: "easeOut" }}
       className={cn(
         "flex w-full",
         isUser ? "justify-end" : "justify-start"
@@ -80,9 +80,9 @@ export function MessageBubble({
 
         {!isUser && !message.loading && message.lowConfidence && (
           <div className="flex w-full items-start gap-2 rounded-md border border-solomon-gold/20 bg-solomon-gold/10 px-3 py-2 text-xs leading-relaxed text-solomon-cream-muted">
-            <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-solomon-gold" />
+            <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-solomon-gold" />
             <div className="min-w-0">
-              <p className="font-mono text-[10px] uppercase tracking-widest text-solomon-gold">
+              <p className="font-mono text-[10px] uppercase text-solomon-gold tabular-nums">
                 Confianca baixa {typeof message.confidenceScore === "number" ? `${Math.round(message.confidenceScore * 100)}%` : ""}
               </p>
               {message.answerWarnings && message.answerWarnings.length > 0 && (
@@ -103,7 +103,7 @@ export function MessageBubble({
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="w-full flex flex-col gap-2 mt-1"
             >
               {message.citations.map((c) => (
@@ -120,23 +120,25 @@ export function MessageBubble({
               initial={{ opacity: 0, y: 4 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
               className="flex items-center gap-1 text-solomon-cream-muted/60 pt-1"
             >
             <button
               onClick={handleCopy}
+              aria-label="Copiar resposta"
               className="p-1.5 rounded-md hover:text-solomon-gold hover:bg-solomon-graphite/60 transition-colors"
               title="Copiar resposta"
               type="button"
             >
               {copied ? (
-                <Check className="h-3.5 w-3.5 text-solomon-gold" />
+                <Check className="size-3.5 text-solomon-gold" />
               ) : (
-                <Copy className="h-3.5 w-3.5" />
+                <Copy className="size-3.5" />
               )}
             </button>
             <button
               onClick={() => onFeedback?.("up")}
+              aria-label="Marcar resposta como util"
               className={cn(
                 "p-1.5 rounded-md hover:bg-solomon-graphite/60 transition-colors",
                 message.feedback === "up"
@@ -146,10 +148,11 @@ export function MessageBubble({
               title="Resposta útil"
               type="button"
             >
-              <ThumbsUp className="h-3.5 w-3.5" />
+              <ThumbsUp className="size-3.5" />
             </button>
             <button
               onClick={() => onFeedback?.("down")}
+              aria-label="Marcar resposta com problema"
               className={cn(
                 "p-1.5 rounded-md hover:bg-solomon-graphite/60 transition-colors",
                 message.feedback === "down"
@@ -159,7 +162,7 @@ export function MessageBubble({
               title="Resposta com problema"
               type="button"
             >
-              <ThumbsDown className="h-3.5 w-3.5" />
+              <ThumbsDown className="size-3.5" />
             </button>
           </motion.div>
         )}
@@ -225,7 +228,7 @@ function CitationCard({ citation }: { citation: Citation }) {
           {citation.productName}
         </span>
         {citation.sourceUrl && (
-          <ExternalLink className="h-3 w-3 text-solomon-cream-muted/60 group-hover:text-solomon-gold transition-colors shrink-0" />
+          <ExternalLink className="size-3 text-solomon-cream-muted/60 group-hover:text-solomon-gold transition-colors shrink-0" />
         )}
       </div>
       {citation.susepProcess && (
@@ -240,9 +243,9 @@ function CitationCard({ citation }: { citation: Citation }) {
 function TypingIndicator() {
   return (
     <div className="flex items-center gap-1.5 py-1 px-1">
-      <span className="h-1.5 w-1.5 rounded-full bg-solomon-gold animate-pulse [animation-delay:-0.3s]" />
-      <span className="h-1.5 w-1.5 rounded-full bg-solomon-gold animate-pulse [animation-delay:-0.15s]" />
-      <span className="h-1.5 w-1.5 rounded-full bg-solomon-gold animate-pulse" />
+      <span className="size-1.5 rounded-full bg-solomon-gold animate-pulse [animation-delay:-0.3s]" />
+      <span className="size-1.5 rounded-full bg-solomon-gold animate-pulse [animation-delay:-0.15s]" />
+      <span className="size-1.5 rounded-full bg-solomon-gold animate-pulse" />
     </div>
   );
 }

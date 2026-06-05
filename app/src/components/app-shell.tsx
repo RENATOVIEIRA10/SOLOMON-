@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import {
   MessageSquare,
   LayoutDashboard,
@@ -63,10 +63,10 @@ function DesktopSidebar() {
   return (
     <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-60 flex-col border-r border-solomon-gold/15 bg-solomon-graphite/30 backdrop-blur-sm z-30">
       <div className="safe-top px-5 flex flex-col gap-1.5 pb-6">
-        <span className="font-display text-2xl font-semibold tracking-[0.14em] text-solomon-gold-light [text-shadow:0_0_18px_rgba(255,208,0,0.45)]">
+        <span className="font-display text-2xl font-semibold text-solomon-gold-light">
           SOLOMON
         </span>
-        <span className="font-mono text-[10px] uppercase tracking-wider text-solomon-gold/70 pl-1">
+        <span className="font-mono text-[10px] uppercase text-solomon-gold/70 pl-1">
           v1.0 · AUR.IOs
         </span>
       </div>
@@ -95,7 +95,7 @@ function DesktopSidebar() {
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
-              <Icon className="relative h-4 w-4" />
+              <Icon className="relative size-4" />
               <span className="relative">{item.label}</span>
             </Link>
           );
@@ -107,10 +107,10 @@ function DesktopSidebar() {
           href="/auth/signout"
           className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-gold/10 transition-colors"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="size-4" />
           <span>Sair</span>
         </a>
-        <p className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/50 px-3">
+        <p className="font-mono text-[10px] uppercase text-solomon-cream-muted/50 px-3">
           AUR.IOs · 2026
         </p>
       </div>
@@ -138,8 +138,8 @@ function MobileBottomNav() {
                     : "text-solomon-cream-muted hover:text-solomon-cream"
                 )}
               >
-                <Icon className="h-5 w-5" />
-                <span className="text-[10px] font-medium tracking-wide">
+                <Icon className="size-5" />
+                <span className="text-[10px] font-medium">
                   {item.shortLabel}
                 </span>
                 {active && (

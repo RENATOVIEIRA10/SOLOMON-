@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import * as Dialog from "@radix-ui/react-dialog";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { Plus, Search, User, Mail, Phone, Trash2, X } from "lucide-react";
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,9 @@ export function ClientsView() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   async function refresh() {
     if (!brokerId) return;
@@ -54,9 +58,19 @@ export function ClientsView() {
     );
   });
 
-  async function handleDelete(id: string) {
-    if (!confirm("Remover este cliente?")) return;
-    await fetch(`/api/clients/${id}`, { method: "DELETE" });
+  async function handleDelete() {
+    if (!deleteTarget || deleting) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const res = await fetch(`/api/clients/${deleteTarget.id}`, { method: "DELETE" });
+    setDeleting(false);
+
+    if (!res.ok) {
+      setDeleteError("Nao foi possivel remover este cliente.");
+      return;
+    }
+
+    setDeleteTarget(null);
     refresh();
   }
 
@@ -64,22 +78,22 @@ export function ClientsView() {
     <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top">
       <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
         <div>
-          <p className="font-mono text-xs uppercase tracking-widest text-solomon-gold/80">
+          <p className="font-mono text-xs uppercase text-solomon-gold/80">
             Carteira
           </p>
-          <h1 className="mt-2 font-display text-4xl text-solomon-cream">
+          <h1 className="mt-2 font-display text-4xl text-solomon-cream text-balance">
             Meus Clientes
           </h1>
         </div>
         <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="h-4 w-4" />
+          <Plus className="size-4" />
           Novo cliente
         </Button>
       </header>
 
       {/* Search */}
       <div className="relative mb-6 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-solomon-cream-muted/60" />
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-solomon-cream-muted/60" />
         <input
           type="text"
           value={query}
@@ -97,7 +111,7 @@ export function ClientsView() {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
             className="text-sm text-solomon-cream-muted"
           >
             Carregando...
@@ -108,17 +122,17 @@ export function ClientsView() {
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
           >
             <Card>
               <CardContent className="py-12 text-center">
-                <User className="h-8 w-8 text-solomon-cream-muted/40 mx-auto mb-3" />
-                <p className="text-solomon-cream-muted mb-4">
+                <User className="size-8 text-solomon-cream-muted/40 mx-auto mb-3" />
+                <p className="text-solomon-cream-muted mb-4 text-pretty">
                   {query ? "Nenhum cliente encontrado." : "Você ainda não cadastrou clientes."}
                 </p>
                 {!query && (
                   <Button onClick={() => setDialogOpen(true)} variant="outline">
-                    <Plus className="h-4 w-4" />
+                    <Plus className="size-4" />
                     Cadastrar primeiro cliente
                   </Button>
                 )}
@@ -132,13 +146,13 @@ export function ClientsView() {
               key={c.id}
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.25, ease: [0.22, 1, 0.36, 1] }}
+              transition={{ duration: 0.2, ease: "easeOut" }}
             >
               <Card className="h-full hover:border-solomon-gold/40 transition-colors group">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="h-10 w-10 rounded-full bg-solomon-gold/10 text-solomon-gold flex items-center justify-center font-semibold shrink-0">
+                      <div className="size-10 rounded-full bg-solomon-gold/10 text-solomon-gold flex items-center justify-center font-semibold shrink-0">
                         {initials(c.name)}
                       </div>
                       <div className="min-w-0">
@@ -156,24 +170,28 @@ export function ClientsView() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => handleDelete(c.id)}
+                      onClick={() => {
+                        setDeleteTarget(c);
+                        setDeleteError(null);
+                      }}
+                      aria-label={`Remover cliente ${c.name}`}
                       className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-solomon-cream-muted hover:text-destructive hover:bg-destructive/10 transition-all"
                       title="Remover"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <Trash2 className="size-3.5" />
                     </button>
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-1.5 pt-0">
                   {c.email && (
                     <p className="flex items-center gap-2 text-xs text-solomon-cream-muted">
-                      <Mail className="h-3 w-3 text-solomon-gold/60" />
+                      <Mail className="size-3 text-solomon-gold/60" />
                       <span className="truncate">{c.email}</span>
                     </p>
                   )}
                   {c.phone && (
                     <p className="flex items-center gap-2 text-xs text-solomon-cream-muted">
-                      <Phone className="h-3 w-3 text-solomon-gold/60" />
+                      <Phone className="size-3 text-solomon-gold/60" />
                       <span>{c.phone}</span>
                     </p>
                   )}
@@ -202,6 +220,50 @@ export function ClientsView() {
         brokerId={brokerId}
         onSaved={refresh}
       />
+
+      <AlertDialog.Root
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open && !deleting) setDeleteTarget(null);
+        }}
+      >
+        <AlertDialog.Portal>
+          <AlertDialog.Overlay className="fixed inset-0 z-40 bg-solomon-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
+          <AlertDialog.Content className="fixed z-50 left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-solomon-gold/20 bg-solomon-graphite p-6 shadow-2xl shadow-solomon-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 duration-200 ease-out">
+            <AlertDialog.Title className="font-display text-2xl text-solomon-cream text-balance">
+              Remover cliente
+            </AlertDialog.Title>
+            <AlertDialog.Description className="mt-2 text-sm leading-relaxed text-solomon-cream-muted text-pretty">
+              Esta acao remove {deleteTarget?.name ?? "este cliente"} da carteira. O historico de analises vinculado pode deixar de aparecer na visao 360 do cliente.
+            </AlertDialog.Description>
+            {deleteError && (
+              <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {deleteError}
+              </p>
+            )}
+            <div className="mt-6 flex justify-end gap-2">
+              <AlertDialog.Cancel asChild>
+                <Button type="button" variant="outline" disabled={deleting}>
+                  Cancelar
+                </Button>
+              </AlertDialog.Cancel>
+              <AlertDialog.Action asChild>
+                <Button
+                  type="button"
+                  variant="destructive"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    void handleDelete();
+                  }}
+                  disabled={deleting}
+                >
+                  {deleting ? "Removendo..." : "Remover"}
+                </Button>
+              </AlertDialog.Action>
+            </div>
+          </AlertDialog.Content>
+        </AlertDialog.Portal>
+      </AlertDialog.Root>
     </div>
   );
 }
@@ -226,11 +288,13 @@ function ClientFormDialog({
     notes: "",
   });
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!brokerId || form.name.trim().length < 2 || saving) return;
     setSaving(true);
+    setError(null);
     const res = await fetch("/api/clients", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -249,7 +313,7 @@ function ClientFormDialog({
       onOpenChange(false);
       onSaved();
     } else {
-      alert("Erro ao salvar cliente.");
+      setError("Erro ao salvar cliente.");
     }
   }
 
@@ -257,13 +321,16 @@ function ClientFormDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-40 bg-solomon-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
-        <Dialog.Content className="fixed z-50 left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-md bg-solomon-graphite border border-solomon-gold/20 rounded-xl shadow-2xl shadow-solomon-black/50 p-6 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95">
+        <Dialog.Content className="fixed z-50 left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 bg-solomon-graphite border border-solomon-gold/20 rounded-xl shadow-2xl shadow-solomon-black/50 p-6 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 duration-200 ease-out">
           <div className="flex items-center justify-between mb-5">
-            <Dialog.Title className="font-display text-2xl text-solomon-cream">
+            <Dialog.Title className="font-display text-2xl text-solomon-cream text-balance">
               Novo cliente
             </Dialog.Title>
-            <Dialog.Close className="rounded-md p-1.5 text-solomon-cream-muted hover:text-solomon-gold transition-colors">
-              <X className="h-4 w-4" />
+            <Dialog.Close
+              aria-label="Fechar cadastro de cliente"
+              className="rounded-md p-1.5 text-solomon-cream-muted hover:text-solomon-gold transition-colors"
+            >
+              <X className="size-4" />
             </Dialog.Close>
           </div>
 
@@ -276,7 +343,7 @@ function ClientFormDialog({
             <Field label="Telefone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="(11) 9 0000-0000" />
             <Field label="E-mail" value={form.email} onChange={(v) => setForm({ ...form, email: v })} type="email" placeholder="cliente@exemplo.com" />
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">Observações</span>
+              <span className="text-xs uppercase text-solomon-cream-muted">Observações</span>
               <textarea
                 rows={3}
                 value={form.notes}
@@ -285,6 +352,12 @@ function ClientFormDialog({
                 className="rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 px-3 py-2 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20 resize-none"
               />
             </label>
+
+            {error && (
+              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {error}
+              </p>
+            )}
 
             <div className="flex gap-2 pt-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
@@ -318,7 +391,7 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
+      <span className="text-xs uppercase text-solomon-cream-muted">
         {label}
       </span>
       <input
