@@ -14,6 +14,11 @@ import {
   isAiAccessResponse,
   requireAiAccess,
 } from "@/lib/ai-access";
+import {
+  PRODUCT_ANALYTICS_EVENTS,
+  quotaRemaining,
+  trackProductEvent,
+} from "@/lib/product-analytics";
 
 export const runtime = "nodejs";
 export const maxDuration = 90;
@@ -25,7 +30,20 @@ export async function POST(request: NextRequest) {
     if (!aiAccess) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     const quotaBlocked = enforceAiQuota(aiAccess);
-    if (quotaBlocked) return quotaBlocked;
+    if (quotaBlocked) {
+      await trackProductEvent({
+        eventName: PRODUCT_ANALYTICS_EVENTS.quotaExceeded,
+        brokerId: aiAccess.brokerId,
+        authUserId: aiAccess.authUserId,
+        source: "api/compare",
+        properties: {
+          plan: aiAccess.plan,
+          queries_today: aiAccess.queriesToday,
+          queries_per_day: aiAccess.queriesPerDay,
+        },
+      });
+      return quotaBlocked;
+    }
 
     const body = (await request.json()) as {
       insurerNames: string[];
@@ -45,12 +63,40 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const startedAt = Date.now();
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.comparisonStarted,
+      brokerId: aiAccess.brokerId,
+      authUserId: aiAccess.authUserId,
+      source: "api/compare",
+      properties: {
+        plan: aiAccess.plan,
+        product_type: body.productType,
+        insurers_count: body.insurerNames.length,
+        insurer_names: body.insurerNames,
+        quota_remaining_before: quotaRemaining(aiAccess.queriesToday, aiAccess.queriesPerDay),
+      },
+    });
+
     const result = await compareInsurers({
       insurerNames: body.insurerNames,
       productType: body.productType,
     });
 
     await incrementAiQuota(aiAccess);
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.comparisonCompleted,
+      brokerId: aiAccess.brokerId,
+      authUserId: aiAccess.authUserId,
+      source: "api/compare",
+      properties: {
+        plan: aiAccess.plan,
+        product_type: body.productType,
+        insurers_count: body.insurerNames.length,
+        wall_latency_ms: Date.now() - startedAt,
+        quota_remaining_after: quotaRemaining(aiAccess.queriesToday + 1, aiAccess.queriesPerDay),
+      },
+    });
     return NextResponse.json(result, {
       headers: aiQuotaHeaders({ ...aiAccess, queriesToday: aiAccess.queriesToday + 1 }),
     });

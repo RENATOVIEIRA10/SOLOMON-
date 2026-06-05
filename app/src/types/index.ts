@@ -18,4 +18,5 @@ export type Alert = Tables<'alerts'>
 export type IngestionLog = Tables<'ingestion_logs'>
 export type AuditLog = Tables<'audit_log'>
 export type SubscriptionEvent = Tables<'subscription_events'>
+export type ProductAnalyticsEvent = Tables<'product_analytics_events'>
 export type IdempotencyKey = Tables<'idempotency_keys'>

@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
 import { requireBrokerContext } from '@/lib/auth'
+import { PRODUCT_ANALYTICS_EVENTS, trackProductEvent } from '@/lib/product-analytics'
 
 const VALID_ISSUES = ['hallucination', 'wrong_insurer', 'outdated', 'incomplete', 'other'] as const
 const VALID_CHANNELS = ['whatsapp', 'dashboard', 'api'] as const
@@ -89,6 +90,21 @@ export async function POST(request: NextRequest) {
     console.error('[api/feedback] insert failed:', error.message)
     return NextResponse.json({ error: 'Failed to record feedback' }, { status: 500 })
   }
+
+  await trackProductEvent({
+    eventName: PRODUCT_ANALYTICS_EVENTS.feedbackSubmitted,
+    brokerId: broker.brokerId,
+    authUserId: broker.authUserId,
+    source: 'api/feedback',
+    properties: {
+      conversation_id,
+      feedback_id: (data as { id: string }).id,
+      rating,
+      channel: resolvedChannel,
+      flagged_issue: flagged_issue ?? null,
+      has_comment: Boolean(comment),
+    },
+  })
 
   return NextResponse.json({ id: (data as { id: string }).id, status: 'recorded' })
 }

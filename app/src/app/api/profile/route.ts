@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { requireAuthUserId } from "@/lib/auth";
+import { PRODUCT_ANALYTICS_EVENTS, trackProductEvent } from "@/lib/product-analytics";
 
 const DEFAULT_PLAN = "free";
 
@@ -56,6 +57,16 @@ export async function GET() {
       return NextResponse.json({ error: "bootstrap failed" }, { status: 500 });
     }
 
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.brokerProfileBootstrapped,
+      brokerId: (created as { id: string }).id,
+      authUserId,
+      source: "api/profile",
+      properties: {
+        plan: DEFAULT_PLAN,
+      },
+    });
+
     return NextResponse.json({ profile: created });
   } catch (err) {
     console.error("[api/profile] error:", err);
@@ -98,6 +109,16 @@ export async function PUT(request: NextRequest) {
       console.error("[api/profile] update failed:", error.message);
       return NextResponse.json({ error: "update failed" }, { status: 500 });
     }
+
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.brokerProfileUpdated,
+      brokerId: (data as { id: string }).id,
+      authUserId,
+      source: "api/profile",
+      properties: {
+        updated_fields: Object.keys(patch),
+      },
+    });
 
     return NextResponse.json({ profile: data });
   } catch (err) {

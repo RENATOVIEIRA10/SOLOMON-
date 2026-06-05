@@ -16,6 +16,12 @@ import {
   isAiAccessResponse,
   requireAiAccess,
 } from '@/lib/ai-access'
+import {
+  PRODUCT_ANALYTICS_EVENTS,
+  bucketTextLength,
+  quotaRemaining,
+  trackProductEvent,
+} from '@/lib/product-analytics'
 
 export const maxDuration = 60
 
@@ -128,7 +134,39 @@ export async function POST(request: NextRequest) {
     }
 
     const quotaBlocked = aiAccess ? enforceAiQuota(aiAccess) : null
-    if (quotaBlocked) return quotaBlocked
+    if (quotaBlocked) {
+      await trackProductEvent({
+        eventName: PRODUCT_ANALYTICS_EVENTS.quotaExceeded,
+        brokerId: aiAccess?.brokerId,
+        authUserId: aiAccess?.authUserId,
+        source: 'api/ask',
+        properties: {
+          channel: body.channel ?? 'api',
+          plan: aiAccess?.plan,
+          queries_today: aiAccess?.queriesToday,
+          queries_per_day: aiAccess?.queriesPerDay,
+        },
+      })
+      return quotaBlocked
+    }
+
+    const startedAt = Date.now()
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.conversationStarted,
+      brokerId: aiAccess?.brokerId,
+      authUserId: aiAccess?.authUserId,
+      source: 'api/ask',
+      properties: {
+        channel: body.channel ?? 'api',
+        plan: aiAccess?.plan,
+        insurer_filter: body.insurer ?? null,
+        question_length_bucket: bucketTextLength(body.question),
+        history_messages_count: body.history?.length ?? 0,
+        quota_remaining_before: aiAccess
+          ? quotaRemaining(aiAccess.queriesToday, aiAccess.queriesPerDay)
+          : null,
+      },
+    })
 
     const result = await ask(body.question.trim(), {
       brokerId: aiAccess?.brokerId,
@@ -138,6 +176,28 @@ export async function POST(request: NextRequest) {
     })
 
     await incrementAiQuota(aiAccess)
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.conversationCompleted,
+      brokerId: aiAccess?.brokerId,
+      authUserId: aiAccess?.authUserId,
+      source: 'api/ask',
+      properties: {
+        channel: body.channel ?? 'api',
+        plan: aiAccess?.plan,
+        model: result.model,
+        latency_ms: result.latencyMs,
+        wall_latency_ms: Date.now() - startedAt,
+        tokens_used: result.tokensUsed,
+        citations_count: result.citations.length,
+        low_confidence: result.lowConfidence,
+        confidence_score: result.confidenceScore,
+        answer_warnings_count: result.answerWarnings?.length ?? 0,
+        source_count: result.sourceCount ?? null,
+        quota_remaining_after: aiAccess
+          ? quotaRemaining(aiAccess.queriesToday + 1, aiAccess.queriesPerDay)
+          : null,
+      },
+    })
     const responseQuota = aiAccess
       ? { ...aiAccess, queriesToday: aiAccess.queriesToday + 1 }
       : null

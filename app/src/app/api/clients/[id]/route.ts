@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { requireAuthUserId, getBrokerRowId } from "@/lib/auth";
+import { PRODUCT_ANALYTICS_EVENTS, trackProductEvent } from "@/lib/product-analytics";
 
 export async function GET(
   _request: NextRequest,
@@ -108,6 +109,17 @@ export async function PUT(
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
 
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.clientUpdated,
+      brokerId: rowId,
+      authUserId: auth,
+      source: "api/clients/:id",
+      properties: {
+        client_id: id,
+        updated_fields: Object.keys(patch),
+      },
+    });
+
     return NextResponse.json({ client: data });
   } catch (err) {
     console.error("[api/clients/:id] error:", err);
@@ -142,6 +154,16 @@ export async function DELETE(
     if (!data) {
       return NextResponse.json({ error: "not found" }, { status: 404 });
     }
+
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.clientDeleted,
+      brokerId: rowId,
+      authUserId: auth,
+      source: "api/clients/:id",
+      properties: {
+        client_id: id,
+      },
+    });
 
     return NextResponse.json({ ok: true });
   } catch (err) {

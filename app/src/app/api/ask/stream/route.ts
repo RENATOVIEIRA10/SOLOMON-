@@ -19,6 +19,12 @@ import {
   isAiAccessResponse,
   requireAiAccess,
 } from "@/lib/ai-access";
+import {
+  PRODUCT_ANALYTICS_EVENTS,
+  bucketTextLength,
+  quotaRemaining,
+  trackProductEvent,
+} from "@/lib/product-analytics";
 
 interface AskRequestBody {
   question: string;
@@ -73,12 +79,50 @@ export async function POST(request: NextRequest) {
   if (!aiAccess) return errorResponse("unauthorized", 401);
 
   const quotaBlocked = enforceAiQuota(aiAccess);
-  if (quotaBlocked) return quotaBlocked;
+  if (quotaBlocked) {
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.quotaExceeded,
+      brokerId: aiAccess.brokerId,
+      authUserId: aiAccess.authUserId,
+      source: "api/ask/stream",
+      properties: {
+        channel: body.channel ?? "api",
+        plan: aiAccess.plan,
+        queries_today: aiAccess.queriesToday,
+        queries_per_day: aiAccess.queriesPerDay,
+      },
+    });
+    return quotaBlocked;
+  }
+
+  const startedAt = Date.now();
+  await trackProductEvent({
+    eventName: PRODUCT_ANALYTICS_EVENTS.conversationStarted,
+    brokerId: aiAccess.brokerId,
+    authUserId: aiAccess.authUserId,
+    source: "api/ask/stream",
+    properties: {
+      channel: body.channel ?? "api",
+      plan: aiAccess.plan,
+      insurer_filter: body.insurer ?? null,
+      question_length_bucket: bucketTextLength(body.question),
+      history_messages_count: body.history?.length ?? 0,
+      quota_remaining_before: quotaRemaining(aiAccess.queriesToday, aiAccess.queriesPerDay),
+    },
+  });
 
   const encoder = new TextEncoder();
 
   const stream = new ReadableStream({
     async start(controller) {
+      let completed = false;
+      let model: string | null = null;
+      let latencyMs: number | null = null;
+      let citationsCount = 0;
+      let lowConfidence: boolean | null = null;
+      let confidenceScore: number | null = null;
+      let answerWarningsCount = 0;
+
       const write = (event: string, data: unknown) => {
         try {
           controller.enqueue(
@@ -97,8 +141,16 @@ export async function POST(request: NextRequest) {
           conversationHistory: body.history,
         })) {
           if (evt.type === "token") write("token", { delta: evt.delta });
-          else if (evt.type === "meta") write("meta", evt);
-          else if (evt.type === "error") write("error", { message: evt.message });
+          else if (evt.type === "meta") {
+            completed = true;
+            model = evt.model ?? null;
+            latencyMs = evt.latencyMs ?? null;
+            citationsCount = evt.citations?.length ?? 0;
+            lowConfidence = evt.lowConfidence ?? null;
+            confidenceScore = evt.confidenceScore ?? null;
+            answerWarningsCount = evt.answerWarnings?.length ?? 0;
+            write("meta", evt);
+          } else if (evt.type === "error") write("error", { message: evt.message });
         }
       } catch (err) {
         console.error("[api/ask/stream] stream error:", err);
@@ -107,6 +159,25 @@ export async function POST(request: NextRequest) {
         });
       } finally {
         await incrementAiQuota(aiAccess);
+        await trackProductEvent({
+          eventName: PRODUCT_ANALYTICS_EVENTS.conversationCompleted,
+          brokerId: aiAccess.brokerId,
+          authUserId: aiAccess.authUserId,
+          source: "api/ask/stream",
+          properties: {
+            channel: body.channel ?? "api",
+            plan: aiAccess.plan,
+            completed,
+            model,
+            latency_ms: latencyMs,
+            wall_latency_ms: Date.now() - startedAt,
+            citations_count: citationsCount,
+            low_confidence: lowConfidence,
+            confidence_score: confidenceScore,
+            answer_warnings_count: answerWarningsCount,
+            quota_remaining_after: quotaRemaining(aiAccess.queriesToday + 1, aiAccess.queriesPerDay),
+          },
+        });
         controller.close();
       }
     },

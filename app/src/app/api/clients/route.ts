@@ -9,6 +9,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { requireAuthUserId, getBrokerRowId } from "@/lib/auth";
+import { PRODUCT_ANALYTICS_EVENTS, trackProductEvent } from "@/lib/product-analytics";
 
 export async function GET() {
   try {
@@ -87,6 +88,21 @@ export async function POST(request: NextRequest) {
       console.error("[api/clients] insert failed:", error.message);
       return NextResponse.json({ error: "insert failed" }, { status: 500 });
     }
+
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.clientCreated,
+      brokerId: rowId,
+      authUserId,
+      source: "api/clients",
+      properties: {
+        client_id: (data as { id: string }).id,
+        has_cpf: Boolean(body.cpf),
+        has_phone: Boolean(body.phone),
+        has_email: Boolean(body.email),
+        has_birth_date: Boolean(body.birth_date),
+        has_notes: Boolean(body.notes),
+      },
+    });
 
     return NextResponse.json({ client: data });
   } catch (err) {

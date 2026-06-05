@@ -391,6 +391,34 @@ CREATE TABLE subscription_events (
 COMMENT ON TABLE subscription_events IS 'Event sourcing log for subscription state changes';
 
 -- ---------------------------------------------------------------------------
+-- product_analytics_events: First-party product analytics event log
+-- ---------------------------------------------------------------------------
+CREATE TABLE product_analytics_events (
+  id           uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  broker_id    uuid REFERENCES brokers(id) ON DELETE CASCADE,
+  auth_user_id uuid,
+  event_name   text NOT NULL CHECK (event_name IN (
+    'broker_profile_bootstrapped', 'broker_profile_updated',
+    'session_started', 'conversation_started', 'conversation_completed',
+    'comparison_started', 'comparison_completed',
+    'pre_sinistro_analysis_started', 'pre_sinistro_analysis_completed',
+    'client_created', 'client_updated', 'client_deleted',
+    'feedback_submitted', 'quota_exceeded',
+    'upgrade_viewed', 'upgrade_started', 'upgrade_completed',
+    'payment_failed', 'subscription_canceled'
+  )),
+  source       text NOT NULL DEFAULT 'server',
+  properties   jsonb NOT NULL DEFAULT '{}'::jsonb,
+  created_at   timestamptz NOT NULL DEFAULT now()
+);
+COMMENT ON TABLE product_analytics_events IS
+  'First-party SOLOMON product analytics event log. Service-role write/read only by default; no raw PII or raw prompts.';
+COMMENT ON COLUMN product_analytics_events.event_name IS
+  'Event taxonomy uses objeto_verbo_passado, e.g. conversation_started, client_created.';
+COMMENT ON COLUMN product_analytics_events.properties IS
+  'JSON metadata only. Do not store raw questions, claim descriptions, CPF, phone, email, names, or free-form notes.';
+
+-- ---------------------------------------------------------------------------
 -- idempotency_keys: Prevent duplicate webhook/financial processing
 -- ---------------------------------------------------------------------------
 CREATE TABLE idempotency_keys (
@@ -497,6 +525,12 @@ CREATE INDEX idx_subscription_events_broker_id ON subscription_events (broker_id
 CREATE INDEX idx_subscription_events_type ON subscription_events (event_type);
 CREATE INDEX idx_subscription_events_created_at ON subscription_events (created_at DESC);
 
+-- product_analytics_events
+CREATE INDEX idx_product_analytics_events_created_at ON product_analytics_events (created_at DESC);
+CREATE INDEX idx_product_analytics_events_name_created_at ON product_analytics_events (event_name, created_at DESC);
+CREATE INDEX idx_product_analytics_events_broker_created_at ON product_analytics_events (broker_id, created_at DESC);
+CREATE INDEX idx_product_analytics_events_auth_created_at ON product_analytics_events (auth_user_id, created_at DESC);
+
 -- idempotency_keys
 CREATE INDEX idx_idempotency_keys_expires_at ON idempotency_keys (expires_at);
 
@@ -521,6 +555,7 @@ ALTER TABLE alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ingestion_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE audit_log ENABLE ROW LEVEL SECURITY;
 ALTER TABLE subscription_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_analytics_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE idempotency_keys ENABLE ROW LEVEL SECURITY;
 
 -- Helper: get current broker_id from auth context

@@ -1369,6 +1369,44 @@ export type Database = {
           },
         ]
       }
+      product_analytics_events: {
+        Row: {
+          auth_user_id: string | null
+          broker_id: string | null
+          created_at: string
+          event_name: string
+          id: string
+          properties: Json
+          source: string
+        }
+        Insert: {
+          auth_user_id?: string | null
+          broker_id?: string | null
+          created_at?: string
+          event_name: string
+          id?: string
+          properties?: Json
+          source?: string
+        }
+        Update: {
+          auth_user_id?: string | null
+          broker_id?: string | null
+          created_at?: string
+          event_name?: string
+          id?: string
+          properties?: Json
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_analytics_events_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_sessions: {
         Row: {
           broker_id: string | null

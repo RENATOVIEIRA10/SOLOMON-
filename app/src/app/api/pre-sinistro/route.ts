@@ -15,6 +15,12 @@ import {
   isAiAccessResponse,
   requireAiAccess,
 } from "@/lib/ai-access";
+import {
+  PRODUCT_ANALYTICS_EVENTS,
+  bucketTextLength,
+  quotaRemaining,
+  trackProductEvent,
+} from "@/lib/product-analytics";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -28,7 +34,20 @@ export async function POST(request: NextRequest) {
     if (!aiAccess) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
 
     const quotaBlocked = enforceAiQuota(aiAccess);
-    if (quotaBlocked) return quotaBlocked;
+    if (quotaBlocked) {
+      await trackProductEvent({
+        eventName: PRODUCT_ANALYTICS_EVENTS.quotaExceeded,
+        brokerId: aiAccess.brokerId,
+        authUserId: aiAccess.authUserId,
+        source: "api/pre-sinistro",
+        properties: {
+          plan: aiAccess.plan,
+          queries_today: aiAccess.queriesToday,
+          queries_per_day: aiAccess.queriesPerDay,
+        },
+      });
+      return quotaBlocked;
+    }
 
     const body = (await request.json()) as {
       insurerName: string;
@@ -71,6 +90,23 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const startedAt = Date.now();
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.preSinistroAnalysisStarted,
+      brokerId: aiAccess.brokerId,
+      authUserId: aiAccess.authUserId,
+      source: "api/pre-sinistro",
+      properties: {
+        plan: aiAccess.plan,
+        insurer_name: body.insurerName,
+        claim_type: body.claimType,
+        has_product_hint: Boolean(body.productHint?.trim()),
+        has_broker_client: Boolean(body.brokerClientId),
+        description_length_bucket: bucketTextLength(body.description),
+        quota_remaining_before: quotaRemaining(aiAccess.queriesToday, aiAccess.queriesPerDay),
+      },
+    });
+
     const result = await analyzePreSinistro({
       insurerName: body.insurerName,
       claimType: body.claimType,
@@ -87,6 +123,23 @@ export async function POST(request: NextRequest) {
     });
 
     await incrementAiQuota(aiAccess);
+    await trackProductEvent({
+      eventName: PRODUCT_ANALYTICS_EVENTS.preSinistroAnalysisCompleted,
+      brokerId: aiAccess.brokerId,
+      authUserId: aiAccess.authUserId,
+      source: "api/pre-sinistro",
+      properties: {
+        plan: aiAccess.plan,
+        insurer_name: body.insurerName,
+        claim_type: body.claimType,
+        verdict: result.verdict,
+        risk_flags_count: result.riskFlags.length,
+        checklist_items_count: result.documentsChecklist.length,
+        analysis_id: analysisId ?? null,
+        wall_latency_ms: Date.now() - startedAt,
+        quota_remaining_after: quotaRemaining(aiAccess.queriesToday + 1, aiAccess.queriesPerDay),
+      },
+    });
     return NextResponse.json(
       { ...result, analysisId },
       { headers: aiQuotaHeaders({ ...aiAccess, queriesToday: aiAccess.queriesToday + 1 }) }
