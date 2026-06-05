@@ -168,7 +168,7 @@ export async function semanticSearchWithEmbedding(
 
   const t0 = Date.now()
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const { data, error } = await (supabase.rpc as any)(rpcName, {
+  const { data, error } = await (supabase.rpc as any).call(supabase, rpcName, {
     query_embedding: JSON.stringify(queryEmbedding),
     match_threshold: threshold,
     match_count: topK,
@@ -434,7 +434,7 @@ export async function fetchChunksByToc(
 ): Promise<SearchResult[]> {
   const supabase = createServiceClient()
   const fetchChunksByTocRpc = supabase.rpc as unknown as FetchChunksByTocRpc
-  const { data, error } = await fetchChunksByTocRpc('fetch_chunks_by_toc', {
+  const { data, error } = await fetchChunksByTocRpc.call(supabase, 'fetch_chunks_by_toc', {
     filter_insurer_id: insurerId,
     filter_product_id: productId ?? null,
     section_query: sectionQuery,
@@ -621,7 +621,8 @@ async function runShadowPreview(
   const t0 = Date.now()
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase.rpc as any)(
+    const { data, error } = await (supabase.rpc as any).call(
+      supabase,
       'match_shadow_documents',
       rpcArgs
     )

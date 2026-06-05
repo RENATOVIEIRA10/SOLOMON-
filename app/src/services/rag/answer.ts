@@ -733,7 +733,7 @@ export async function structuredSearch(question: string, insurerFilter?: string)
   // Try each keyword as search term (insurer names are most useful)
   for (const keyword of keywords) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const { data, error } = await (supabase.rpc as any)('search_products', {
+    const { data, error } = await (supabase.rpc as any).call(supabase, 'search_products', {
       search_query: keyword,
       max_results: 10,
     })
