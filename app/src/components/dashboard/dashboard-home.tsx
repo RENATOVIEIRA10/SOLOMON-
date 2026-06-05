@@ -50,17 +50,17 @@ export function DashboardHome() {
   useEffect(() => {
     if (!brokerId) return;
     // Bootstrap profile first (creates broker row if needed)
-    fetch(`/api/profile?brokerId=${brokerId}`).catch(() => {});
+    fetch("/api/profile").catch(() => {});
     // Then load stats, alerts, clients in parallel
-    fetch(`/api/stats/today?brokerId=${brokerId}`)
+    fetch("/api/stats/today")
       .then((r) => r.json())
       .then((d) => setStats(d))
       .catch(() => {});
-    fetch(`/api/alerts?brokerId=${brokerId}&limit=3`)
+    fetch("/api/alerts?limit=3")
       .then((r) => r.json())
       .then((d) => setAlerts(d.alerts ?? []))
       .catch(() => {});
-    fetch(`/api/clients?brokerId=${brokerId}`)
+    fetch("/api/clients")
       .then((r) => r.json())
       .then((d) => setClients((d.clients ?? []).slice(0, 4)))
       .catch(() => {});
@@ -297,7 +297,7 @@ function AlertTypeBadge({ type }: { type: string }) {
 
 function planLabel(plan: string) {
   const labels: Record<string, string> = {
-    trial: "Trial",
+    free: "Gratuito",
     corretor: "Corretor",
     consultor: "Consultor",
     corretora: "Corretora",

@@ -30,7 +30,7 @@ export function ClientsView() {
   async function refresh() {
     if (!brokerId) return;
     setLoading(true);
-    const r = await fetch(`/api/clients?brokerId=${brokerId}`);
+    const r = await fetch("/api/clients");
     const d = await r.json();
     setClients(d.clients ?? []);
     setLoading(false);
@@ -39,7 +39,7 @@ export function ClientsView() {
   useEffect(() => {
     if (!brokerId) return;
     // ensure broker exists
-    fetch(`/api/profile?brokerId=${brokerId}`).then(refresh);
+    fetch("/api/profile").then(refresh);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [brokerId]);
 
@@ -235,7 +235,6 @@ function ClientFormDialog({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        brokerId,
         name: form.name.trim(),
         cpf: form.cpf || null,
         phone: form.phone || null,

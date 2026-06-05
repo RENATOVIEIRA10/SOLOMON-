@@ -31,7 +31,7 @@ export function HistoryDrawer({
 
   useEffect(() => {
     if (!open || !brokerId) return;
-    fetch(`/api/conversations?brokerId=${encodeURIComponent(brokerId)}&limit=30`)
+    fetch("/api/conversations?limit=30")
       .then((r) => r.json())
       .then((data) => setItems(data.conversations ?? []))
       .catch(() => setItems([]))

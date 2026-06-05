@@ -7,24 +7,28 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { analyzePreSinistro } from "@/services/rag/pre-sinistro";
-import { getBrokerRowId, requireAuthUserId } from "@/lib/auth";
 import { createServiceClient } from "@/lib/supabase";
+import {
+  aiQuotaHeaders,
+  enforceAiQuota,
+  incrementAiQuota,
+  isAiAccessResponse,
+  requireAiAccess,
+} from "@/lib/ai-access";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
-    // Broker-facing, high-consequence route — requires a verified session.
-    const auth = await requireAuthUserId();
-    if (auth instanceof NextResponse) return auth;
-    const brokerRowId = await getBrokerRowId(auth);
-    if (!brokerRowId) {
-      return NextResponse.json(
-        { error: "broker not found — call /api/profile first" },
-        { status: 404 }
-      );
-    }
+    // Broker-facing, high-consequence route: verified session + pilot
+    // allowlist + daily quota. Never trusts brokerId from the client.
+    const aiAccess = await requireAiAccess(request);
+    if (isAiAccessResponse(aiAccess)) return aiAccess;
+    if (!aiAccess) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+    const quotaBlocked = enforceAiQuota(aiAccess);
+    if (quotaBlocked) return quotaBlocked;
 
     const body = (await request.json()) as {
       insurerName: string;
@@ -61,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.brokerClientId) {
-      const ownsClient = await brokerOwnsClient(brokerRowId, body.brokerClientId);
+      const ownsClient = await brokerOwnsClient(aiAccess.brokerId, body.brokerClientId);
       if (!ownsClient) {
         return NextResponse.json({ error: "client not found" }, { status: 404 });
       }
@@ -75,14 +79,18 @@ export async function POST(request: NextRequest) {
     });
 
     const analysisId = await saveClaimAnalysis({
-      brokerId: brokerRowId,
+      brokerId: aiAccess.brokerId,
       brokerClientId: body.brokerClientId,
       claimType: body.claimType,
       description: body.description.trim(),
       result,
     });
 
-    return NextResponse.json({ ...result, analysisId });
+    await incrementAiQuota(aiAccess);
+    return NextResponse.json(
+      { ...result, analysisId },
+      { headers: aiQuotaHeaders({ ...aiAccess, queriesToday: aiAccess.queriesToday + 1 }) }
+    );
   } catch (err) {
     console.error("[api/pre-sinistro] error:", err);
     const message = err instanceof Error ? err.message : "Erro interno";

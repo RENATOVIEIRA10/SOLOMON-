@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
 import { requireAuthUserId } from "@/lib/auth";
 
-const DEFAULT_PLAN = "trial";
+const DEFAULT_PLAN = "free";
 
 export async function GET() {
   try {

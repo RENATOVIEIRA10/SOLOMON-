@@ -9,7 +9,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ask, detectInsurers, resolveInsurerIds } from '@/services/rag/answer'
 import { detectRateIntent, queryRateTable, type RateIntent } from '@/services/rag/rate-lookup'
-import { getOptionalAuthUserId } from '@/lib/auth'
+import {
+  aiQuotaHeaders,
+  enforceAiQuota,
+  incrementAiQuota,
+  isAiAccessResponse,
+  requireAiAccess,
+} from '@/lib/ai-access'
 
 export const maxDuration = 60
 
@@ -76,6 +82,12 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const aiAccess = await requireAiAccess(request, {
+      allowEvalBypass: true,
+      evalMode: body.evalMode === true,
+    })
+    if (isAiAccessResponse(aiAccess)) return aiAccess
+
     if (body.debug) {
       const q = body.question.trim()
       const mentioned = detectInsurers(q)
@@ -115,16 +127,20 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Broker attribution comes from the verified session only. Unauthenticated
-    // callers (eval harness) still get answers, just without conversation save.
-    const sessionBrokerId = await getOptionalAuthUserId()
+    const quotaBlocked = aiAccess ? enforceAiQuota(aiAccess) : null
+    if (quotaBlocked) return quotaBlocked
 
     const result = await ask(body.question.trim(), {
-      brokerId: sessionBrokerId ?? undefined,
+      brokerId: aiAccess?.brokerId,
       channel: body.channel ?? 'api',
       insurerFilter: body.insurer,
       conversationHistory: body.history,
     })
+
+    await incrementAiQuota(aiAccess)
+    const responseQuota = aiAccess
+      ? { ...aiAccess, queriesToday: aiAccess.queriesToday + 1 }
+      : null
 
     const response: Record<string, unknown> = {
       answer: result.answer,
@@ -146,7 +162,9 @@ export async function POST(request: NextRequest) {
       response.sourceCount = result.sourceCount
     }
 
-    return NextResponse.json(response)
+    return NextResponse.json(response, {
+      headers: responseQuota ? aiQuotaHeaders(responseQuota) : undefined,
+    })
   } catch (error) {
     console.error('[api/ask] Error:', error)
 

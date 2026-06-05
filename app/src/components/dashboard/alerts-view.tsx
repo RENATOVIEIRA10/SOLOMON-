@@ -42,7 +42,7 @@ export function AlertsView() {
 
   useEffect(() => {
     if (!brokerId) return;
-    fetch(`/api/alerts?brokerId=${brokerId}&limit=30`)
+    fetch("/api/alerts?limit=30")
       .then((r) => r.json())
       .then((d) => {
         setAlerts(d.alerts ?? []);

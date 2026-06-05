@@ -21,7 +21,7 @@ type Profile = {
 };
 
 const PLAN_LABELS: Record<string, string> = {
-  trial: "Trial (10 consultas/dia)",
+  free: "Gratuito (5 consultas/dia)",
   corretor: "Corretor (50 consultas/dia)",
   consultor: "Consultor (ilimitado)",
   corretora: "Corretora (5 usuários + branding)",
@@ -36,7 +36,7 @@ export function ProfileView() {
 
   useEffect(() => {
     if (!brokerId) return;
-    fetch(`/api/profile?brokerId=${brokerId}`)
+    fetch("/api/profile")
       .then((r) => r.json())
       .then((d) => {
         if (d.profile) {
@@ -54,7 +54,6 @@ export function ProfileView() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        brokerId,
         name: form.name,
         phone: form.phone,
         email: form.email,

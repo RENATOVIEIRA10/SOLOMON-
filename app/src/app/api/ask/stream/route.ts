@@ -12,7 +12,13 @@
 
 import { NextRequest } from "next/server";
 import { askStream } from "@/services/rag/stream";
-import { getOptionalAuthUserId } from "@/lib/auth";
+import {
+  aiQuotaHeaders,
+  enforceAiQuota,
+  incrementAiQuota,
+  isAiAccessResponse,
+  requireAiAccess,
+} from "@/lib/ai-access";
 
 interface AskRequestBody {
   question: string;
@@ -62,9 +68,12 @@ export async function POST(request: NextRequest) {
     }
   }
 
-  // Broker attribution from the verified session only (Phase 5.2). Resolved
-  // before the stream starts (cookies() must run in request scope).
-  const sessionBrokerId = await getOptionalAuthUserId();
+  const aiAccess = await requireAiAccess(request);
+  if (isAiAccessResponse(aiAccess)) return aiAccess;
+  if (!aiAccess) return errorResponse("unauthorized", 401);
+
+  const quotaBlocked = enforceAiQuota(aiAccess);
+  if (quotaBlocked) return quotaBlocked;
 
   const encoder = new TextEncoder();
 
@@ -82,7 +91,7 @@ export async function POST(request: NextRequest) {
 
       try {
         for await (const evt of askStream(body.question.trim(), {
-          brokerId: sessionBrokerId ?? undefined,
+          brokerId: aiAccess.brokerId,
           channel: body.channel ?? "api",
           insurerFilter: body.insurer,
           conversationHistory: body.history,
@@ -97,6 +106,7 @@ export async function POST(request: NextRequest) {
           message: err instanceof Error ? err.message : "internal error",
         });
       } finally {
+        await incrementAiQuota(aiAccess);
         controller.close();
       }
     },
@@ -108,6 +118,7 @@ export async function POST(request: NextRequest) {
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
       "X-Accel-Buffering": "no",
+      ...aiQuotaHeaders(aiAccess),
     },
   });
 }

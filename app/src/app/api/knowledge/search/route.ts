@@ -8,9 +8,14 @@
 import { NextRequest, NextResponse } from "next/server";
 import { semanticSearch } from "@/services/rag/search";
 import { loadEnrichment, resolveInsurerIds } from "@/services/rag/answer";
+import { isAiAccessResponse, requireAiAccess } from "@/lib/ai-access";
 
 export async function GET(request: NextRequest) {
   try {
+    const aiAccess = await requireAiAccess(request);
+    if (isAiAccessResponse(aiAccess)) return aiAccess;
+    if (!aiAccess) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
     const url = new URL(request.url);
     const q = (url.searchParams.get("q") ?? "").trim();
     const insurerName = url.searchParams.get("insurer");

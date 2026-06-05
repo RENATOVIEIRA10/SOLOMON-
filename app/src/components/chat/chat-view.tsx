@@ -60,7 +60,6 @@ export function ChatView() {
           body: JSON.stringify({
             question: text,
             insurer: insurer ?? undefined,
-            brokerId: brokerId ?? undefined,
             channel: "dashboard",
             history,
           }),
@@ -177,7 +176,7 @@ export function ChatView() {
         setLoading(false);
       }
     },
-    [brokerId, insurer, loading, messages]
+    [insurer, loading, messages]
   );
 
   const handleFeedback = useCallback(
@@ -195,7 +194,6 @@ export function ChatView() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             conversation_id: msg.conversationId,
-            broker_id: brokerId,
             rating: rating === "up" ? 5 : 1,
             channel: "dashboard",
           }),

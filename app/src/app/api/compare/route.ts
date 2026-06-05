@@ -7,12 +7,26 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { compareInsurers } from "@/services/rag/compare";
+import {
+  aiQuotaHeaders,
+  enforceAiQuota,
+  incrementAiQuota,
+  isAiAccessResponse,
+  requireAiAccess,
+} from "@/lib/ai-access";
 
 export const runtime = "nodejs";
 export const maxDuration = 90;
 
 export async function POST(request: NextRequest) {
   try {
+    const aiAccess = await requireAiAccess(request);
+    if (isAiAccessResponse(aiAccess)) return aiAccess;
+    if (!aiAccess) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+    const quotaBlocked = enforceAiQuota(aiAccess);
+    if (quotaBlocked) return quotaBlocked;
+
     const body = (await request.json()) as {
       insurerNames: string[];
       productType: string;
@@ -36,7 +50,10 @@ export async function POST(request: NextRequest) {
       productType: body.productType,
     });
 
-    return NextResponse.json(result);
+    await incrementAiQuota(aiAccess);
+    return NextResponse.json(result, {
+      headers: aiQuotaHeaders({ ...aiAccess, queriesToday: aiAccess.queriesToday + 1 }),
+    });
   } catch (err) {
     console.error("[api/compare] error:", err);
     const message = err instanceof Error ? err.message : "Erro interno";

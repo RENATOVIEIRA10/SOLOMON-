@@ -2,18 +2,17 @@
  * GET /api/conversations
  *
  * Lista histórico de conversas do corretor (últimas 30).
- * Query params: ?brokerId=<uuid>&limit=30
+ * Query params: ?limit=30
  */
 
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase";
-import { requireAuthUserId } from "@/lib/auth";
+import { requireBrokerContext } from "@/lib/auth";
 
 export async function GET(request: NextRequest) {
   try {
-    const auth = await requireAuthUserId();
-    if (auth instanceof NextResponse) return auth;
-    const brokerId = auth; // session-derived (auth_user_id) — never from query
+    const broker = await requireBrokerContext();
+    if (broker instanceof NextResponse) return broker;
 
     const url = new URL(request.url);
     const limit = Math.min(
@@ -25,7 +24,7 @@ export async function GET(request: NextRequest) {
     const { data, error } = await supabase
       .from("conversations")
       .select("id, message, response, sources, model, latency_ms, created_at")
-      .eq("broker_id", brokerId)
+      .eq("broker_id", broker.brokerId)
       .order("created_at", { ascending: false })
       .limit(limit);
 

@@ -67,7 +67,7 @@ export function PreSinistroView() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (brokerId) fetch(`/api/profile?brokerId=${brokerId}`).catch(() => {});
+    if (brokerId) fetch("/api/profile").catch(() => {});
   }, [brokerId]);
 
   async function submit(e: React.FormEvent) {
@@ -87,7 +87,6 @@ export function PreSinistroView() {
           productHint: productHint.trim() || undefined,
           brokerClientId: brokerClientId ?? undefined,
           description: description.trim(),
-          brokerId,
         }),
       });
       const data = await res.json();

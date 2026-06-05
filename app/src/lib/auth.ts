@@ -7,10 +7,11 @@
  * helpers replace that with a broker identity DERIVED FROM THE VERIFIED
  * SESSION. The route must never again read brokerId from the client.
  *
- * Identity model (unchanged semantics, new source):
- *   - `brokerId` historically meant the Supabase `auth.users.id`
- *     (stored as `brokers.auth_user_id`). We keep that meaning; we only change
- *     WHERE it comes from: the verified session, not the request.
+ * Identity model:
+ *   - `authUserId` is Supabase `auth.users.id`.
+ *   - `brokerId` is the product row id in `brokers.id`, used by product data
+ *     tables such as conversations, clients, alerts and claim_analyses.
+ *   - Both are derived from the verified session, never from the request.
  *
  * Allowlist (pilot): optional env `PILOT_BROKER_ALLOWLIST` (comma-separated
  * lowercase emails). When set, only those emails may use the app; when unset,
@@ -25,6 +26,12 @@ import { createServiceClient } from '@/lib/supabase'
 
 export interface AuthUser {
   id: string
+  email: string | null
+}
+
+export interface BrokerContext {
+  authUserId: string
+  brokerId: string
   email: string | null
 }
 
@@ -105,4 +112,28 @@ export async function getBrokerRowId(authUserId: string): Promise<string | null>
     .eq('auth_user_id', authUserId)
     .maybeSingle()
   return (data as { id: string } | null)?.id ?? null
+}
+
+export async function getOptionalBrokerContext(): Promise<BrokerContext | null> {
+  const user = await getAuthUser()
+  if (!user || !isAllowlisted(user.email)) return null
+  const brokerId = await getBrokerRowId(user.id)
+  if (!brokerId) return null
+  return { authUserId: user.id, brokerId, email: user.email }
+}
+
+export async function requireBrokerContext(): Promise<BrokerContext | NextResponse> {
+  const user = await getAuthUser()
+  if (!user) return unauthorized()
+  if (!isAllowlisted(user.email)) return forbidden('not in pilot allowlist')
+
+  const brokerId = await getBrokerRowId(user.id)
+  if (!brokerId) {
+    return NextResponse.json(
+      { error: 'broker not found - call /api/profile first' },
+      { status: 404 }
+    )
+  }
+
+  return { authUserId: user.id, brokerId, email: user.email }
 }

@@ -7,7 +7,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceClient } from '@/lib/supabase'
-import { requireAuthUserId } from '@/lib/auth'
+import { requireBrokerContext } from '@/lib/auth'
 
 const VALID_ISSUES = ['hallucination', 'wrong_insurer', 'outdated', 'incomplete', 'other'] as const
 const VALID_CHANNELS = ['whatsapp', 'dashboard', 'api'] as const
@@ -21,9 +21,9 @@ interface FeedbackPayload {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireAuthUserId()
-  if (auth instanceof NextResponse) return auth
-  const broker_id = auth // session-derived; client-sent broker_id is ignored
+  const broker = await requireBrokerContext()
+  if (broker instanceof NextResponse) return broker
+  const broker_id = broker.brokerId // session-derived; client-sent broker_id is ignored
 
   let body: FeedbackPayload
   try {
