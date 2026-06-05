@@ -5,3 +5,10 @@ brand/
 
 .vercel
 .aider*
+
+# local tool/cache artifacts
+.claude/
+.playwright-mcp/
+scripts/__pycache__/
+app/supabase/.temp/
+*.log
