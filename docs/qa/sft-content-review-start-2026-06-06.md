@@ -45,3 +45,9 @@
 - Added SFT011-SFT020 in `app/eval/ragas/questions_sft_expansion.jsonl`.
 - The batch covers missing insurer sources, multi-insurer separation, citation provenance, AP comparison structure, incomplete rate calculations, monthly rate semantics, unit normalization, and explicit-evidence thresholds for pre-claim verdicts.
 - All ten remain unapproved and must pass human review before training.
+
+## Third draft batch
+
+- Added SFT021-SFT030 in `app/eval/ragas/questions_sft_expansion.jsonl`.
+- The batch covers low-confidence answers, product mismatches, citation coverage, ambiguous comparison axes, non-equivalent products, missing rate dimensions, and evidence boundaries between conditions and pricing tables.
+- All ten remain unapproved and must pass human review before training.
