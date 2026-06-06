@@ -23,9 +23,10 @@ npm run sft:dataset -- --allow-not-ready
 ```
 
 The same command also writes `solomon-sft-review-candidates.jsonl`. This queue
-contains valid, in-scope examples marked as not requiring Julio review, but it
-does not auto-approve them. A reviewer must verify each ground truth and add
-`"approved_for_sft": true` to the source question before it enters training.
+contains valid, in-scope examples that still need validation. Candidates can be
+approved through the synthetic comparison documented in the Ragas README,
+followed by explicit adjudication of every `review` or `fail` result. The source
+question must contain `"approved_for_sft": true` before it enters training.
 
 Fine-tuning should improve answer behavior and format. Insurer rules and
 current product facts must continue to come from RAG/structured data.
