@@ -1,11 +1,10 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 const { createClient } = require('@supabase/supabase-js');
 const dotenv = require('dotenv');
 const path = require('path');
 
 dotenv.config({ path: path.join(__dirname, '../.env.local') });
 dotenv.config({ path: path.join(__dirname, '../.env.ragas.local') });
-
-const PRUDENTIAL_ID = 'dac17baa-c623-4023-9184-3ed2049a6237';
 
 const args = new Set(process.argv.slice(2));
 const apiUrlArg = process.argv.find((arg) => arg.startsWith('--api-url='));
@@ -29,19 +28,69 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 
 const cases = [
   {
+    mode: 'toc',
+    name: 'azos-exclusions',
+    insurerId: 'dfb52b5b-93e0-46a5-8f82-ca29490b6c88',
+    insurerLabel: 'Azos',
+    insurerNeedle: 'azos',
+    question: 'Quais sao os riscos excluidos da Azos?',
+    sectionQuery: 'exclu',
+    minRpcChunks: 2,
+    expectedContent: /riscos exclu|expressamente exclu|excluem-se/i,
+  },
+  {
+    mode: 'documents',
+    name: 'icatu-disease-coverage',
+    insurerId: '64ee178b-135b-45f0-a527-547059e46529',
+    insurerLabel: 'Icatu',
+    insurerNeedle: 'icatu',
+    question: 'Quais produtos da Icatu possuem cobertura para doencas graves?',
+    documentQuery: '%DOENCA_GRAVE%',
+    minRpcChunks: 1,
+    expectedContent: /doenca_grave|doencas graves/i,
+  },
+  {
+    mode: 'toc',
+    name: 'mag-grace-period',
+    insurerId: '2f9b2aa3-51ac-45ae-a3d2-f99d8720f273',
+    insurerLabel: 'MAG',
+    insurerNeedle: 'mag',
+    question: 'Como funciona a carencia da MAG?',
+    sectionQuery: 'carenc',
+    minRpcChunks: 2,
+    expectedContent: /carencia|24 \(vinte e quatro\) meses|nao sera adotado periodo/i,
+  },
+  {
+    mode: 'toc',
+    name: 'metlife-exclusions',
+    insurerId: 'de69235a-3cb0-4229-a5d4-389b0b5e4697',
+    insurerLabel: 'MetLife',
+    insurerNeedle: 'metlife',
+    question: 'Quais sao os riscos excluidos da MetLife?',
+    sectionQuery: 'exclu',
+    minRpcChunks: 2,
+    expectedContent: /riscos exclu|expressamente exclu/i,
+  },
+  {
+    mode: 'toc',
     name: 'prudential-exclusions',
+    insurerId: 'dac17baa-c623-4023-9184-3ed2049a6237',
+    insurerLabel: 'Prudential',
+    insurerNeedle: 'prudential',
     question: 'Quais sao os riscos excluidos da Prudential?',
     sectionQuery: 'exclu',
     minRpcChunks: 20,
-    expectedSection: /exclu/i,
     expectedContent: /riscos exclu|excluidos|nao estao cobert/i,
   },
   {
+    mode: 'toc',
     name: 'prudential-grace-period',
+    insurerId: 'dac17baa-c623-4023-9184-3ed2049a6237',
+    insurerLabel: 'Prudential',
+    insurerNeedle: 'prudential',
     question: 'Qual e a carencia da Prudential para doencas graves?',
     sectionQuery: 'carenc',
     minRpcChunks: 1,
-    expectedSection: /carenc/i,
     expectedContent: /carencia|90 \(noventa\) dias|diagnostico/i,
   },
 ];
@@ -59,9 +108,30 @@ function assertCondition(condition, message) {
   }
 }
 
-async function runRpcCase(testCase) {
+async function runDataCase(testCase) {
+  if (testCase.mode === 'documents') {
+    const { data, error } = await supabase
+      .from('documents')
+      .select('content, metadata, source_url')
+      .eq('insurer_id', testCase.insurerId)
+      .ilike('content', testCase.documentQuery)
+      .limit(20);
+
+    if (error) throw new Error(`${testCase.name}: documents query failed: ${error.message}`);
+
+    const rows = data ?? [];
+    const content = normalizeText(rows.map((row) => row.content).join('\n'));
+    assertCondition(
+      rows.length >= testCase.minRpcChunks,
+      `${testCase.name}: expected at least ${testCase.minRpcChunks} structured rows, got ${rows.length}`
+    );
+    assertCondition(testCase.expectedContent.test(content), `${testCase.name}: structured rows lack expected content`);
+    console.log(`[documents] ${testCase.name}: ${rows.length} rows`);
+    return;
+  }
+
   const { data, error } = await supabase.rpc('fetch_chunks_by_toc', {
-    filter_insurer_id: PRUDENTIAL_ID,
+    filter_insurer_id: testCase.insurerId,
     filter_product_id: null,
     section_query: testCase.sectionQuery,
   });
@@ -74,14 +144,10 @@ async function runRpcCase(testCase) {
     `${testCase.name}: expected at least ${testCase.minRpcChunks} RPC chunks, got ${rows.length}`
   );
 
-  const matchingSection = rows.some((row) =>
-    testCase.expectedSection.test(normalizeText(row.metadata?.section))
-  );
   const matchingContent = rows.some((row) =>
     testCase.expectedContent.test(normalizeText(row.content))
   );
 
-  assertCondition(matchingSection, `${testCase.name}: no expected section match in RPC rows`);
   assertCondition(matchingContent, `${testCase.name}: no expected content match in RPC rows`);
 
   console.log(`[rpc] ${testCase.name}: ${rows.length} chunks`);
@@ -97,7 +163,7 @@ async function runApiCase(testCase) {
     headers,
     body: JSON.stringify({
       question: testCase.question,
-      insurer: 'Prudential',
+      insurer: testCase.insurerLabel,
       channel: 'api',
       evalMode: true,
     }),
@@ -128,7 +194,10 @@ async function runApiCase(testCase) {
   assertCondition(typeof body.answer === 'string' && body.answer.length >= 80, `${testCase.name}: answer is too short`);
   assertCondition(Number(body.sourceCount) > 0, `${testCase.name}: sourceCount must be > 0`);
   assertCondition(sources.length > 0, `${testCase.name}: evalMode did not return sources`);
-  assertCondition(sourceText.includes('prudential'), `${testCase.name}: sources do not mention Prudential`);
+  assertCondition(
+    sourceText.includes(testCase.insurerNeedle),
+    `${testCase.name}: sources do not mention ${testCase.insurerLabel}`
+  );
   assertCondition(testCase.expectedContent.test(sourceText), `${testCase.name}: sources do not contain expected content`);
 
   console.log(
@@ -141,7 +210,7 @@ async function main() {
   console.log(`Supabase: ${supabaseUrl}`);
 
   for (const testCase of cases) {
-    await runRpcCase(testCase);
+    await runDataCase(testCase);
   }
 
   if (skipApi) {

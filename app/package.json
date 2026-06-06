@@ -26,7 +26,8 @@
     "phase2:retrieval-trace:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/retrieval-trace.test.ts",
     "phase2:shadow-preview:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/shadow-preview.test.ts",
     "phase2:preview-window-report": "python scripts/phase2/preview-window-report.py",
-    "pageindex:qa": "node scripts/pageindex-lite-qa.js"
+    "pageindex:qa": "node scripts/pageindex-lite-qa.js",
+    "pageindex:build-commercial-toc": "node scripts/build-commercial-toc.js"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
