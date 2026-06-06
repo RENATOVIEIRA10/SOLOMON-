@@ -35,5 +35,6 @@ Target: `https://app-atalaia.vercel.app`
   URL.
 - Playwright HTML report, trace, and failure screenshots retained as CI
   artifacts.
-- The first two CI runs exposed Chromium download timeouts. The workflow now
-  installs only the smaller headless shell and allows a 30-minute job window.
+- The first three CI runs exposed browser-download timeouts from the Playwright
+  CDN. CI now uses the Google Chrome already installed on `ubuntu-latest`;
+  local runs continue to use Playwright-managed Chromium.
