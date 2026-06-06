@@ -36,3 +36,9 @@ jobs:
 
       - name: Run PageIndex Lite QA
         run: npm run pageindex:qa -- --skip-api
+
+      - name: Audit commercial RAG readiness
+        run: npm run rag:readiness
+
+      - name: Validate approved SFT dataset
+        run: npm run sft:dataset -- --allow-not-ready

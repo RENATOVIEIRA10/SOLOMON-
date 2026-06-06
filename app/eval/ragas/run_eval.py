@@ -44,11 +44,15 @@ def load_questions(path: Path) -> list[dict[str, Any]]:
 
 def _http_post(url: str, body: dict[str, Any], timeout: int = REQUEST_TIMEOUT) -> dict[str, Any]:
     data = json.dumps(body).encode()
+    headers = {"Content-Type": "application/json", "User-Agent": "solomon-ragas-eval/1.0"}
+    eval_token = os.environ.get("SOLOMON_EVAL_TOKEN", "").strip()
+    if eval_token:
+        headers["x-solomon-eval-token"] = eval_token
     req = urllib.request.Request(
         url,
         data=data,
         method="POST",
-        headers={"Content-Type": "application/json", "User-Agent": "solomon-ragas-eval/1.0"},
+        headers=headers,
     )
     ctx = ssl.create_default_context()
     # Corporate cert-manager no notebook Windows exige bypass. Na VPS e inofensivo.

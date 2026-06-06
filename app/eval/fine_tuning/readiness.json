@@ -1,0 +1,16 @@
+{
+  "input_files": [
+    "questions.jsonl",
+    "questions_commercial.jsonl",
+    "questions_comparison.jsonl"
+  ],
+  "approved_examples": 6,
+  "minimum_required": 100,
+  "ready_for_training": false,
+  "categories": {
+    "commercial_exclusions": 3,
+    "commercial_product_discovery": 1,
+    "commercial_grace_period": 2
+  },
+  "output": "eval/fine_tuning/solomon-sft-approved.jsonl"
+}
