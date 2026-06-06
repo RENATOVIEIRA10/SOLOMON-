@@ -98,6 +98,23 @@ Output em `results/<YYYYMMDD_HHMMSS>/`:
 - `judge_divergences.json` — Qs com |delta|>0.2 entre judges (--multi-judge)
 - `REPORT.md` — gerado com `python report.py results/<ts>`
 
+## Revisao sintetica de candidatos SFT
+
+Para comparar respostas ja coletadas do SOLOMON com ground truths propostos,
+sem executar as cinco metricas Ragas:
+
+```bash
+python review_sft_candidates.py \
+  --raw results/<run>/raw.jsonl \
+  --out-dir results/<run>/synthetic-review \
+  --workers 4
+```
+
+O comando usa um judge independente via OpenRouter e gera
+`synthetic_review.jsonl` e `SYNTHETIC_REVIEW.md` com decisoes
+`pass`, `review`, `fail`, `api_failure` ou `judge_failure`. Isso mede
+concordancia sintetica; nao transforma automaticamente o draft em fato oficial.
+
 E grava 1 linha por pergunta em `eval_runs` no agentes-hub.
 
 ## Interpretacao

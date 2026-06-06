@@ -481,7 +481,13 @@ export async function hybridSearch(
 
   const topK = options?.topK ?? RAG.topK
   const [semantic, lexical] = await Promise.all([
-    semanticSearch(query, options),
+    semanticSearch(query, options).catch((error) => {
+      console.warn(
+        '[rag/search] Semantic search failed; continuing with lexical results:',
+        error instanceof Error ? error.message : error
+      )
+      return []
+    }),
     lexicalSearch(query, { ...options, topK: Math.min(RAG.lexicalTopK, topK) }),
   ])
 
@@ -509,7 +515,13 @@ export async function hybridSearchWithEmbedding(
 
   const topK = options?.topK ?? RAG.topK
   const [semantic, lexical] = await Promise.all([
-    semanticSearchWithEmbedding(queryEmbedding, options),
+    semanticSearchWithEmbedding(queryEmbedding, options).catch((error) => {
+      console.warn(
+        '[rag/search] Semantic search failed; continuing with lexical results:',
+        error instanceof Error ? error.message : error
+      )
+      return []
+    }),
     lexicalSearch(query, { ...options, topK: Math.min(RAG.lexicalTopK, topK) }),
   ])
 
