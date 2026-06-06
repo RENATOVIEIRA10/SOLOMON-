@@ -2,16 +2,17 @@
   "input_files": [
     "questions.jsonl",
     "questions_commercial.jsonl",
-    "questions_comparison.jsonl"
+    "questions_comparison.jsonl",
+    "questions_sft_expansion.jsonl"
   ],
   "approved_examples": 16,
   "minimum_required": 100,
   "ready_for_training": false,
-  "unique_source_examples": 56,
-  "review_candidates": 17,
+  "unique_source_examples": 66,
+  "review_candidates": 27,
   "requires_expert_review": 13,
   "remaining_to_minimum": 84,
-  "new_examples_required_even_if_all_current_candidates_are_approved": 67,
+  "new_examples_required_even_if_all_current_candidates_are_approved": 57,
   "categories": {
     "commercial_exclusions": 3,
     "commercial_product_discovery": 1,
