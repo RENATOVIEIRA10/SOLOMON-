@@ -51,3 +51,29 @@
 - Added SFT021-SFT030 in `app/eval/ragas/questions_sft_expansion.jsonl`.
 - The batch covers low-confidence answers, product mismatches, citation coverage, ambiguous comparison axes, non-equivalent products, missing rate dimensions, and evidence boundaries between conditions and pricing tables.
 - All ten remain unapproved and must pass human review before training.
+
+## Fourth draft batch
+
+- Added SFT031-SFT040, covering exhaustive exclusions and grace periods, rate-table boundaries, calculation caveats, provenance, and conflicting versions.
+
+## Fifth draft batch
+
+- Added SFT041-SFT050, covering claim-document requirements, DPS uncertainty, chronology, policy status, accident classification, and survival periods.
+
+## Sixth draft batch
+
+- Added SFT051-SFT060, covering contractual concepts, product discovery, commercial-data boundaries, temporal applicability, and beneficiaries.
+
+## Final draft batch
+
+- Added SFT061-SFT067, covering source conflicts, refusal to fabricate rates, monetary rounding, unit normalization, deduplication, rerank fallback, and answer closure.
+- SFT001-SFT067 are drafts. None are approved for training until human review is recorded.
+
+## Draft authoring complete
+
+- New ground truths authored: 67/67.
+- Existing review candidates before expansion: 17.
+- Total deterministic review queue after expansion: 84.
+- New examples still required if every current candidate is approved: 0.
+- Approved examples remain 16/100 because authoring is not equivalent to human approval.
+- The next gate is content review: approve, correct, or reject each candidate and record the reviewer before enabling training.
