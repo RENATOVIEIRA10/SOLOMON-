@@ -39,3 +39,9 @@
 - Added SFT001-SFT010 in `app/eval/ragas/questions_sft_expansion.jsonl`.
 - The batch covers missing quote dimensions, deterministic calculation, incomplete comparisons, insurer separation, unknown codes, document versioning, rate units, ambiguous waiting periods, pre-claim evidence thresholds, and product scope.
 - All ten remain unapproved and must pass human review before training.
+
+## Second draft batch
+
+- Added SFT011-SFT020 in `app/eval/ragas/questions_sft_expansion.jsonl`.
+- The batch covers missing insurer sources, multi-insurer separation, citation provenance, AP comparison structure, incomplete rate calculations, monthly rate semantics, unit normalization, and explicit-evidence thresholds for pre-claim verdicts.
+- All ten remain unapproved and must pass human review before training.
