@@ -10,9 +10,7 @@ import {
   ChevronUp,
   Search,
   CheckCircle2,
-  XCircle,
   Filter,
-  ArrowRight,
   Database,
   Layers,
   Sparkles,
@@ -44,7 +42,7 @@ export interface EvalRunRow {
   divergence_metric: string | null;
   divergence_delta: number | null;
   divergence_judge_b: string | null;
-  metadata: Record<string, any> | null;
+  metadata: Record<string, unknown> | null;
   created_at: string;
 }
 
@@ -113,6 +111,10 @@ const METRIC_CONFIGS = [
     bg: "bg-purple-500/10",
   },
 ];
+
+const CHART_WIDTH = 720;
+const CHART_HEIGHT = 240;
+const CHART_PADDING = { top: 15, right: 25, bottom: 35, left: 35 } as const;
 
 export function EvalDashboard({ summaries, initialDetail, allInsurers }: EvalDashboardProps) {
   const [selectedRunId, setSelectedRunId] = useState<string>(
@@ -220,9 +222,9 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers }: EvalDas
   };
 
   // Generate SVG Line Chart Data
-  const chartWidth = 720;
-  const chartHeight = 240;
-  const padding = { top: 15, right: 25, bottom: 35, left: 35 };
+  const chartWidth = CHART_WIDTH;
+  const chartHeight = CHART_HEIGHT;
+  const padding = CHART_PADDING;
 
   // Chronological order for chart (oldest to newest)
   const chronoSummaries = useMemo(() => {
@@ -253,7 +255,15 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers }: EvalDas
         summary,
       };
     });
-  }, [chronoSummaries]);
+  }, [
+    chronoSummaries,
+    chartHeight,
+    chartWidth,
+    padding.bottom,
+    padding.left,
+    padding.right,
+    padding.top,
+  ]);
 
   const drawPath = (metricKey: "faithfulness" | "correctness" | "precision" | "recall" | "noise") => {
     if (chartPoints.length === 0) return "";

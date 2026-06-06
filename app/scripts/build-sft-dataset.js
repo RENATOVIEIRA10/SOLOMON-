@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-require-imports */
 const fs = require('fs');
 const path = require('path');
 
@@ -37,8 +36,10 @@ function validateExample(example, source) {
 }
 
 const approved = [];
+const sourceExamples = [];
 for (const fileName of inputFiles) {
   for (const example of loadJsonl(path.join(ragasDir, fileName))) {
+    sourceExamples.push({ ...example, source_file: fileName });
     if (example.approved_for_sft !== true) continue;
     validateExample(example, fileName);
     approved.push({
@@ -59,10 +60,49 @@ for (const fileName of inputFiles) {
 
 const unique = new Map(approved.map((example) => [example.id, example]));
 const dataset = [...unique.values()].sort((a, b) => a.id.localeCompare(b.id));
+const uniqueSourceExamples = new Map();
+for (const example of sourceExamples) {
+  const existing = uniqueSourceExamples.get(example.id);
+  if (!existing || example.approved_for_sft === true) {
+    uniqueSourceExamples.set(example.id, example);
+  }
+}
+
+const reviewCandidates = [...uniqueSourceExamples.values()]
+  .filter((example) => example.approved_for_sft !== true)
+  .filter((example) => example.needs_julio_review === false)
+  .filter((example) => example.out_of_scope !== true)
+  .filter(
+    (example) =>
+      typeof example.question === 'string' &&
+      example.question.length >= 10 &&
+      typeof example.ground_truth === 'string' &&
+      example.ground_truth.length >= 60
+  )
+  .sort((a, b) => a.id.localeCompare(b.id))
+  .map((example) => ({
+    id: example.id,
+    category: example.category,
+    question: example.question,
+    ground_truth: example.ground_truth,
+    source_file: example.source_file,
+    reviewed_by: example.reviewed_by ?? null,
+    review_notes: example.review_notes ?? null,
+  }));
+
+const requiresExpertReview = [...uniqueSourceExamples.values()].filter(
+  (example) => example.approved_for_sft !== true && example.needs_julio_review === true
+);
 
 fs.mkdirSync(outputDir, { recursive: true });
 const previewPath = path.join(outputDir, 'solomon-sft-approved.jsonl');
 fs.writeFileSync(previewPath, dataset.map((row) => JSON.stringify(row)).join('\n') + '\n', 'utf8');
+const reviewQueuePath = path.join(outputDir, 'solomon-sft-review-candidates.jsonl');
+fs.writeFileSync(
+  reviewQueuePath,
+  reviewCandidates.map((row) => JSON.stringify(row)).join('\n') + '\n',
+  'utf8'
+);
 
 const categoryCounts = {};
 for (const row of dataset) categoryCounts[row.category] = (categoryCounts[row.category] ?? 0) + 1;
@@ -72,8 +112,17 @@ const report = {
   approved_examples: dataset.length,
   minimum_required: minApprovedExamples,
   ready_for_training: dataset.length >= minApprovedExamples,
+  unique_source_examples: uniqueSourceExamples.size,
+  review_candidates: reviewCandidates.length,
+  requires_expert_review: requiresExpertReview.length,
+  remaining_to_minimum: Math.max(0, minApprovedExamples - dataset.length),
+  new_examples_required_even_if_all_current_candidates_are_approved: Math.max(
+    0,
+    minApprovedExamples - dataset.length - reviewCandidates.length
+  ),
   categories: categoryCounts,
   output: 'eval/fine_tuning/solomon-sft-approved.jsonl',
+  review_queue: 'eval/fine_tuning/solomon-sft-review-candidates.jsonl',
 };
 
 fs.writeFileSync(path.join(outputDir, 'readiness.json'), JSON.stringify(report, null, 2) + '\n', 'utf8');

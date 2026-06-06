@@ -13,7 +13,7 @@
 
 import { createHash } from 'node:crypto'
 import { supabaseAdmin } from '@/lib/supabase-admin'
-import { crawlAllNewsSources, type NewsArticle, type NewsCrawlResult } from '@/services/crawlers/news-crawler'
+import { crawlAllNewsSources, type NewsArticle } from '@/services/crawlers/news-crawler'
 import { embedChunks } from '@/services/embeddings/embedder'
 import type { TextChunk } from '@/services/embeddings/chunker'
 import type { TablesInsert, Json } from '@/types/database'

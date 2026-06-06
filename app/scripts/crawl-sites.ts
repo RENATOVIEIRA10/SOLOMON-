@@ -14,11 +14,9 @@
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { CRAWLER_CONFIGS } from '@/services/crawlers/crawler-config'
 import { crawlInsurer, type CrawlResult, type CrawledPdf } from '@/services/crawlers/site-crawler'
-import { validateSUSEPProcess, enrichWithSUSEP } from '@/services/crawlers/susep-crawler'
 import { chunkPdfs, type TextChunk } from '@/services/embeddings/chunker'
 import { embedChunks } from '@/services/embeddings/embedder'
 import { indexChunks, indexChunksWithoutEmbeddings } from '@/services/embeddings/indexer'
-import type { Json } from '@/types/database'
 
 // ---------------------------------------------------------------------------
 // CLI

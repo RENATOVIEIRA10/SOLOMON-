@@ -8,8 +8,8 @@
  *   npx tsx scripts/generate-missing-embeddings.ts --limit 500
  */
 
-import { supabaseAdmin } from '@/lib/supabase-admin'
-import { embedChunks } from '@/services/embeddings/embedder'
+import { config as loadEnv } from 'dotenv'
+import { resolve } from 'node:path'
 
 const BATCH_SIZE = 100
 
@@ -18,6 +18,14 @@ const insurerFilter = args.includes('--insurer') ? args[args.indexOf('--insurer'
 const limitArg = args.includes('--limit') ? parseInt(args[args.indexOf('--limit') + 1]) : 5000
 
 async function main() {
+  loadEnv({ path: resolve(process.cwd(), '.env.local') })
+  loadEnv({ path: resolve(process.cwd(), '.env.ragas.local'), override: true })
+
+  const [{ supabaseAdmin }, { embedChunks }] = await Promise.all([
+    import('@/lib/supabase-admin'),
+    import('@/services/embeddings/embedder'),
+  ])
+
   const startTime = Date.now()
   const db = supabaseAdmin
 

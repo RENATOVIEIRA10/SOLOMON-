@@ -1,6 +1,8 @@
 import { createHubClient } from "@/lib/supabase-hub";
 import { EvalDashboard, RunSummary, EvalRunRow } from "@/components/admin/eval-dashboard";
 
+type HubClient = ReturnType<typeof createHubClient>;
+
 export const metadata = {
   title: "Admin - Evolução Ragas",
 };
@@ -8,7 +10,7 @@ export const metadata = {
 // Force dynamic rendering to fetch fresh runs
 export const revalidate = 0;
 
-async function getRunsSummary(supabase: any): Promise<RunSummary[]> {
+async function getRunsSummary(supabase: HubClient): Promise<RunSummary[]> {
   const { data, error } = await supabase
     .from("eval_runs")
     .select("run_id, faithfulness, answer_correctness, context_precision, context_recall, noise_sensitivity, latency_ms, created_at")
@@ -74,7 +76,7 @@ async function getRunsSummary(supabase: any): Promise<RunSummary[]> {
   return summaries;
 }
 
-async function getRunDetail(supabase: any, runId: string): Promise<EvalRunRow[]> {
+async function getRunDetail(supabase: HubClient, runId: string): Promise<EvalRunRow[]> {
   const { data, error } = await supabase
     .from("eval_runs")
     .select("*")
@@ -90,7 +92,7 @@ async function getRunDetail(supabase: any, runId: string): Promise<EvalRunRow[]>
   return (data || []) as EvalRunRow[];
 }
 
-async function getInsurersMap(supabase: any): Promise<Record<string, string>> {
+async function getInsurersMap(supabase: HubClient): Promise<Record<string, string>> {
   const { data, error } = await supabase
     .from("insurers")
     .select("id, name");

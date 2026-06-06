@@ -411,7 +411,7 @@ async function callOpenRouter(
   }
   messages.push({ role: 'user', content: userMessage })
 
-  const body: Record<string, any> = {
+  const body: Record<string, unknown> = {
     model,
     messages,
     temperature: options.temperature ?? 0.3,

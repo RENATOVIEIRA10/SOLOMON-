@@ -22,5 +22,10 @@ CI validates schema and regenerates the deterministic preview with:
 npm run sft:dataset -- --allow-not-ready
 ```
 
+The same command also writes `solomon-sft-review-candidates.jsonl`. This queue
+contains valid, in-scope examples marked as not requiring Julio review, but it
+does not auto-approve them. A reviewer must verify each ground truth and add
+`"approved_for_sft": true` to the source question before it enters training.
+
 Fine-tuning should improve answer behavior and format. Insurer rules and
 current product facts must continue to come from RAG/structured data.

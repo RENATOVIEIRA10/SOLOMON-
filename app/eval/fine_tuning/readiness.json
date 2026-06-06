@@ -4,13 +4,23 @@
     "questions_commercial.jsonl",
     "questions_comparison.jsonl"
   ],
-  "approved_examples": 6,
+  "approved_examples": 16,
   "minimum_required": 100,
   "ready_for_training": false,
+  "unique_source_examples": 56,
+  "review_candidates": 17,
+  "requires_expert_review": 13,
+  "remaining_to_minimum": 84,
+  "new_examples_required_even_if_all_current_candidates_are_approved": 67,
   "categories": {
     "commercial_exclusions": 3,
     "commercial_product_discovery": 1,
-    "commercial_grace_period": 2
+    "commercial_grace_period": 2,
+    "concept": 5,
+    "comparison": 2,
+    "edge": 1,
+    "pre_sinistro": 2
   },
-  "output": "eval/fine_tuning/solomon-sft-approved.jsonl"
+  "output": "eval/fine_tuning/solomon-sft-approved.jsonl",
+  "review_queue": "eval/fine_tuning/solomon-sft-review-candidates.jsonl"
 }

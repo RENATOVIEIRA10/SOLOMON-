@@ -28,7 +28,6 @@ import { crawlInsurer, type CrawlResult } from '@/services/crawlers/site-crawler
 import { chunkPdfs, type TextChunk } from '@/services/embeddings/chunker'
 import { embedChunks } from '@/services/embeddings/embedder'
 import { indexChunks, indexChunksWithoutEmbeddings } from '@/services/embeddings/indexer'
-import type { Json } from '@/types/database'
 import { createHash } from 'node:crypto'
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join, basename } from 'node:path'

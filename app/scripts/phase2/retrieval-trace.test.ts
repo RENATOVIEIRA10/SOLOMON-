@@ -44,10 +44,6 @@ function ok(label: string, cond: boolean, detail?: string): void {
   }
 }
 
-function eq<T>(label: string, actual: T, expected: T): void {
-  ok(label, actual === expected, `expected ${String(expected)}, got ${String(actual)}`)
-}
-
 const HERE = path.dirname(fileURLToPath(import.meta.url))
 const APP_ROOT = path.resolve(HERE, '..', '..')
 const SEARCH_TS = path.join(APP_ROOT, 'src', 'services', 'rag', 'search.ts')

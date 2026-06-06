@@ -13,8 +13,8 @@
 
 import { supabaseAdmin } from '@/lib/supabase-admin'
 import { discoverInsurers, getFallbackInsurers } from '@/services/opin/discovery'
-import { fetchAllInsurers, type FetchResult } from '@/services/opin/fetcher'
-import { parseOPINResults, extractTermsUrls, type ParsedProduct } from '@/services/opin/parser'
+import { fetchAllInsurers } from '@/services/opin/fetcher'
+import { parseOPINResults, extractTermsUrls } from '@/services/opin/parser'
 import { downloadPdfs, type DownloadResult } from '@/services/opin/pdf-downloader'
 import { chunkPdfs, type TextChunk } from '@/services/embeddings/chunker'
 import { embedChunks } from '@/services/embeddings/embedder'
