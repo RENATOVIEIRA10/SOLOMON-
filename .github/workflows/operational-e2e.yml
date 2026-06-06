@@ -13,7 +13,7 @@ on:
 jobs:
   operational-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
 
     defaults:
       run:
@@ -38,7 +38,7 @@ jobs:
         run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install chromium
+        run: npx playwright install --only-shell chromium
 
       - name: Run operational E2E
         run: npm run e2e:operational
