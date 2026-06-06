@@ -20,6 +20,7 @@ jobs:
         working-directory: app
 
     env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       SOLOMON_E2E_BASE_URL: ${{ inputs.base_url || 'https://app-atalaia.vercel.app' }}
 
     steps:
@@ -37,7 +38,7 @@ jobs:
         run: npm ci
 
       - name: Install Chromium
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: Run operational E2E
         run: npm run e2e:operational

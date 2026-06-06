@@ -35,3 +35,5 @@ Target: `https://app-atalaia.vercel.app`
   URL.
 - Playwright HTML report, trace, and failure screenshots retained as CI
   artifacts.
+- The first CI run exposed a timeout in `playwright install --with-deps`; the
+  workflow now installs only Chromium on the hosted runner.
