@@ -1,0 +1,51 @@
+name: Operational E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Production or preview URL to validate
+        required: false
+        default: https://app-atalaia.vercel.app
+  schedule:
+    - cron: '17 10 * * *'
+
+jobs:
+  operational-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: app
+
+    env:
+      SOLOMON_E2E_BASE_URL: ${{ inputs.base_url || 'https://app-atalaia.vercel.app' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run operational E2E
+        run: npm run e2e:operational
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: operational-e2e-report
+          path: app/playwright-report
+          retention-days: 14

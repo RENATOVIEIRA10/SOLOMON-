@@ -29,7 +29,8 @@
     "pageindex:qa": "node scripts/pageindex-lite-qa.js",
     "pageindex:build-commercial-toc": "node scripts/build-commercial-toc.js",
     "rag:readiness": "node scripts/rag-readiness-audit.js",
-    "sft:dataset": "node scripts/build-sft-dataset.js"
+    "sft:dataset": "node scripts/build-sft-dataset.js",
+    "e2e:operational": "playwright test --config=playwright.operational.config.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",

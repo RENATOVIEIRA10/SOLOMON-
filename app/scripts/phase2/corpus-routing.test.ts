@@ -334,7 +334,7 @@ function gateSearchTsWiring(): void {
   ok(
     'search.ts calls supabase.rpc with the rpcName variable (not the literal string)',
     /supabase\.rpc\s+as\s+any\)\(\s*rpcName\s*,/.test(source) ||
-      /supabase\.rpc\s*as\s*any\)\(\s*rpcName\s*,/.test(source)
+      /supabase\.rpc\s+as\s+any\)\.call\(\s*supabase\s*,\s*rpcName\s*,/.test(source)
   )
   ok(
     "search.ts does NOT call supabase.rpc with the bare 'match_documents' literal anymore",
