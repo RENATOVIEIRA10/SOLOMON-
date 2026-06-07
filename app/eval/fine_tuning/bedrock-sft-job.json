@@ -1,0 +1,9 @@
+{
+  "created_at": "2026-06-07T01:42:35Z",
+  "provider": "aws-bedrock",
+  "job_name": "solomon-sft-v1-20260607-014210",
+  "custom_model_name": "solomon-sft-v1-20260607-014210",
+  "base_model": "amazon.nova-micro-v1:0:128k",
+  "region": "us-east-1",
+  "status": "InProgress"
+}

@@ -30,3 +30,19 @@ question must contain `"approved_for_sft": true` before it enters training.
 
 Fine-tuning should improve answer behavior and format. Insurer rules and
 current product facts must continue to come from RAG/structured data.
+
+As of May 7, 2026, OpenAI blocks new fine-tuning jobs for organizations that
+have not previously used fine-tuning. The current SOLOMON organization returns
+`training_not_available`, so the executable training route uses Amazon Bedrock:
+
+```bash
+npm run sft:bedrock:prepare
+npm run sft:bedrock:start
+npm run sft:bedrock:status
+```
+
+This converts all 100 approved examples to the Bedrock Converse format and
+starts a two-epoch fine-tune of Amazon Nova Micro. The start command creates a
+dedicated S3 bucket and least-scope IAM role when they do not already exist.
+Training completion does not promote the model to production automatically;
+the custom model must first pass a comparison suite outside the training set.

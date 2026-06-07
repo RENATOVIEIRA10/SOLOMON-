@@ -30,6 +30,9 @@
     "pageindex:build-commercial-toc": "node scripts/build-commercial-toc.js",
     "rag:readiness": "node scripts/rag-readiness-audit.js",
     "sft:dataset": "node scripts/build-sft-dataset.js",
+    "sft:bedrock:prepare": "node scripts/prepare-bedrock-sft.js",
+    "sft:bedrock:start": "bash scripts/start-bedrock-sft.sh",
+    "sft:bedrock:status": "bash scripts/status-bedrock-sft.sh",
     "e2e:operational": "playwright test --config=playwright.operational.config.ts"
   },
   "dependencies": {
