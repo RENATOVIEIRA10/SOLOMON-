@@ -8,6 +8,7 @@ import urllib.request
 from pathlib import Path
 
 import boto3
+from botocore.config import Config
 
 
 SYSTEM = (
@@ -63,21 +64,36 @@ def write_jsonl(path: Path, items) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--questions", required=True, type=Path)
-    parser.add_argument("--deployment-arn", required=True)
+    model_group = parser.add_mutually_exclusive_group(required=True)
+    model_group.add_argument("--model-id")
+    model_group.add_argument("--deployment-arn", dest="model_id")
     parser.add_argument("--out", required=True, type=Path)
     parser.add_argument("--endpoint", default="https://solomonn.vercel.app/api/ask")
+    parser.add_argument("--region", default="us-east-1")
+    parser.add_argument("--limit", type=int)
+    parser.add_argument("--ids", help="Comma-separated question IDs to evaluate")
     args = parser.parse_args()
 
     token = os.environ["SOLOMON_EVAL_TOKEN"]
-    bedrock = boto3.client("bedrock-runtime", region_name="us-east-1")
+    bedrock = boto3.client(
+        "bedrock-runtime",
+        region_name=args.region,
+        config=Config(connect_timeout=10, read_timeout=90, retries={"max_attempts": 2}),
+    )
     output = load_jsonl(args.out) if args.out.exists() else []
     completed = {item["id"] for item in output}
-    for index, item in enumerate(load_jsonl(args.questions), start=1):
+    questions = load_jsonl(args.questions)
+    if args.ids:
+        selected_ids = {item.strip() for item in args.ids.split(",") if item.strip()}
+        questions = [item for item in questions if item["id"] in selected_ids]
+    if args.limit is not None:
+        questions = questions[: args.limit]
+    for index, item in enumerate(questions, start=1):
         if item["id"] in completed:
             print(f"[{index:02d}] {item['id']} checkpoint", flush=True)
             continue
         started = time.time()
-        fine_tuned = ask_bedrock(bedrock, args.deployment_arn, item["question"])
+        fine_tuned = ask_bedrock(bedrock, args.model_id, item["question"])
         production = ask_solomon(args.endpoint, token, item["question"])
         output.append({**item, "fine_tuned_answer": fine_tuned, "production_answer": production})
         write_jsonl(args.out, output)
