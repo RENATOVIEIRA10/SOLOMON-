@@ -13,5 +13,16 @@
   "training_loss": {
     "epoch_1": 3.6357076168060303,
     "epoch_2": 2.9991960525512695
+  },
+  "evaluation": {
+    "heldout_cases": 20,
+    "automatic_fine_tuned_wins": 10,
+    "automatic_production_wins": 9,
+    "automatic_ties": 1,
+    "fine_tuned_mean_score": 83.0,
+    "production_mean_score": 85.25,
+    "manual_gate": "rejected",
+    "production_promoted": false,
+    "temporary_deployment_deleted": true
   }
 }
