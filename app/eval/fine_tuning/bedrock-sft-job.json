@@ -5,5 +5,13 @@
   "custom_model_name": "solomon-sft-v1-20260607-014210",
   "base_model": "amazon.nova-micro-v1:0:128k",
   "region": "us-east-1",
-  "status": "InProgress"
+  "status": "Completed",
+  "completed_at": "2026-06-07T02:27:12Z",
+  "output_model_arn": "arn:aws:bedrock:us-east-1:877330416382:custom-model/amazon.nova-micro-v1:0:128k/0zug5ro9hkru",
+  "accepted_training_examples": 100,
+  "rejected_training_examples": 0,
+  "training_loss": {
+    "epoch_1": 3.6357076168060303,
+    "epoch_2": 2.9991960525512695
+  }
 }
