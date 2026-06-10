@@ -67,6 +67,48 @@ function gateSeguroDeVidaCarencia(): void {
   ok('seguro de vida carencia -> NOT blocked', r.isOutOfDomain === false, `got isOutOfDomain=${r.isOutOfDomain}`)
 }
 
+// CR-01: vida/AP que menciona veiculo/carro/guincho como CAUSA do sinistro
+// NUNCA pode ser bloqueada como out-of-domain (falsos positivos confirmados
+// empiricamente na review da fase 5).
+console.log('\n## CR-01 regression — vida/AP com mencao a veiculo NAO bloqueada')
+
+const CR01_IN_DOMAIN_CASES = [
+  'Seguro de vida cobre morte em acidente de veiculo?',
+  'O seguro de vida da Prudential cobre morte em acidente de veículo?',
+  'Morte acidental em colisao de veiculo e coberta pela apolice AP?',
+  'Segurado faleceu ao ser atropelado por um veiculo, o AP cobre?',
+  'Seguro de vida paga se o segurado morrer em acidente do carro?',
+  'IPA cobre invalidez causada por capotamento do carro?',
+  'A assistencia funeral inclui guincho?',
+]
+
+function gateCR01FalsePositives(): void {
+  for (const question of CR01_IN_DOMAIN_CASES) {
+    const r = detectOutOfDomainQuery(question)
+    ok(
+      `CR-01 NOT blocked: "${question}"`,
+      r.isOutOfDomain === false,
+      `got isOutOfDomain=${r.isOutOfDomain}, domain=${r.detectedDomain}`
+    )
+  }
+}
+
+// G-06 do heldout: produto auto EXPLICITO continua bloqueado mesmo com a
+// supressao por vocabulario de vida ("franquia" aparece na pergunta).
+function gateG06StillBlocked(): void {
+  const r = detectOutOfDomainQuery('Qual a franquia do meu seguro de carro no caso de colisao com outro veiculo?')
+  ok('G-06 franquia seguro de carro -> isOutOfDomain', r.isOutOfDomain === true, `got isOutOfDomain=${r.isOutOfDomain}`)
+  ok('G-06 -> detectedDomain=auto', r.detectedDomain === 'auto', `got domain=${r.detectedDomain}`)
+}
+
+// WR-05: input acentuado em NFC (forma tipica de mobile) — strip de acentos
+// com escapes unicode (u0300-u036f) precisa continuar funcionando.
+function gateAccentedAuto(): void {
+  const r = detectOutOfDomainQuery('Quanto custa seguro de automóvel?')
+  ok('acentuado "automóvel" -> isOutOfDomain', r.isOutOfDomain === true, `got isOutOfDomain=${r.isOutOfDomain}`)
+  ok('acentuado "automóvel" -> detectedDomain=auto', r.detectedDomain === 'auto', `got domain=${r.detectedDomain}`)
+}
+
 console.log('\n## refusalMessageForDomain — mensagem honesta')
 
 function gateRefusalAuto(): void {
@@ -82,6 +124,9 @@ gateViagem()
 gateVidaVivaMorte()
 gateInvalidezAcidente()
 gateSeguroDeVidaCarencia()
+gateCR01FalsePositives()
+gateG06StillBlocked()
+gateAccentedAuto()
 gateRefusalAuto()
 
 console.log(`\n${passed + failed} tests: ${passed} passed, ${failed} failed`)
