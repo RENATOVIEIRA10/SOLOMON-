@@ -77,9 +77,12 @@ export async function* askStream(
       mentionedInsurers.length === 1 && questionImpliesOtherInsurers(question);
     const expandedQuery = expandQueryWithJargon(question);
 
+    let rateIntentDetected = false;
+
     if (mentionedInsurers.length === 1) {
       const intent = detectRateIntent(question, mentionedInsurers[0]);
       if (intent.hasIntent) {
+        rateIntentDetected = intent.hasIntent;
         const insurerIds = await resolveInsurerIds(mentionedInsurers);
         const ids = insurerIds.values().next().value;
         if (ids && ids.length > 0) {
@@ -237,10 +240,21 @@ export async function* askStream(
     // ---- 5. Prompt + stream ----
     // Stream path (dashboard SSE). Channel whatsapp suprime FONTES porque o
     // canal injeta citacoes via formatRagResponse — guard defensivo.
-    const baseTemplate =
+    const llmArithmeticBlocked = rateIntentDetected;
+    let baseTemplate =
       options?.channel === "whatsapp"
         ? stripSourcesSection(SYSTEM_PROMPT_TEMPLATE)
         : SYSTEM_PROMPT_TEMPLATE;
+    if (llmArithmeticBlocked) {
+      console.log('[grd-01] Rate intent sem fast-path — injetando proibicao de aritmetica de premio no systemPrompt.')
+      baseTemplate =
+        baseTemplate +
+        '\n\n## PROIBIDO (GRD-01)\nNAO realize nenhuma aritmetica de premio, taxa ou capital. ' +
+        'NAO multiplique, divida, nem converta valores monetarios (R$, centavos, mensal/anual). ' +
+        'Se o usuario pediu um calculo de premio/taxa, responda que o calculo exato depende da tabela ' +
+        'estruturada da seguradora e que ela nao foi encontrada para os parametros informados. ' +
+        'Apresente apenas informacoes textuais das condicoes gerais, nunca um numero calculado por voce.'
+    }
     const systemPrompt = baseTemplate.replace(
       "{context}",
       contextText || "Nenhum documento encontrado."

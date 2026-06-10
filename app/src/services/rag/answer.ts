@@ -545,9 +545,20 @@ export async function ask(
   // pra nao mandar LLM "ignorar Y/Z" justamente quando precisa comparar.
   // Canal whatsapp: suprime a secao FONTES E LIMITACOES porque o handler ja
   // injeta as citacoes apos a resposta (single source of truth, sem duplicacao).
+  const llmArithmeticBlocked = rateIntentDetected
   let promptTemplate = compareIntent ? SYSTEM_PROMPT_COMPARE_TEMPLATE : SYSTEM_PROMPT_TEMPLATE
   if (options?.channel === 'whatsapp') {
     promptTemplate = stripSourcesSection(promptTemplate)
+  }
+  if (llmArithmeticBlocked) {
+    console.log('[grd-01] Rate intent sem fast-path — injetando proibicao de aritmetica de premio no systemPrompt.')
+    promptTemplate =
+      promptTemplate +
+      '\n\n## PROIBIDO (GRD-01)\nNAO realize nenhuma aritmetica de premio, taxa ou capital. ' +
+      'NAO multiplique, divida, nem converta valores monetarios (R$, centavos, mensal/anual). ' +
+      'Se o usuario pediu um calculo de premio/taxa, responda que o calculo exato depende da tabela ' +
+      'estruturada da seguradora e que ela nao foi encontrada para os parametros informados. ' +
+      'Apresente apenas informacoes textuais das condicoes gerais, nunca um numero calculado por voce.'
   }
   const systemPrompt = promptTemplate.replace('{context}', contextText || 'Nenhum documento encontrado.')
 
