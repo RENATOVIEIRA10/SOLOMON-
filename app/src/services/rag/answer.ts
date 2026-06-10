@@ -1202,6 +1202,27 @@ const INSURER_PATTERNS: Array<{ patterns: string[]; canonical: string }> = [
   { patterns: ['metlife', 'met life'], canonical: 'MetLife' },
   { patterns: ['mag seguros', 'mag', 'mongeral'], canonical: 'MAG' },
   { patterns: ['azos'], canonical: 'Azos' },
+  // --- Seguradoras de vida/pessoas CONHECIDAS mas NAO indexadas (GRD-02) ---
+  // detectInsurers precisa reconhece-las para que o guard de fonte ausente
+  // (insurer-source-guard) recuse deterministicamente em vez de cair no
+  // fallback global com chunks de outras seguradoras + recusa probabilistica
+  // do LLM (classe de falha H05 do gate SFT v2). resolveInsurerIds retorna
+  // vazio para elas -> !hasMatch -> recusa explicita, por construcao.
+  { patterns: ['allianz'], canonical: 'Allianz' },
+  { patterns: ['axa'], canonical: 'AXA' },
+  { patterns: ['chubb'], canonical: 'Chubb' },
+  { patterns: ['generali'], canonical: 'Generali' },
+  { patterns: ['itau vida', 'itaú vida', 'itau seguros', 'itaú seguros', 'itau', 'itaú'], canonical: 'Itau' },
+  { patterns: ['liberty'], canonical: 'Liberty' },
+  { patterns: ['hdi'], canonical: 'HDI' },
+  { patterns: ['sompo'], canonical: 'Sompo' },
+  { patterns: ['capemisa'], canonical: 'Capemisa' },
+  { patterns: ['sabemi'], canonical: 'Sabemi' },
+  { patterns: ['previsul'], canonical: 'Previsul' },
+  { patterns: ['omint'], canonical: 'Omint' },
+  { patterns: ['seguros unimed', 'unimed seguros', 'unimed seguradora'], canonical: 'Seguros Unimed' },
+  { patterns: ['centauro-on', 'centauro on'], canonical: 'Centauro-ON' },
+  { patterns: ['american life'], canonical: 'American Life' },
 ]
 
 /**
