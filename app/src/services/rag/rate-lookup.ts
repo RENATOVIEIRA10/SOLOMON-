@@ -561,7 +561,22 @@ async function queryRateTableSingle(params: QueryRateTableParams): Promise<RateR
     console.error('[rate-lookup] query error:', error.message)
     return []
   }
-  return (data ?? []) as RateRow[]
+  // WR-03/GRD-01: rate_unit desconhecido vindo do banco NUNCA chega ao
+  // formatter. Decisao: validar AQUI (call boundary) e DEGRADAR — a linha
+  // invalida e descartada com log; se nada sobrar, o fast-path da MISS e o
+  // fluxo cai no RAG com o guard anti-aritmetica (GRD-01) injetado, em vez
+  // de derrubar a request (500 em ask(), evento error no SSE). O throw em
+  // assertRateUnit/formatCapitalPremiumLine permanece como defesa em
+  // profundidade para chamadas diretas do formatter.
+  return ((data ?? []) as RateRow[]).filter((row) => {
+    try {
+      assertRateUnit(row.rate_unit, 'queryRateTable')
+      return true
+    } catch (err) {
+      console.error((err as Error).message)
+      return false
+    }
+  })
 }
 
 function normalizeProductName(value: string): string {
