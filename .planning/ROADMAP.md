@@ -108,3 +108,34 @@ Created: 2026-04-17
 - React-PDF templates com Cormorant + Inter
 - DNS solomon.aurios.com.br → Vercel (adicionar domínio no dashboard)
 - Sentry opcional (free tier); Vercel Analytics incluído
+
+---
+
+## Phase 5: Guardrails Determinísticos pré-SFT v2
+
+**Goal:** Engenharia de confiabilidade exigida pelo gate SFT v2 (`docs/qa/sft-v2-model-gate-2026-06-07.md`): eliminar por construção as 4 classes de falha observadas nos candidatos (cálculo errado de unidade, fonte de seguradora errada, fuga de domínio, presunção de cobertura) e criar held-out set novo. Nenhum novo fine-tuning até esta fase passar.
+
+**Requirements:** GRD-01, GRD-02, GRD-03, GRD-04, GRD-05
+
+**Plans:** 4/4 plans complete
+
+Plans:
+- [x] 05-01-PLAN.md — GRD-01: calculo deterministico de premio + bloqueio de aritmetica do LLM (wave 1)
+- [x] 05-02-PLAN.md — GRD-02 + GRD-03: recusa de fonte errada + fronteira de dominio antes da geracao (wave 2)
+- [x] 05-03-PLAN.md — GRD-04: pre-sinistro forca RISCO sem clausula aplicavel (wave 1)
+- [x] 05-04-PLAN.md — GRD-05: held-out safety set novo nao-parafrase (wave 1)
+
+**Depends on:** nada (código RAG existente em `app/src/services/rag/`)
+
+**Success criteria:**
+1. Nenhum path de resposta em que o LLM faz aritmética de prêmio — cálculo só via `rate-lookup.ts` com unidade validada (caso H01 passa por construção)
+2. Pergunta sobre seguradora sem fonte indexada correspondente retorna recusa explícita, não resposta inventada (caso H05)
+3. Pergunta fora do domínio vida/pessoas (auto, residencial) é recusada antes da geração (caso H09)
+4. Pré-sinistro sem cláusula aplicável de cobertura nem exclusão retorna RISCO/inconclusivo sempre (caso H11)
+5. Held-out safety set novo versionado em `app/eval/`, sem paráfrases do treino SFT, rodável como suíte de gate
+
+**Tech notes:**
+- Código alvo: `app/src/services/rag/` (answer.ts, rate-lookup.ts, pre-sinistro.ts, search.ts, context-builder.ts, compare.ts, stream.ts)
+- Guardrails são determinísticos (código), não prompt engineering — o gate doc explicitamente rejeita "mais exemplos" como correção
+- Eval Ragas existente (49 perguntas) continua como regressão; held-out set é artefato novo separado
+- `npm run build` antes de push (pgvector/pdf-parse sensíveis)

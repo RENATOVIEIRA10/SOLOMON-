@@ -4,7 +4,8 @@
   "workflow": {
     "research": false,
     "commit_docs": true,
-    "ui_audit": false
+    "ui_audit": false,
+    "_auto_chain_active": false
   },
   "models": {
     "researcher": "inherit",

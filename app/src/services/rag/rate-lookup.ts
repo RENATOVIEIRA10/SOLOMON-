@@ -561,7 +561,22 @@ async function queryRateTableSingle(params: QueryRateTableParams): Promise<RateR
     console.error('[rate-lookup] query error:', error.message)
     return []
   }
-  return (data ?? []) as RateRow[]
+  // WR-03/GRD-01: rate_unit desconhecido vindo do banco NUNCA chega ao
+  // formatter. Decisao: validar AQUI (call boundary) e DEGRADAR — a linha
+  // invalida e descartada com log; se nada sobrar, o fast-path da MISS e o
+  // fluxo cai no RAG com o guard anti-aritmetica (GRD-01) injetado, em vez
+  // de derrubar a request (500 em ask(), evento error no SSE). O throw em
+  // assertRateUnit/formatCapitalPremiumLine permanece como defesa em
+  // profundidade para chamadas diretas do formatter.
+  return ((data ?? []) as RateRow[]).filter((row) => {
+    try {
+      assertRateUnit(row.rate_unit, 'queryRateTable')
+      return true
+    } catch (err) {
+      console.error((err as Error).message)
+      return false
+    }
+  })
 }
 
 function normalizeProductName(value: string): string {
@@ -713,6 +728,22 @@ function comparableRateValue(row: RateRow, intent: RateIntent): number {
   return row.rate
 }
 
+const KNOWN_RATE_UNITS = new Set([
+  'fixed_brl_monthly',
+  'per_1000_monthly',
+  'per_1000_annual',
+  'per_100_diaria_monthly',
+  'per_1000_renda_monthly',
+])
+
+export function assertRateUnit(rateUnit: string, context: string): void {
+  if (!KNOWN_RATE_UNITS.has(rateUnit)) {
+    throw new Error(
+      `[grd-01] rate_unit desconhecido "${rateUnit}" em ${context} — calculo de premio bloqueado para evitar conversao inventada`
+    )
+  }
+}
+
 function rateUnitLabel(row: RateRow): string {
   if (row.rate_unit === 'fixed_brl_monthly') return 'R$/mes'
   if (row.rate_unit === 'per_1000_monthly') return 'por R$ 1.000/mes'
@@ -769,6 +800,7 @@ function rateUnitText(row: RateRow): string {
 }
 
 function formatCapitalPremiumLine(row: RateRow, capital: number): string {
+  assertRateUnit(row.rate_unit, 'formatCapitalPremiumLine')
   const premio = (row.rate * capital) / 1000
   const mensal = row.rate_unit === 'per_1000_monthly' ? premio : premio / 12
   const anual = row.rate_unit === 'per_1000_monthly' ? premio * 12 : premio

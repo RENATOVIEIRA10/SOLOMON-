@@ -18,6 +18,7 @@ import { callLLMStream } from "./llm";
 import { RAG } from "@/config/constants";
 import { expandQueryWithJargon } from "@/config/jargon";
 import { detectRateIntent, formatRateAnswer, queryRateTable } from "./rate-lookup";
+import { detectOutOfDomainQuery, refusalMessageForDomain } from "./domain-guard";
 import {
   SYSTEM_PROMPT_TEMPLATE,
   LOW_CONFIDENCE_THRESHOLD,
@@ -77,9 +78,26 @@ export async function* askStream(
       mentionedInsurers.length === 1 && questionImpliesOtherInsurers(question);
     const expandedQuery = expandQueryWithJargon(question);
 
+    // GRD-03: fronteira de dominio — recusar perguntas fora do escopo vida/pessoas ANTES do retrieval
+    const domainCheck = detectOutOfDomainQuery(question);
+    if (domainCheck.isOutOfDomain) {
+      console.log(`[grd-03] Out-of-domain (stream) bloqueada: domain=${domainCheck.detectedDomain}`);
+      const answer = refusalMessageForDomain(domainCheck.detectedDomain);
+      let conversationId: string | undefined;
+      if (options?.brokerId) {
+        conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "domain-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] });
+      }
+      yield { type: "token", delta: answer };
+      yield { type: "meta", model: "domain-guard", conversationId, citations: [], tokensUsed: 0, latencyMs: Date.now() - startTime, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] };
+      return;
+    }
+
+    let rateIntentDetected = false;
+
     if (mentionedInsurers.length === 1) {
       const intent = detectRateIntent(question, mentionedInsurers[0]);
       if (intent.hasIntent) {
+        rateIntentDetected = intent.hasIntent;
         const insurerIds = await resolveInsurerIds(mentionedInsurers);
         const ids = insurerIds.values().next().value;
         if (ids && ids.length > 0) {
@@ -215,6 +233,27 @@ export async function* askStream(
     // ---- 2. Enrich + diversify ----
     const enrichment = await loadEnrichment(searchResults);
 
+    // GRD-02: recusar fonte ausente — quando pergunta menciona seguradora X mas nenhum chunk corresponde
+    if (mentionedInsurers.length > 0) {
+      const requestedIds = new Set([...(await resolveInsurerIds(mentionedInsurers)).values()].flat());
+      const retrievedIds = new Set(searchResults.map((r) => r.insurer_id).filter((id): id is string => Boolean(id)));
+      const hasMatch = [...retrievedIds].some((id) => requestedIds.has(id));
+      // WR-01: requestedIds.size === 0 => seguradora detectada na pergunta mas
+      // SEM linha na tabela insurers (caso H05/G-04). Recusar tambem — senao o
+      // fallback global preenche o contexto com chunks de OUTRAS seguradoras.
+      if (!hasMatch) {
+        console.log(`[grd-02] Insurer source mismatch (stream) — requested=${mentionedInsurers.join(",")} (resolvedIds=${requestedIds.size}) nao casa com nenhum chunk recuperado. Recusando.`);
+        const answer = `Nao tenho documentos da ${mentionedInsurers.join(" / ")} indexados para responder isso com seguranca. Nao posso usar documentos de outra seguradora como substituto.`;
+        let conversationId: string | undefined;
+        if (options?.brokerId) {
+          conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "insurer-source-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] });
+        }
+        yield { type: "token", delta: answer };
+        yield { type: "meta", model: "insurer-source-guard", conversationId, citations: [], tokensUsed: 0, latencyMs: Date.now() - startTime, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] };
+        return;
+      }
+    }
+
     if (mentionedInsurers.length === 0) {
       searchResults = diversifyResults(searchResults, enrichment, mentionedInsurers);
     } else if (searchResults.length > RAG.topK) {
@@ -237,10 +276,26 @@ export async function* askStream(
     // ---- 5. Prompt + stream ----
     // Stream path (dashboard SSE). Channel whatsapp suprime FONTES porque o
     // canal injeta citacoes via formatRagResponse — guard defensivo.
-    const baseTemplate =
+    // WR-02/GRD-01: o fast-path deterministico continua restrito a 1 seguradora,
+    // mas a proibicao de aritmetica no prompt cobre TODOS os paths com intent de
+    // taxa — 0 seguradoras (G-01/G-03) e 2+ seguradoras (comparativos) incluidos.
+    // detectRateIntent sem insurer e regex puro (barato) e ja exige qualifier
+    // (idade/capital/produto), o que evita disparo em perguntas conceituais.
+    const llmArithmeticBlocked = rateIntentDetected || detectRateIntent(question).hasIntent;
+    let baseTemplate =
       options?.channel === "whatsapp"
         ? stripSourcesSection(SYSTEM_PROMPT_TEMPLATE)
         : SYSTEM_PROMPT_TEMPLATE;
+    if (llmArithmeticBlocked) {
+      console.log('[grd-01] Rate intent sem fast-path — injetando proibicao de aritmetica de premio no systemPrompt.')
+      baseTemplate =
+        baseTemplate +
+        '\n\n## PROIBIDO (GRD-01)\nNAO realize nenhuma aritmetica de premio, taxa ou capital. ' +
+        'NAO multiplique, divida, nem converta valores monetarios (R$, centavos, mensal/anual). ' +
+        'Se o usuario pediu um calculo de premio/taxa, responda que o calculo exato depende da tabela ' +
+        'estruturada da seguradora e que ela nao foi encontrada para os parametros informados. ' +
+        'Apresente apenas informacoes textuais das condicoes gerais, nunca um numero calculado por voce.'
+    }
     const systemPrompt = baseTemplate.replace(
       "{context}",
       contextText || "Nenhum documento encontrado."

@@ -25,11 +25,23 @@
 | 001 | Validar rag_exclude filter + rotate secrets + CI build | FECHADO | ad-hoc (notebook check) | 2026-06-03 |
 | 002 | Dashboard admin + baseline Ragas automatizado | PENDENTE | — | — |
 | 003 | Suite de testes unitários (extractors, RAG pipeline) | PENDENTE | — | — |
+| 006 | Guardrails determinísticos pré-SFT v2 (GSD Phase 5, GRD-01..05) | FECHADO (local, aguarda push) | `feat(05-01..04)` + `fix(05)` ×4 | 2026-06-10 |
 | Ops-001 | Stop hook light para Claude Code (operacional, não-produto) | FECHADO | `feat(ops): stop-hook light` | 2026-05-16 |
 
 ---
 
 ## Ciclos fechados recentes
+
+**006 — Guardrails determinísticos pré-SFT v2 (2026-06-10):**
+- Origem: gate SFT v2 (`docs/qa/sft-v2-model-gate-2026-06-07.md`) — Nova 2 Lite e Nova Pro reprovados; correção exigida é código determinístico, não mais exemplos de treino.
+- **GRD-01:** `assertRateUnit` em `rate-lookup.ts` (boundary `queryRateTable` + defesa em `formatCapitalPremiumLine`) + `llmArithmeticBlocked` injeta proibição de aritmética no prompt em TODO rate-intent (0/1/2+ seguradoras), answer.ts e stream.ts em paridade.
+- **GRD-02:** recusa explícita quando chunks não correspondem à seguradora pedida, inclusive seguradora não-indexada (H05/G-04) — sem fallback silencioso.
+- **GRD-03:** `domain-guard.ts` novo — classificador determinístico 2 camadas (produto explícito sempre bloqueia; contexto veicular suprimido por vocabulário de vida), early-return antes do retrieval.
+- **GRD-04:** post-validation do pré-sinistro (PR #64) confirmado intacto; `hasEvidenceFor` exportada + regressão H11 (7 assertions).
+- **GRD-05:** held-out set `app/eval/fine_tuning/solomon-guardrails-heldout.jsonl` (12 casos G-01..G-12, não-paráfrase) + validador + README com critérios de gate.
+- Code review (standard): 1 critical + 5 warnings encontrados e TODOS corrigidos na mesma sessão (CR-01 falso-positivo de domínio; WR-01 skip do guard de fonte; WR-02 escopo do bloqueio de aritmética; WR-03/04/05). Verificação GSD: passed 5/5.
+- Evidência: 47 testes tsx passando (24 domain-guard, 16 rate-unit, 7 pre-sinistro-h11), `npm run build` verde, `.planning/phases/05-guardrails-determin-sticos-pr-sft-v2/05-VERIFICATION.md`.
+- Pendência: rodar suíte held-out G-01..G-12 na VPS contra o baseline guarded (pré-requisito para qualquer SFT v2).
 
 **001 — Validar rag_exclude filter + rotate secrets + CI build (2026-06-03):**
 - **rag_exclude filter:** Validado rodando `scripts/rag-audit/test-rag-exclude.ts` locally. Verificou-se que os chunks marcados com `rag_exclude=true` não vazam na chamada da RPC `match_documents`.
