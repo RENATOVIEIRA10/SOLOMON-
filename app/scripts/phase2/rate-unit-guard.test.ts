@@ -9,7 +9,7 @@ process.env.NEXT_PUBLIC_SUPABASE_URL = 'https://test.invalid'
 process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY = 'test-anon-key'
 process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
 
-import { assertRateUnit } from '@/services/rag/rate-lookup'
+import { assertRateUnit, formatRateAnswer, type RateRow } from '@/services/rag/rate-lookup'
 
 let passed = 0
 let failed = 0
@@ -72,26 +72,56 @@ function gateAssertRateUnit(): void {
   )
 }
 
+// WR-04: o gate H01 exercita o CODIGO DE PRODUCAO (formatRateAnswer →
+// formatCapitalPremiumLine), nao uma formula recalculada localmente no teste.
+// Se alguem reintroduzir a inversao mensal/anual ou a "conversao de centavos"
+// (bug H01 do Nova 2 Lite) no formatter, este gate quebra.
+function makeRow(overrides: Partial<RateRow>): RateRow {
+  return {
+    product_name: 'VIDA INTEIRA',
+    product_code: '3082',
+    portfolio: null,
+    coverage_type: 'morte',
+    gender: 'M',
+    age: 40,
+    period: null,
+    rate: 1.75,
+    rate_unit: 'per_1000_monthly',
+    source_doc_name: 'tabela-premios.pdf',
+    source_page: 1,
+    version_label: null,
+    ...overrides,
+  }
+}
+
 function gateH01Arithmetic(): void {
-  console.log('\n## H01 arithmetic regression — 320 x 1.75 = 560/mes, NEVER 5600')
+  console.log('\n## H01 arithmetic regression (production path) — 320k x 1.75/1000 = 560/mes, NEVER 5600')
 
-  // H01: Caso canonico — Nova 2 Lite inventou conversao de centavos
-  // rate=1.75 (por R$1.000/mes), capital=320.000
-  // premio = (1.75 * 320000) / 1000 = 560 (mensal, pois rate_unit='per_1000_monthly')
-  // anual  = 560 * 12 = 6720
-  const rate = 1.75
-  const capital = 320000
-  const mensal = (rate * capital) / 1000
-  ok('H01 mensal e 560 nao 5600', Math.round(mensal) === 560, `got ${mensal}`)
+  // H01 canonico: rate=1.75 por R$ 1.000/MES, capital=320.000.
+  // mensal = (1.75 * 320000) / 1000 = 560; anual = 560 * 12 = 6720.
+  const out = formatRateAnswer({
+    insurerName: 'MAG',
+    intent: { hasIntent: true, age: 40, gender: 'M', capital: 320000 },
+    rows: [makeRow({})],
+  })
+  ok('H01 mensal 560,00 presente na resposta', out.includes('560,00'), `out=\n${out}`)
+  ok('H01 anual 6.720,00 presente na resposta', out.includes('6.720,00'), `out=\n${out}`)
+  ok('H01 NAO contem 5.600,00/mes (bug centavos)', !/5\.600,00\/mes/.test(out))
+  ok('H01 NAO contem 56.000,00', !out.includes('56.000,00'))
+  ok('H01 direcao mensal correta (560,00/mes)', /560,00\/mes/.test(out), `out=\n${out}`)
+  ok('H01 direcao anual correta (6.720,00\/ano)', /6\.720,00\/ano/.test(out), `out=\n${out}`)
 
-  const anual = mensal * 12
-  ok('H01 anual e 6720', Math.round(anual) === 6720, `got ${anual}`)
+  console.log('\n## H01 inversao mensal/anual — per_1000_annual NAO pode virar mensal')
 
-  // Invariante: mensal NAO e 5600 (bug da conversao de centavos)
-  ok('H01 mensal NAO e 5600 (bug centavos)', Math.round(mensal) !== 5600)
-
-  // Invariante: anual NAO e 56000
-  ok('H01 anual NAO e 56000', Math.round(anual) !== 56000)
+  // Mesma taxa, unidade ANUAL: premio anual = 560; mensal = 560/12 = 46,67.
+  const outAnnual = formatRateAnswer({
+    insurerName: 'MAG',
+    intent: { hasIntent: true, age: 40, gender: 'M', capital: 320000 },
+    rows: [makeRow({ rate_unit: 'per_1000_annual' })],
+  })
+  ok('per_1000_annual: 560,00/ano presente', /560,00\/ano/.test(outAnnual), `out=\n${outAnnual}`)
+  ok('per_1000_annual: mensal aproximado 46,67 presente', outAnnual.includes('46,67'), `out=\n${outAnnual}`)
+  ok('per_1000_annual: NAO contem 560,00/mes (inversao)', !/560,00\/mes/.test(outAnnual))
 }
 
 gateAssertRateUnit()
