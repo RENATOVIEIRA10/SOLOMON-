@@ -18,6 +18,7 @@ import { callLLMStream } from "./llm";
 import { RAG } from "@/config/constants";
 import { expandQueryWithJargon } from "@/config/jargon";
 import { detectRateIntent, formatRateAnswer, queryRateTable } from "./rate-lookup";
+import { detectOutOfDomainQuery, refusalMessageForDomain } from "./domain-guard";
 import {
   SYSTEM_PROMPT_TEMPLATE,
   LOW_CONFIDENCE_THRESHOLD,
@@ -76,6 +77,20 @@ export async function* askStream(
     const compareIntent =
       mentionedInsurers.length === 1 && questionImpliesOtherInsurers(question);
     const expandedQuery = expandQueryWithJargon(question);
+
+    // GRD-03: fronteira de dominio — recusar perguntas fora do escopo vida/pessoas ANTES do retrieval
+    const domainCheck = detectOutOfDomainQuery(question);
+    if (domainCheck.isOutOfDomain) {
+      console.log(`[grd-03] Out-of-domain (stream) bloqueada: domain=${domainCheck.detectedDomain}`);
+      const answer = refusalMessageForDomain(domainCheck.detectedDomain);
+      let conversationId: string | undefined;
+      if (options?.brokerId) {
+        conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "domain-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] });
+      }
+      yield { type: "token", delta: answer };
+      yield { type: "meta", model: "domain-guard", conversationId, citations: [], tokensUsed: 0, latencyMs: Date.now() - startTime, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] };
+      return;
+    }
 
     let rateIntentDetected = false;
 
@@ -217,6 +232,24 @@ export async function* askStream(
 
     // ---- 2. Enrich + diversify ----
     const enrichment = await loadEnrichment(searchResults);
+
+    // GRD-02: recusar fonte ausente — quando pergunta menciona seguradora X mas nenhum chunk corresponde
+    if (mentionedInsurers.length > 0) {
+      const requestedIds = new Set([...(await resolveInsurerIds(mentionedInsurers)).values()].flat());
+      const retrievedIds = new Set(searchResults.map((r) => r.insurer_id).filter((id): id is string => Boolean(id)));
+      const hasMatch = [...retrievedIds].some((id) => requestedIds.has(id));
+      if (requestedIds.size > 0 && !hasMatch) {
+        console.log(`[grd-02] Insurer source mismatch (stream) — requested=${mentionedInsurers.join(",")} nao casa com nenhum chunk recuperado. Recusando.`);
+        const answer = `Nao encontrei a fonte da seguradora ${mentionedInsurers.join(" / ")} indexada para responder isso com seguranca. Nao posso usar documentos de outra seguradora como substituto.`;
+        let conversationId: string | undefined;
+        if (options?.brokerId) {
+          conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "insurer-source-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] });
+        }
+        yield { type: "token", delta: answer };
+        yield { type: "meta", model: "insurer-source-guard", conversationId, citations: [], tokensUsed: 0, latencyMs: Date.now() - startTime, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] };
+        return;
+      }
+    }
 
     if (mentionedInsurers.length === 0) {
       searchResults = diversifyResults(searchResults, enrichment, mentionedInsurers);
