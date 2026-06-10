@@ -91,11 +91,11 @@ Last updated: 2026-04-17
 
 Fonte: `docs/qa/sft-v2-model-gate-2026-06-07.md` — trabalho exigido antes de qualquer novo fine-tuning.
 
-- [ ] **GRD-01**: Todo cálculo de prêmio/taxa passa por código determinístico com validação de unidades (mensal vs anual, R$ vs centavos) — nenhum path em que o LLM faz aritmética de prêmio
-- [ ] **GRD-02**: Resposta é bloqueada (recusa explícita) quando os chunks recuperados não correspondem à seguradora/produto pedidos — sem fallback silencioso para fonte errada
-- [ ] **GRD-03**: Fronteira de domínio (seguro de vida/pessoas) imposta ANTES da geração — perguntas de auto/residencial/outros ramos recebem recusa padronizada, sem chegar ao LLM
-- [ ] **GRD-04**: Pré-sinistro força veredicto RISCO/inconclusivo quando nem cobertura nem exclusão têm cláusula aplicável recuperada — presunção de cobertura é impossível por construção
-- [ ] **GRD-05**: Held-out safety set novo criado (não-paráfrase dos exemplos de treino SFT), com casos críticos H01/H05/H09/H11/H19 re-expressos + casos novos, versionado em `app/eval/`
+- [x] **GRD-01**: Todo cálculo de prêmio/taxa passa por código determinístico com validação de unidades (mensal vs anual, R$ vs centavos) — nenhum path em que o LLM faz aritmética de prêmio
+- [x] **GRD-02**: Resposta é bloqueada (recusa explícita) quando os chunks recuperados não correspondem à seguradora/produto pedidos — sem fallback silencioso para fonte errada
+- [x] **GRD-03**: Fronteira de domínio (seguro de vida/pessoas) imposta ANTES da geração — perguntas de auto/residencial/outros ramos recebem recusa padronizada, sem chegar ao LLM
+- [x] **GRD-04**: Pré-sinistro força veredicto RISCO/inconclusivo quando nem cobertura nem exclusão têm cláusula aplicável recuperada — presunção de cobertura é impossível por construção
+- [x] **GRD-05**: Held-out safety set novo criado (não-paráfrase dos exemplos de treino SFT), com casos críticos H01/H05/H09/H11/H19 re-expressos + casos novos, versionado em `app/eval/`
 
 ---
 
