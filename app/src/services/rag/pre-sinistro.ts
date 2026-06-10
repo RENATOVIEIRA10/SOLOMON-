@@ -492,7 +492,7 @@ const EXCLUSION_KEYWORDS = [
  * exclusao (verdict=NAO_COBERTO). Retorna false se nao bater â€” caller
  * downgrade pra RISCO.
  */
-function hasEvidenceFor(
+export function hasEvidenceFor(
   verdict: "COBERTO" | "NAO_COBERTO",
   results: SearchResult[]
 ): boolean {
