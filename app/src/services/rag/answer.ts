@@ -533,9 +533,12 @@ export async function ask(
     const requestedIds = new Set([...(await resolveInsurerIds(mentionedInsurers)).values()].flat())
     const retrievedIds = new Set(searchResults.map((r) => r.insurer_id).filter((id): id is string => Boolean(id)))
     const hasMatch = [...retrievedIds].some((id) => requestedIds.has(id))
-    if (requestedIds.size > 0 && !hasMatch) {
-      console.log(`[grd-02] Insurer source mismatch — requested=${mentionedInsurers.join(',')} nao casa com nenhum chunk recuperado. Recusando.`)
-      const answer = `Nao encontrei a fonte da seguradora ${mentionedInsurers.join(' / ')} indexada para responder isso com seguranca. Nao posso usar documentos de outra seguradora como substituto.`
+    // WR-01: requestedIds.size === 0 => seguradora detectada na pergunta mas
+    // SEM linha na tabela insurers (caso H05/G-04). Recusar tambem — senao o
+    // fallback global preenche o contexto com chunks de OUTRAS seguradoras.
+    if (!hasMatch) {
+      console.log(`[grd-02] Insurer source mismatch — requested=${mentionedInsurers.join(',')} (resolvedIds=${requestedIds.size}) nao casa com nenhum chunk recuperado. Recusando.`)
+      const answer = `Nao tenho documentos da ${mentionedInsurers.join(' / ')} indexados para responder isso com seguranca. Nao posso usar documentos de outra seguradora como substituto.`
       let conversationId: string | undefined
       if (options?.brokerId) {
         conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? 'api', message: question, response: answer, model: 'insurer-source-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] })
@@ -574,7 +577,12 @@ export async function ask(
   // pra nao mandar LLM "ignorar Y/Z" justamente quando precisa comparar.
   // Canal whatsapp: suprime a secao FONTES E LIMITACOES porque o handler ja
   // injeta as citacoes apos a resposta (single source of truth, sem duplicacao).
-  const llmArithmeticBlocked = rateIntentDetected
+  // WR-02/GRD-01: o fast-path deterministico continua restrito a 1 seguradora,
+  // mas a proibicao de aritmetica no prompt cobre TODOS os paths com intent de
+  // taxa — 0 seguradoras (G-01/G-03) e 2+ seguradoras (comparativos) incluidos.
+  // detectRateIntent sem insurer e regex puro (barato) e ja exige qualifier
+  // (idade/capital/produto), o que evita disparo em perguntas conceituais.
+  const llmArithmeticBlocked = rateIntentDetected || detectRateIntent(question).hasIntent
   let promptTemplate = compareIntent ? SYSTEM_PROMPT_COMPARE_TEMPLATE : SYSTEM_PROMPT_TEMPLATE
   if (options?.channel === 'whatsapp') {
     promptTemplate = stripSourcesSection(promptTemplate)
