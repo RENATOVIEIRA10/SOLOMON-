@@ -78,9 +78,12 @@ class GH:
 def replay_commit(gh: GH, local_sha: str, parent_sha: str) -> str:
     # Metadata do commit local
     message = git("show", "-s", "--format=%B", local_sha)
-    # Arquivos alterados em relacao ao parent
-    changed = git("diff", "--name-only", parent_sha, local_sha).splitlines()
-    deleted = set(git("diff", "--diff-filter=D", "--name-only", parent_sha, local_sha).splitlines())
+    # Arquivos alterados em relacao ao parent LOCAL do commit. parent_sha (remoto,
+    # recem-criado via API) nao existe no repo local em replays multi-commit —
+    # diffar contra ele quebra com exit 128 a partir do 2o commit.
+    local_parent = f"{local_sha}^"
+    changed = git("diff", "--name-only", local_parent, local_sha).splitlines()
+    deleted = set(git("diff", "--diff-filter=D", "--name-only", local_parent, local_sha).splitlines())
 
     tree_entries = []
     for path in changed:
