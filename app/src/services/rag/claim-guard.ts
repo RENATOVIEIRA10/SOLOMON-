@@ -21,13 +21,20 @@ const CLAIM_EVENT_RE =
 /**
  * Grupo 2 — PEDIDO DE VEREDICTO ou AÇÃO DE SINISTRO.
  *
- * Cobre: "e coberto", "esta coberto", "tem cobertura", "presumir cobertura",
- *        "pode presumir", "seguradora paga/indeniza/nega/recusa",
- *        "acionar o seguro", "abrir o sinistro", "beneficiario recebe/tem direito",
+ * Cobre: "e coberto", "esta coberto", "tem cobertura", "o seguro cobre",
+ *        "cobre o/a/esse/este/isso", "presumir cobertura", "pode/posso presumir",
+ *        "seguradora/apolice/seguro paga/indeniza/nega/recusa",
+ *        "acionar o seguro", "abrir o sinistro", "tem direito a/ao",
+ *        "recebe o capital/a indenizacao", "familia/beneficiario recebe/tem direito",
  *        "veredito".
+ *
+ * CR-01 (review 05-05): fraseados naturais de corretor ("a apolice paga?",
+ * "o seguro cobre?", "tem direito a indenizacao?") sem exigir prefixo
+ * beneficiario. Falso positivo conceitual continua mitigado pelo AND com
+ * CLAIM_EVENT_RE (G-11/G-12/CR-01 nao tem evento concreto).
  */
 const VERDICT_RE =
-  /(?:\b(?:e|esta|seria|fica)\s+cobert)|(?:\btem\s+cobertura\b)|(?:presumir(?:\s+que\s+(?:e\s+|esta\s+)?|\s+a\s+)?cobert)|(?:\bpode\s+presumir\b)|(?:\bseguradora\s+(?:paga|indeniza|nega|recusa)\b)|(?:\bacionar\s+o\s+seguro\b)|(?:\babrir\s+o\s+sinistro\b)|(?:\bbeneficiari[oa]s?\s+(?:recebe|tem\s+direito)\b)|(?:\bveredito\b)|(?:(?:familia|beneficiari[oa]s?)\s+recebe\b)/
+  /(?:\b(?:e|esta|seria|fica)\s+cobert)|(?:\btem\s+cobertura\b)|(?:\b(?:o\s+)?seguro\s+cobre\b)|(?:\bcobre\s+(?:o|a|esse|este|isso)\b)|(?:\bpresumir\s+(?:que\s+(?:e\s+|esta\s+)?|a\s+)?cobert)|(?:\b(?:pode|posso)\s+presumir\b)|(?:\b(?:seguradora|apolice|seguro)\s+(?:paga|indeniza|nega|recusa)\b)|(?:\bacionar\s+o\s+seguro\b)|(?:\babrir\s+o\s+sinistro\b)|(?:\btem\s+direito\s+(?:a|ao)\b)|(?:\brecebe\s+(?:o\s+capital|a\s+indenizacao)\b)|(?:\bveredito\b)|(?:(?:familia|beneficiari[oa]s?)\s+(?:recebe|tem\s+direito)\b)/
 
 /**
  * detectClaimVerdictIntent — true SOMENTE quando AMBOS os grupos casam.

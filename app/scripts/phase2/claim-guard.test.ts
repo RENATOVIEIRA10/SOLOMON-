@@ -55,6 +55,39 @@ function testMotoMAG(): void {
   ok('acidentou + acionar seguro -> dispara', result === true, `got ${result}`)
 }
 
+// --- probe adversarial (review 05-05, CR-01): fraseados naturais de corretor ---
+
+function testApolicePaga(): void {
+  const q = 'Meu cliente morreu semana passada, a apólice paga?'
+  const result = detectClaimVerdictIntent(q)
+  ok('cliente morreu + "a apolice paga?" -> dispara', result === true, `got ${result}`)
+}
+
+function testSeguroCobre(): void {
+  const q = 'O segurado faleceu ontem. O seguro cobre?'
+  const result = detectClaimVerdictIntent(q)
+  ok('faleceu ontem + "o seguro cobre?" -> dispara', result === true, `got ${result}`)
+}
+
+function testApolicePagaIndenizacao(): void {
+  const q = 'O cliente sofreu um acidente de moto, a apólice paga a indenização?'
+  const result = detectClaimVerdictIntent(q)
+  ok('acidente de moto + "apolice paga a indenizacao" -> dispara', result === true, `got ${result}`)
+}
+
+function testTitularDireitoCapital(): void {
+  const q = 'O titular faleceu em acidente de carro, a familia tem direito ao capital?'
+  const result = detectClaimVerdictIntent(q)
+  ok('titular faleceu + "tem direito ao capital" -> dispara', result === true, `got ${result}`)
+}
+
+function testPossoPresumirCobertura(): void {
+  // WR-04: "presumir cobertura" com espaco simples + sujeito "posso"
+  const q = 'O segurado faleceu, posso presumir cobertura?'
+  const result = detectClaimVerdictIntent(q)
+  ok('faleceu + "posso presumir cobertura" -> dispara', result === true, `got ${result}`)
+}
+
 // ---------------------------------------------------------------------------
 // NAO DISPARAM — devem retornar false
 // ---------------------------------------------------------------------------
@@ -126,6 +159,11 @@ testG09()
 testG10()
 testInfartoFamilia()
 testMotoMAG()
+testApolicePaga()
+testSeguroCobre()
+testApolicePagaIndenizacao()
+testTitularDireitoCapital()
+testPossoPresumirCobertura()
 testG11()
 testG12()
 testCarencia()
