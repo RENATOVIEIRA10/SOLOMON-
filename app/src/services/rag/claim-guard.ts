@@ -43,16 +43,35 @@ const VERDICT_RE =
   /(?:\b(?:e|esta|seria|fica)\s+cobert)|(?:\btem\s+cobertura\b)|(?:\b(?:o\s+)?seguro\s+cobre\b)|(?:\bcobre\s+(?:o|a|esse|este|isso)\b)|(?:\bpresumir\s+(?:que\s+(?:e\s+|esta\s+)?|a\s+)?cobert)|(?:\b(?:pode|posso)\s+presumir\b)|(?:\b(?:seguradora|apolice|seguro)\s+(?:paga|indeniza|nega|recusa)\b)|(?:\bacionar\s+o\s+seguro\b)|(?:\babrir\s+o\s+sinistro\b)|(?:\btem\s+direito\s+(?:a|ao)\b)|(?:\brecebe\s+(?:o\s+capital|a\s+indenizacao)\b)|(?:\bveredito\b)|(?:(?:familia|beneficiari[oa]s?)\s+(?:recebe|tem\s+direito)\b)/
 
 /**
+ * WR-03 (decisao de produto, review 05-05): hipoteticas introduzidas por
+ * "se"/"caso" sao CONCEITUAIS e NAO devem disparar o guard, mesmo com verbo
+ * no preterito ("Se o segurado teve um infarto, esta coberto?") — em
+ * portugues de corretor, "se + preterito" e fraseado padrao de pergunta
+ * hipotetica. A sentenca so conta como EVENTO CONCRETO se NAO comecar com
+ * prefixo condicional.
+ */
+const HYPOTHETICAL_PREFIX_RE = /^(?:e\s+)?(?:se|caso)\b/
+
+function hasConcreteEvent(q: string): boolean {
+  return q.split(/[.!?;]+/).some((sentence) => {
+    const s = sentence.trim()
+    return !HYPOTHETICAL_PREFIX_RE.test(s) && CLAIM_EVENT_RE.test(s)
+  })
+}
+
+/**
  * detectClaimVerdictIntent — true SOMENTE quando AMBOS os grupos casam.
  *
  * Pergunta com veredicto mas sem evento concreto (ex.: "seguro de vida cobre
  * morte acidental?") e CONCEITUAL -> retorna false.
  * Pergunta com evento mas sem pedido de veredicto (ex.: "o segurado faleceu,
  * quais documentos preciso?") e OPERACIONAL -> retorna false.
+ * Pergunta hipotetica introduzida por "se"/"caso" e CONCEITUAL -> retorna
+ * false (ver HYPOTHETICAL_PREFIX_RE / WR-03).
  */
 export function detectClaimVerdictIntent(question: string): boolean {
   const q = stripAccentsLower(question)
-  return CLAIM_EVENT_RE.test(q) && VERDICT_RE.test(q)
+  return hasConcreteEvent(q) && VERDICT_RE.test(q)
 }
 
 /**

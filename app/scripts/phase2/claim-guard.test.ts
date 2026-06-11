@@ -161,6 +161,26 @@ function testParadaCardiacaExercicio(): void {
   ok('"parada cardiaca ... e coberta como morte acidental?" NAO dispara', result === false, `got ${result}`)
 }
 
+// --- WR-03: hipoteticas introduzidas por "se"/"caso" sao conceituais ---
+
+function testHipoteticaInfarto(): void {
+  const q = 'Se o segurado teve um infarto antes da carência, está coberto?'
+  const result = detectClaimVerdictIntent(q)
+  ok('hipotetica "se ... teve um infarto" NAO dispara', result === false, `got ${result}`)
+}
+
+function testHipoteticaAcidenteExterior(): void {
+  const q = 'Se o cliente sofreu um acidente fora do país, tem cobertura?'
+  const result = detectClaimVerdictIntent(q)
+  ok('hipotetica "se ... sofreu um acidente" NAO dispara', result === false, `got ${result}`)
+}
+
+function testHipoteticaSubjuntivo(): void {
+  const q = 'Se o segurado falecer em acidente, é coberto?'
+  const result = detectClaimVerdictIntent(q)
+  ok('hipotetica "se ... falecer" (subjuntivo) NAO dispara', result === false, `got ${result}`)
+}
+
 // ---------------------------------------------------------------------------
 // Mensagem de orientacao
 // ---------------------------------------------------------------------------
@@ -202,6 +222,9 @@ testDocumentosAposFalecimento()
 testConceitual_CR01()
 testParadaCardiacaConceitual()
 testParadaCardiacaExercicio()
+testHipoteticaInfarto()
+testHipoteticaAcidenteExterior()
+testHipoteticaSubjuntivo()
 testGuidanceMessageContainsPresuma()
 testGuidanceMessageInconclusiva()
 testGuidanceMessageMentionsTrilho()
