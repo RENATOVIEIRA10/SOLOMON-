@@ -9,6 +9,7 @@
 //   2. Distribuicao por categoria validada POR LOTE (por range de IDs):
 //      - Lote 1: S-001..S-180 (banco original) — TARGET_DISTRIBUTION_LOTE1, +/-20%.
 //      - Lote 2: S-181..S-270 (top-up rendimento) — TARGET_DISTRIBUTION_LOTE2, +/-20%.
+//      - Lote 3: S-271..S-390 (minimo 200 p/ Nova 2 Lite) — TARGET_DISTRIBUTION_LOTE3, +/-20%.
 //      Motivo do relaxamento por-lote: o top-up tem distribuicao deliberadamente
 //      DIFERENTE do lote 1 (mirada no rendimento medido por faithfulness do lote 1),
 //      logo um unico alvo acumulado nao representa nenhum dos dois. Cada lote e
@@ -83,10 +84,25 @@ const TARGET_DISTRIBUTION_LOTE2 = {
   beneficiarios_capital: 12,
 }
 
+// Lote 3 — minimo de 200 exemplos exigido pelo Nova 2 Lite (S-271..S-390, 120 perguntas).
+// Reintroduz carencia_contestabilidade em volume reduzido (12) pois o foco do treino
+// passou de rendimento de eval para cobertura de superficie do produto. dit_dita,
+// exclusoes e conceitos_aplicados continuam fora (saturadas no lote 1).
+const TARGET_DISTRIBUTION_LOTE3 = {
+  coberturas_produto: 30,
+  doencas_graves: 18,
+  invalidez: 18,
+  assistencias: 14,
+  sinistro_operacional: 16,
+  beneficiarios_capital: 12,
+  carencia_contestabilidade: 12,
+}
+
 // Faixas de lote (from/to inclusivos sobre o numero do ID S-NNN).
 const BATCHES = [
   { name: 'lote1 (S-001..S-180)', from: 1, to: 180, dist: TARGET_DISTRIBUTION_LOTE1 },
   { name: 'lote2 (S-181..S-270)', from: 181, to: 270, dist: TARGET_DISTRIBUTION_LOTE2 },
+  { name: 'lote3 (S-271..S-390)', from: 271, to: 390, dist: TARGET_DISTRIBUTION_LOTE3 },
 ]
 
 // ---------------------------------------------------------------------------
