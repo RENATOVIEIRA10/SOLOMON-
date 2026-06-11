@@ -25,7 +25,7 @@
 | 001 | Validar rag_exclude filter + rotate secrets + CI build | FECHADO | ad-hoc (notebook check) | 2026-06-03 |
 | 002 | Dashboard admin + baseline Ragas automatizado | PENDENTE | — | — |
 | 003 | Suite de testes unitários (extractors, RAG pipeline) | PENDENTE | — | — |
-| 006 | Guardrails determinísticos pré-SFT v2 (GSD Phase 5, GRD-01..05) | FECHADO (local, aguarda push) | `feat(05-01..04)` + `fix(05)` ×4 | 2026-06-10 |
+| 006 | Guardrails determinísticos pré-SFT v2 (GSD Phase 5, GRD-01..05) | FECHADO (PRs #67 + #68 merged, prod validado) | `6c95109` + `4618574` | 2026-06-10 |
 | Ops-001 | Stop hook light para Claude Code (operacional, não-produto) | FECHADO | `feat(ops): stop-hook light` | 2026-05-16 |
 
 ---
@@ -42,6 +42,7 @@
 - Code review (standard): 1 critical + 5 warnings encontrados e TODOS corrigidos na mesma sessão (CR-01 falso-positivo de domínio; WR-01 skip do guard de fonte; WR-02 escopo do bloqueio de aritmética; WR-03/04/05). Verificação GSD: passed 5/5.
 - Evidência: 47 testes tsx passando (24 domain-guard, 16 rate-unit, 7 pre-sinistro-h11), `npm run build` verde, `.planning/phases/05-guardrails-determin-sticos-pr-sft-v2/05-VERIFICATION.md`.
 - Pendência: rodar suíte held-out G-01..G-12 na VPS contra o baseline guarded (pré-requisito para qualquer SFT v2).
+- **Pós-merge (#67 → smoke prod → #68):** smoke em produção achou gap que review+verifier não viram — `detectInsurers` só conhecia as 13 indexadas, então seguradora desconhecida (Allianz) nunca ativava o GRD-02 (recusa vinha do LLM, probabilística). PR #68: léxico +14 seguradoras de vida BR não-indexadas + G-04 do held-out corrigido (premissava SulAmérica ausente; ela tem 563 chunks). Validado em prod: Allianz → `model: insurer-source-guard`, 0 tokens; SulAmérica responde normal. LIÇÃO: guardrail que depende de detecção léxica falha silenciosamente para entidades fora do léxico — smoke com entidade genuinamente ausente é obrigatório.
 
 **001 — Validar rag_exclude filter + rotate secrets + CI build (2026-06-03):**
 - **rag_exclude filter:** Validado rodando `scripts/rag-audit/test-rag-exclude.ts` locally. Verificou-se que os chunks marcados com `rag_exclude=true` não vazam na chamada da RPC `match_documents`.
