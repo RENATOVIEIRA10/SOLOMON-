@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-06-11T19:22:10Z",
+  "provider": "aws-bedrock",
+  "job_name": "solomon-sft-v2-20260611-192202",
+  "custom_model_name": "solomon-sft-v2-20260611-192202",
+  "base_model": "amazon.nova-2-lite-v1:0:256k",
+  "region": "us-east-1",
+  "dataset": "solomon-sft-v2-train.jsonl (100 exemplos RAG-grounded, F>=0.8)",
+  "status": "Failed",
+  "failure": "Nova 2 Lite exige minimo 200 prompts validos; dataset tinha 100 (100/100 validos — formato OK). Lote 3 em producao para atingir 200+ com F>=0.8.",
+  "failed_at": "2026-06-11T19:31:00Z"
+}
