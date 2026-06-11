@@ -19,6 +19,7 @@ import { RAG } from "@/config/constants";
 import { expandQueryWithJargon } from "@/config/jargon";
 import { detectRateIntent, formatRateAnswer, queryRateTable } from "./rate-lookup";
 import { detectOutOfDomainQuery, refusalMessageForDomain } from "./domain-guard";
+import { detectClaimVerdictIntent, claimGuidanceMessage } from "./claim-guard";
 import {
   SYSTEM_PROMPT_TEMPLATE,
   LOW_CONFIDENCE_THRESHOLD,
@@ -89,6 +90,20 @@ export async function* askStream(
       }
       yield { type: "token", delta: answer };
       yield { type: "meta", model: "domain-guard", conversationId, citations: [], tokensUsed: 0, latencyMs: Date.now() - startTime, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] };
+      return;
+    }
+
+    // GRD-04 (canal oraculo): veredicto de sinistro sobre evento concreto nao passa pelo
+    // post-validation do pre-sinistro.ts — recusar veredicto aqui, por construcao.
+    if (detectClaimVerdictIntent(question)) {
+      console.log("[grd-04] Claim verdict intent detectado (stream) — retornando orientacao sem LLM.");
+      const answer = claimGuidanceMessage();
+      let conversationId: string | undefined;
+      if (options?.brokerId) {
+        conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "claim-verdict-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] });
+      }
+      yield { type: "token", delta: answer };
+      yield { type: "meta", model: "claim-verdict-guard", conversationId, citations: [], tokensUsed: 0, latencyMs: Date.now() - startTime, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] };
       return;
     }
 

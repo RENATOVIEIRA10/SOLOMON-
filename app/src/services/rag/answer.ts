@@ -17,6 +17,7 @@ import { expandQueryWithJargon } from '@/config/jargon'
 import { expandQueryWithLLM } from './query-expansion'
 import { detectRateIntent, queryRateTable, formatRateAnswer } from './rate-lookup'
 import { detectOutOfDomainQuery, refusalMessageForDomain } from './domain-guard'
+import { detectClaimVerdictIntent, claimGuidanceMessage } from './claim-guard'
 import {
   detectComparativeQuery,
   decomposeComparativeQuery,
@@ -185,6 +186,18 @@ export async function ask(
       conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? 'api', message: question, response: answer, model: 'domain-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] })
     }
     return { answer, citations: [], sources: [], model: 'domain-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, conversationId, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] }
+  }
+
+  // GRD-04 (canal oraculo): veredicto de sinistro sobre evento concreto nao passa pelo
+  // post-validation do pre-sinistro.ts — recusar veredicto aqui, por construcao.
+  if (detectClaimVerdictIntent(question)) {
+    console.log('[grd-04] Claim verdict intent detectado — retornando orientacao sem LLM.')
+    const answer = claimGuidanceMessage()
+    let conversationId: string | undefined
+    if (options?.brokerId) {
+      conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? 'api', message: question, response: answer, model: 'claim-verdict-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] })
+    }
+    return { answer, citations: [], sources: [], model: 'claim-verdict-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, conversationId, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] }
   }
 
   // Slice 3C-c: corpus-routing context threaded into every search.ts call.
