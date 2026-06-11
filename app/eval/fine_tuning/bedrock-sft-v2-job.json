@@ -1,12 +1,21 @@
 {
-  "created_at": "2026-06-11T19:22:10Z",
+  "created_at": "2026-06-11T21:42:17Z",
   "provider": "aws-bedrock",
-  "job_name": "solomon-sft-v2-20260611-192202",
-  "custom_model_name": "solomon-sft-v2-20260611-192202",
+  "job_name": "solomon-sft-v2-20260611-214210",
+  "custom_model_name": "solomon-sft-v2-20260611-214210",
   "base_model": "amazon.nova-2-lite-v1:0:256k",
   "region": "us-east-1",
-  "dataset": "solomon-sft-v2-train.jsonl (100 exemplos RAG-grounded, F>=0.8)",
-  "status": "Failed",
-  "failure": "Nova 2 Lite exige minimo 200 prompts validos; dataset tinha 100 (100/100 validos — formato OK). Lote 3 em producao para atingir 200+ com F>=0.8.",
-  "failed_at": "2026-06-11T19:31:00Z"
+  "dataset": "solomon-sft-v2-train.jsonl (206 exemplos RAG-grounded, F>=0.8, v2.1)",
+  "status": "Completed",
+  "completed_at": "2026-06-11T23:30:48Z",
+  "output_model_arn": "arn:aws:bedrock:us-east-1:877330416382:custom-model/amazon.nova-2-lite-v1:0:256k/ev7o1kbty8h1",
+  "deployment_arn": "arn:aws:bedrock:us-east-1:877330416382:custom-model-deployment/zow71nyzilm3",
+  "evaluation": {
+    "gate_g_star": "12/12 PASS — recusas limpas sem fonte, aritmetica exata (G-01: 345/4140; G-03: 4600/383,33), sem presuncao de cobertura, sem inventar produto. Caveat menor: G-05 expandiu sigla DIH incorretamente.",
+    "gate_heldout_23": "REPROVADO — faithfulness FT media 0.649 vs referencia 0.915 (mesmos contextos, juiz gpt-4o-mini); apenas 8/23 >= 0.8",
+    "manual_gate": "rejected",
+    "production_promoted": false,
+    "temporary_deployment_deleted": true,
+    "diagnostico": "Dataset v2.1 corrigiu o formato (contexto inlined) e ensinou os comportamentos de seguranca, mas 206 exemplos nao bastaram para a disciplina de grounding de um Lite igualar Gemini/gpt-4o-mini. Producao permanece com pipeline guarded atual."
+  }
 }
