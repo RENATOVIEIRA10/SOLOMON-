@@ -39,13 +39,20 @@ def main() -> None:
         d = json.loads(line)
         scores[d["id"]] = d["faithfulness"]
 
-    selected = []
+    # Best-of por pergunta-base: variantes -r2/-r3 sao re-amostras da MESMA
+    # pergunta — entra no dataset apenas a variante de maior F (>= BAR),
+    # nunca duplicatas da mesma pergunta.
+    best: dict = {}
     for line in RAW.read_text(encoding="utf-8").splitlines():
         d = json.loads(line)
         f = scores.get(d["id"])
-        if d.get("filters", {}).get("accepted") and f is not None and f >= BAR:
-            d["_f"] = f
-            selected.append(d)
+        if not d.get("filters", {}).get("accepted") or f is None or f < BAR:
+            continue
+        d["_f"] = f
+        base = d["id"].split("-r")[0]
+        if base not in best or f > best[base]["_f"]:
+            best[base] = d
+    selected = list(best.values())
 
     by_cat = defaultdict(list)
     for d in selected:
