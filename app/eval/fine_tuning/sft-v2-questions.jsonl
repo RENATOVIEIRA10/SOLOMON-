@@ -1,0 +1,270 @@
+{"id":"S-001","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"O Vida Inteira da Prudential ja vem com cobertura de doenca grave embutida ou tem que contratar a parte?"}
+{"id":"S-002","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"No produto de doencas graves da Prudential, alem de cancer e infarto, AVC entra na lista de eventos cobertos?"}
+{"id":"S-003","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"Qual o capital maximo que consigo colocar na cobertura de morte do Vida Inteira da Prudential sem precisar de exame medico?"}
+{"id":"S-004","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"A garantia de renda hospitalar da Prudential paga diaria a partir de qual dia de internacao?"}
+{"id":"S-005","category":"coberturas_produto","insurer":"MAG Seguros","question":"O que exatamente a cobertura DITA da MAG protege alem da incapacidade temporaria?"}
+{"id":"S-006","category":"coberturas_produto","insurer":"MAG Seguros","question":"Na MAG, o produto vitalicio permite incluir cobertura de invalidez por acidente como adicional?"}
+{"id":"S-007","category":"coberturas_produto","insurer":"MAG Seguros","question":"A MAG tem algum produto que junta morte, invalidez e diaria de incapacidade num pacote so?"}
+{"id":"S-008","category":"coberturas_produto","insurer":"Zurich","question":"O Zurich Mais Protecao cobre morte por qualquer causa ou so morte acidental na base?"}
+{"id":"S-009","category":"coberturas_produto","insurer":"Zurich","question":"Quais garantias adicionais eu consigo plugar no seguro de acidentes pessoais da Zurich?"}
+{"id":"S-010","category":"coberturas_produto","insurer":"Zurich","question":"O capital de despesas medico-hospitalares na Zurich tem teto separado ou usa o mesmo limite da morte acidental?"}
+{"id":"S-011","category":"coberturas_produto","insurer":"Bradesco Seguros","question":"No Bradesco Vida Viva da pra escolher capital diferente pra cada cobertura ou e um valor unico?"}
+{"id":"S-012","category":"coberturas_produto","insurer":"Bradesco Seguros","question":"O AP Premiavel do Bradesco cobre invalidez parcial por acidente ou so morte e invalidez total?"}
+{"id":"S-013","category":"coberturas_produto","insurer":"Bradesco Seguros","question":"Qual o capital minimo de contratacao do seguro de vida individual do Bradesco?"}
+{"id":"S-014","category":"coberturas_produto","insurer":"Azos","question":"A Azos cobre morte natural na cobertura base ou ela e focada so em acidente?"}
+{"id":"S-015","category":"coberturas_produto","insurer":"Azos","question":"No seguro de vida da Azos da pra incluir cobertura pra os filhos no mesmo contrato?"}
+{"id":"S-016","category":"coberturas_produto","insurer":"MetLife","question":"A MetLife tem cobertura de invalidez funcional permanente por doenca nos produtos de vida?"}
+{"id":"S-017","category":"coberturas_produto","insurer":"MetLife","question":"O produto da MetLife cobre fratura ossea como evento separado da invalidez?"}
+{"id":"S-018","category":"coberturas_produto","insurer":"MAPFRE Seguros","question":"A MAPFRE oferece cobertura de cirurgia dentro do seguro de vida ou e produto separado?"}
+{"id":"S-019","category":"coberturas_produto","insurer":"MAPFRE Seguros","question":"No seguro de vida da MAPFRE consigo contratar so a cobertura de morte sem adicionais obrigatorios?"}
+{"id":"S-020","category":"coberturas_produto","insurer":"Porto Seguro","question":"O Porto Seguro Vida e AP individual cobre acidente que acontece em viagem internacional?"}
+{"id":"S-021","category":"coberturas_produto","insurer":"Porto Seguro","question":"Quais coberturas adicionais o Porto Seguro permite incluir no seguro de vida individual anual?"}
+{"id":"S-022","category":"coberturas_produto","insurer":"Tokio Marine","question":"O Tokio Marine Vida Mulher cobre cirurgia reparadora pos cancer de mama?"}
+{"id":"S-023","category":"coberturas_produto","insurer":"Tokio Marine","question":"Na Tokio Marine da pra ter cobertura de doenca grave junto com a de invalidez no mesmo certificado?"}
+{"id":"S-024","category":"coberturas_produto","insurer":"Icatu Seguros","question":"O VG Global da Icatu cobre morte natural ou so morte acidental?"}
+{"id":"S-025","category":"coberturas_produto","insurer":"SulAmerica","question":"O SulAmerica Vida Individual permite contratar cobertura de doencas graves como adicional?"}
+{"id":"S-026","category":"coberturas_produto","insurer":"Santander","question":"O seguro de vida do Santander cobre assistencia funeral pra o titular e dependentes?"}
+{"id":"S-027","category":"coberturas_produto","insurer":"Caixa Vida e Previdencia","question":"O seguro de vida da Caixa tem cobertura de invalidez por acidente na versao mais simples?"}
+{"id":"S-028","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"O seguro temporario da Prudential pode ser convertido em vida inteira depois sem nova analise de risco?"}
+{"id":"S-029","category":"coberturas_produto","insurer":"MAG Seguros","question":"O produto de vida da MAG cobre morte por doenca preexistente declarada na proposta?"}
+{"id":"S-030","category":"coberturas_produto","insurer":"Zurich","question":"O Zurich Vida Empresa permite capital diferenciado por grupo de funcionarios?"}
+{"id":"S-031","category":"coberturas_produto","insurer":"Bradesco Seguros","question":"O Bradesco tem produto de vida que paga capital antecipado em caso de doenca terminal?"}
+{"id":"S-032","category":"coberturas_produto","insurer":"","question":"Quando o cliente quer cobertura pra cancer mas com premio baixo, vale mais doenca grave ou invalidez funcional?"}
+{"id":"S-033","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"A cobertura de cirurgia da Prudential paga valor fixo ou reembolso do que o cliente gastou?"}
+{"id":"S-034","category":"coberturas_produto","insurer":"MetLife","question":"A MetLife oferece cobertura de renda por incapacidade temporaria nos produtos individuais?"}
+{"id":"S-035","category":"coberturas_produto","insurer":"","question":"Pra um autonomo sem carteira assinada, qual tipo de cobertura de vida faz mais sentido oferecer?"}
+{"id":"S-036","category":"exclusoes","insurer":"Prudential do Brasil","question":"Na cobertura de doencas graves da Prudential, cancer de pele do tipo nao melanoma fica de fora?"}
+{"id":"S-037","category":"exclusoes","insurer":"Prudential do Brasil","question":"O Vida Inteira da Prudential exclui morte decorrente de pratica de esporte radical mesmo declarado?"}
+{"id":"S-038","category":"exclusoes","insurer":"Prudential do Brasil","question":"Na cobertura de cirurgia da Prudential, procedimento estetico eletivo entra como exclusao?"}
+{"id":"S-039","category":"exclusoes","insurer":"MAG Seguros","question":"Quais riscos a MAG exclui na cobertura de invalidez por acidente?"}
+{"id":"S-040","category":"exclusoes","insurer":"MAG Seguros","question":"Na DITA da MAG, afastamento por questao psiquiatrica conta como exclusao ou tem cobertura limitada?"}
+{"id":"S-041","category":"exclusoes","insurer":"MAG Seguros","question":"A MAG exclui sinistro causado por uso de substancia ilicita na cobertura de morte?"}
+{"id":"S-042","category":"exclusoes","insurer":"Zurich","question":"Quais sao as principais exclusoes da cobertura de acidentes pessoais da Zurich?"}
+{"id":"S-043","category":"exclusoes","insurer":"Zurich","question":"No Zurich Mais Protecao, acidente em corrida de moto amadora fica excluido?"}
+{"id":"S-044","category":"exclusoes","insurer":"Zurich","question":"A Zurich exclui despesa medica feita fora da rede credenciada na cobertura de DMH?"}
+{"id":"S-045","category":"exclusoes","insurer":"Bradesco Seguros","question":"O Bradesco Vida Viva exclui morte por doenca preexistente nao declarada na DPS?"}
+{"id":"S-046","category":"exclusoes","insurer":"Bradesco Seguros","question":"Na cobertura de invalidez do Bradesco, hernia de disco entra na lista de exclusoes?"}
+{"id":"S-047","category":"exclusoes","insurer":"Azos","question":"Quais exclusoes a Azos aplica na cobertura de doencas graves?"}
+{"id":"S-048","category":"exclusoes","insurer":"Azos","question":"A Azos exclui sinistro de acidente quando o segurado estava sem habilitacao dirigindo?"}
+{"id":"S-049","category":"exclusoes","insurer":"MetLife","question":"Quais exclusoes a MetLife coloca na cobertura de doenca grave pra cancer?"}
+{"id":"S-050","category":"exclusoes","insurer":"MetLife","question":"Na cobertura de invalidez da MetLife, lesao por esforco repetitivo fica de fora?"}
+{"id":"S-051","category":"exclusoes","insurer":"MAPFRE Seguros","question":"A MAPFRE exclui morte por suicidio em qualquer momento ou so nos dois primeiros anos?"}
+{"id":"S-052","category":"exclusoes","insurer":"Porto Seguro","question":"No seguro de vida do Porto, acidente sob efeito de alcool fica excluido da cobertura?"}
+{"id":"S-053","category":"exclusoes","insurer":"Porto Seguro","question":"Quais exclusoes gerais aparecem no AP individual do Porto Seguro?"}
+{"id":"S-054","category":"exclusoes","insurer":"Tokio Marine","question":"O Vida Mulher da Tokio exclui cancer in situ da cobertura de doenca grave?"}
+{"id":"S-055","category":"exclusoes","insurer":"Tokio Marine","question":"A Tokio exclui parto normal da cobertura quando tem garantia voltada a mulher?"}
+{"id":"S-056","category":"exclusoes","insurer":"Icatu Seguros","question":"Quais riscos excluidos aparecem na cobertura de morte do VG da Icatu?"}
+{"id":"S-057","category":"exclusoes","insurer":"SulAmerica","question":"A SulAmerica exclui doenca degenerativa da cobertura de invalidez funcional?"}
+{"id":"S-058","category":"exclusoes","insurer":"Santander","question":"O seguro de vida do Santander exclui morte ocorrida em pais em estado de guerra?"}
+{"id":"S-059","category":"exclusoes","insurer":"Caixa Vida e Previdencia","question":"Quais exclusoes a Caixa aplica na cobertura de invalidez por acidente?"}
+{"id":"S-060","category":"exclusoes","insurer":"","question":"De forma geral, ato ilicito doloso do segurado sempre fica excluido em qualquer seguro de vida?"}
+{"id":"S-061","category":"exclusoes","insurer":"Prudential do Brasil","question":"A Prudential exclui morte por epidemia ou pandemia declarada oficialmente?"}
+{"id":"S-062","category":"exclusoes","insurer":"MAG Seguros","question":"A MAG exclui sinistro de acidente acontecido durante viagem aerea em voo nao comercial?"}
+{"id":"S-063","category":"exclusoes","insurer":"Zurich","question":"Na cobertura de morte da Zurich, doenca anterior agravada entra como exclusao parcial?"}
+{"id":"S-064","category":"exclusoes","insurer":"","question":"Tatuagem ou cirurgia recente conta como risco excluido temporario em algum seguro de vida?"}
+{"id":"S-065","category":"exclusoes","insurer":"Bradesco Seguros","question":"O Bradesco exclui invalidez decorrente de tentativa de suicidio nos primeiros anos?"}
+{"id":"S-066","category":"carencia_contestabilidade","insurer":"Prudential do Brasil","question":"A carencia pra cancer no produto de doencas graves da Prudential conta a partir da proposta ou da emissao da apolice?"}
+{"id":"S-067","category":"carencia_contestabilidade","insurer":"Prudential do Brasil","question":"Quando o cliente aumenta o capital da cobertura de morte na Prudential, reinicia carencia so sobre a parte aumentada?"}
+{"id":"S-068","category":"carencia_contestabilidade","insurer":"MAG Seguros","question":"Na MAG, se o cliente preenche a DPS completa a carencia de 24 meses cai pra zero?"}
+{"id":"S-069","category":"carencia_contestabilidade","insurer":"MAG Seguros","question":"A carencia da cobertura de invalidez da MAG e a mesma da cobertura de morte?"}
+{"id":"S-070","category":"carencia_contestabilidade","insurer":"Zurich","question":"A Zurich aplica carencia na cobertura de acidentes pessoais ou acidente tem cobertura imediata?"}
+{"id":"S-071","category":"carencia_contestabilidade","insurer":"Bradesco Seguros","question":"Qual o prazo de carencia da cobertura de doenca grave no Bradesco?"}
+{"id":"S-072","category":"carencia_contestabilidade","insurer":"Azos","question":"A Azos tem periodo de carencia pra morte natural ou comeca a valer desde o primeiro pagamento?"}
+{"id":"S-073","category":"carencia_contestabilidade","insurer":"MetLife","question":"Na MetLife, o prazo de contestabilidade da proposta e diferente do prazo de carencia das coberturas?"}
+{"id":"S-074","category":"carencia_contestabilidade","insurer":"MAPFRE Seguros","question":"A MAPFRE conta carencia de suicidio a partir da contratacao ou de cada renovacao anual?"}
+{"id":"S-075","category":"carencia_contestabilidade","insurer":"Porto Seguro","question":"Quando o cliente migra de plano dentro do Porto, a carencia ja cumprida e aproveitada?"}
+{"id":"S-076","category":"carencia_contestabilidade","insurer":"Tokio Marine","question":"A carencia da cobertura de doenca grave do Vida Mulher da Tokio e contada por evento ou unica pro produto?"}
+{"id":"S-077","category":"carencia_contestabilidade","insurer":"Icatu Seguros","question":"A Icatu aplica nova carencia quando o segurado entra num grupo ja existente do VG?"}
+{"id":"S-078","category":"carencia_contestabilidade","insurer":"SulAmerica","question":"Qual o prazo de carencia da cobertura de invalidez funcional na SulAmerica?"}
+{"id":"S-079","category":"carencia_contestabilidade","insurer":"","question":"Se o cliente atrasa o pagamento e reabilita o seguro, a carencia comeca do zero de novo?"}
+{"id":"S-080","category":"carencia_contestabilidade","insurer":"Prudential do Brasil","question":"O prazo de contestabilidade na Prudential vale so pra omissao na DPS ou pra qualquer informacao da proposta?"}
+{"id":"S-081","category":"carencia_contestabilidade","insurer":"MAG Seguros","question":"Aumentando o capital da DITA na MAG, o cliente espera carencia nova sobre o adicional?"}
+{"id":"S-082","category":"carencia_contestabilidade","insurer":"Bradesco Seguros","question":"A carencia pra esclerose multipla no Bradesco e maior que a das outras doencas graves?"}
+{"id":"S-083","category":"carencia_contestabilidade","insurer":"","question":"Acidente normalmente tem carencia ou a regra de carencia so se aplica a doenca?"}
+{"id":"S-084","category":"carencia_contestabilidade","insurer":"Zurich","question":"Na Zurich, depois de cumprida a carencia da cobertura de morte, ela some de vez ou pode voltar?"}
+{"id":"S-085","category":"carencia_contestabilidade","insurer":"Caixa Vida e Previdencia","question":"A Caixa aplica carencia pra cobertura de morte natural no seguro de vida individual?"}
+{"id":"S-086","category":"sinistro_operacional","insurer":"MAG Seguros","question":"Quais documentos a MAG exige pra dar entrada em sinistro de invalidez por acidente?"}
+{"id":"S-087","category":"sinistro_operacional","insurer":"Prudential do Brasil","question":"Qual o prazo que o beneficiario tem pra avisar a Prudential sobre o sinistro de morte?"}
+{"id":"S-088","category":"sinistro_operacional","insurer":"Prudential do Brasil","question":"Na Prudential, a regulacao de sinistro de doenca grave precisa de laudo de qual especialista?"}
+{"id":"S-089","category":"sinistro_operacional","insurer":"Zurich","question":"Quais papeis a Zurich pede pra processar sinistro de despesas medico-hospitalares?"}
+{"id":"S-090","category":"sinistro_operacional","insurer":"Zurich","question":"Como funciona o fluxo de aviso de sinistro de acidente pessoal na Zurich, e online ou por formulario?"}
+{"id":"S-091","category":"sinistro_operacional","insurer":"Bradesco Seguros","question":"Qual a documentacao que o Bradesco exige pra sinistro de doenca grave com diagnostico de cancer?"}
+{"id":"S-092","category":"sinistro_operacional","insurer":"Bradesco Seguros","question":"Quanto tempo o Bradesco leva pra pagar a indenizacao depois de entregue toda a documentacao?"}
+{"id":"S-093","category":"sinistro_operacional","insurer":"Azos","question":"Como o beneficiario abre um sinistro de morte na Azos, e tudo pelo app?"}
+{"id":"S-094","category":"sinistro_operacional","insurer":"MetLife","question":"Quais documentos a MetLife pede pra regular sinistro de invalidez funcional por doenca?"}
+{"id":"S-095","category":"sinistro_operacional","insurer":"MAPFRE Seguros","question":"Qual o prazo de aviso de sinistro de morte natural na MAPFRE?"}
+{"id":"S-096","category":"sinistro_operacional","insurer":"Porto Seguro","question":"Quais comprovantes o Porto exige na regulacao de sinistro de acidente pessoal?"}
+{"id":"S-097","category":"sinistro_operacional","insurer":"Tokio Marine","question":"Na Tokio, a entrada de sinistro de doenca grave precisa de laudo com CID?"}
+{"id":"S-098","category":"sinistro_operacional","insurer":"Icatu Seguros","question":"Como funciona o fluxo de regulacao de sinistro num seguro coletivo VG da Icatu?"}
+{"id":"S-099","category":"sinistro_operacional","insurer":"SulAmerica","question":"Quais documentos a SulAmerica pede do beneficiario num sinistro de morte por causa natural?"}
+{"id":"S-100","category":"sinistro_operacional","insurer":"Santander","question":"Qual o prazo de aviso de sinistro que o Santander estabelece no seguro de vida?"}
+{"id":"S-101","category":"sinistro_operacional","insurer":"","question":"Quando o beneficiario e menor de idade, que documento extra costuma ser exigido pra liberar a indenizacao?"}
+{"id":"S-102","category":"sinistro_operacional","insurer":"","question":"Na regulacao de sinistro, o que a seguradora costuma pedir pra confirmar a vigencia da apolice na data do evento?"}
+{"id":"S-103","category":"sinistro_operacional","insurer":"Prudential do Brasil","question":"Se faltar um documento na entrada do sinistro na Prudential, o prazo de pagamento comeca a contar mesmo assim?"}
+{"id":"S-104","category":"sinistro_operacional","insurer":"MAG Seguros","question":"Na MAG, quem da entrada no sinistro de invalidez e o segurado ou o corretor pode fazer por ele?"}
+{"id":"S-105","category":"sinistro_operacional","insurer":"Caixa Vida e Previdencia","question":"Quais documentos a Caixa exige pra sinistro de invalidez por acidente?"}
+{"id":"S-106","category":"dit_dita","insurer":"MAG Seguros","question":"Na DITA da MAG a diaria comeca a ser paga do primeiro dia de afastamento ou tem periodo de franquia?"}
+{"id":"S-107","category":"dit_dita","insurer":"MAG Seguros","question":"Qual o periodo maximo de pagamento da diaria de incapacidade na DITA da MAG?"}
+{"id":"S-108","category":"dit_dita","insurer":"MAG Seguros","question":"A franquia da DIT da MAG e contada em dias corridos ou dias uteis de afastamento?"}
+{"id":"S-109","category":"dit_dita","insurer":"MAG Seguros","question":"A diaria de incapacidade da MAG cobre afastamento por cirurgia eletiva programada?"}
+{"id":"S-110","category":"dit_dita","insurer":"MAG Seguros","question":"Na DIT MAC mais IPAM da MAG, a parte de incapacidade temporaria tem franquia diferente da invalidez?"}
+{"id":"S-111","category":"dit_dita","insurer":"Bradesco Seguros","question":"O Bradesco tem cobertura de diaria de incapacidade temporaria nos produtos individuais?"}
+{"id":"S-112","category":"dit_dita","insurer":"Zurich","question":"A Zurich oferece diaria por internacao hospitalar como cobertura separada da incapacidade?"}
+{"id":"S-113","category":"dit_dita","insurer":"MetLife","question":"Na MetLife, a renda por incapacidade temporaria paga por quantos meses no maximo?"}
+{"id":"S-114","category":"dit_dita","insurer":"","question":"Na pratica, qual a diferenca entre DIT e DITA pra explicar pro cliente de forma simples?"}
+{"id":"S-115","category":"dit_dita","insurer":"","question":"A diaria de incapacidade costuma cobrir tanto doenca quanto acidente ou depende da cobertura contratada?"}
+{"id":"S-116","category":"dit_dita","insurer":"MAG Seguros","question":"Na DITA da MAG, se o segurado volta a trabalhar e adoece de novo, a franquia conta outra vez?"}
+{"id":"S-117","category":"dit_dita","insurer":"Porto Seguro","question":"O Porto tem cobertura de diaria por incapacidade temporaria no seguro de vida individual?"}
+{"id":"S-118","category":"dit_dita","insurer":"MAG Seguros","question":"A diaria da DITA da MAG e paga direto pro segurado ou reembolsa o empregador?"}
+{"id":"S-119","category":"dit_dita","insurer":"SulAmerica","question":"A SulAmerica tem alguma cobertura de diaria por incapacidade temporaria pra autonomo?"}
+{"id":"S-120","category":"dit_dita","insurer":"MAG Seguros","question":"Na DIT da MAG, o periodo de franquia muda conforme a faixa de renda contratada?"}
+{"id":"S-121","category":"doencas_graves","insurer":"Prudential do Brasil","question":"Quantas doencas no total estao listadas na cobertura de doencas graves plus da Prudential?"}
+{"id":"S-122","category":"doencas_graves","insurer":"Prudential do Brasil","question":"O criterio diagnostico pra cancer coberto na Prudential exige tumor invasivo confirmado por biopsia?"}
+{"id":"S-123","category":"doencas_graves","insurer":"Bradesco Seguros","question":"O Bradesco exige periodo de sobrevida apos o diagnostico pra pagar a doenca grave?"}
+{"id":"S-124","category":"doencas_graves","insurer":"Bradesco Seguros","question":"Na cobertura de doenca grave do Bradesco, infarto precisa de qual criterio clinico pra ser aceito?"}
+{"id":"S-125","category":"doencas_graves","insurer":"MetLife","question":"A definicao de AVC coberto pela MetLife exige sequela permanente comprovada?"}
+{"id":"S-126","category":"doencas_graves","insurer":"Tokio Marine","question":"Na Tokio, a cobertura de doenca grave do Vida Mulher inclui cancer de colo de utero?"}
+{"id":"S-127","category":"doencas_graves","insurer":"Azos","question":"Como a Azos define cancer coberto na cobertura de doenca grave, exclui os in situ?"}
+{"id":"S-128","category":"doencas_graves","insurer":"SulAmerica","question":"Quais doencas a SulAmerica considera graves no seu produto de vida individual?"}
+{"id":"S-129","category":"doencas_graves","insurer":"Icatu Seguros","question":"O produto da Icatu com doenca grave cobre insuficiencia renal que exige dialise?"}
+{"id":"S-130","category":"doencas_graves","insurer":"","question":"Na maioria dos produtos, cancer de pele nao melanoma costuma ser doenca grave coberta?"}
+{"id":"S-131","category":"doencas_graves","insurer":"Prudential do Brasil","question":"Na Prudential, esclerose multipla tem criterio diagnostico diferente das outras doencas graves?"}
+{"id":"S-132","category":"doencas_graves","insurer":"MetLife","question":"A MetLife paga o capital de doenca grave de uma vez ou parcelado conforme a evolucao?"}
+{"id":"S-133","category":"doencas_graves","insurer":"","question":"Periodo de sobrevida na doenca grave costuma ser de quantos dias na media do mercado?"}
+{"id":"S-134","category":"doencas_graves","insurer":"Bradesco Seguros","question":"Depois de pagar uma doenca grave, o Bradesco mantem a cobertura ativa pra um segundo evento diferente?"}
+{"id":"S-135","category":"doencas_graves","insurer":"Tokio Marine","question":"A Tokio cobre cancer de ovario na cobertura de doenca grave feminina?"}
+{"id":"S-136","category":"invalidez","insurer":"Prudential do Brasil","question":"Na Prudential, qual a diferenca pratica entre IPA e IPTA pra explicar pro cliente?"}
+{"id":"S-137","category":"invalidez","insurer":"MAG Seguros","question":"A invalidez permanente por acidente da MAG segue tabela de graduacao ou paga capital integral sempre?"}
+{"id":"S-138","category":"invalidez","insurer":"Bradesco Seguros","question":"Como o Bradesco calcula o capital de invalidez parcial pela perda de um dedo da mao?"}
+{"id":"S-139","category":"invalidez","insurer":"Zurich","question":"Na Zurich, perda total de visao de um olho paga qual percentual do capital de invalidez?"}
+{"id":"S-140","category":"invalidez","insurer":"MetLife","question":"A invalidez funcional permanente por doenca da MetLife exige perda de autonomia comprovada?"}
+{"id":"S-141","category":"invalidez","insurer":"SulAmerica","question":"Na SulAmerica, a graduacao de invalidez parcial segue a tabela da SUSEP?"}
+{"id":"S-142","category":"invalidez","insurer":"","question":"Qual a diferenca entre invalidez por acidente e invalidez funcional por doenca na pratica de venda?"}
+{"id":"S-143","category":"invalidez","insurer":"Porto Seguro","question":"No Porto, a invalidez parcial por acidente cobre perda de movimento sem amputacao?"}
+{"id":"S-144","category":"invalidez","insurer":"Azos","question":"A Azos cobre invalidez total por doenca ou so invalidez por acidente?"}
+{"id":"S-145","category":"invalidez","insurer":"Tokio Marine","question":"A Tokio paga invalidez por acidente em caso de perda funcional de membro mesmo sem amputacao?"}
+{"id":"S-146","category":"invalidez","insurer":"","question":"Quando o cliente quer protecao pra ficar sem trabalhar, invalidez ou diaria de incapacidade cobre melhor?"}
+{"id":"S-147","category":"invalidez","insurer":"MAG Seguros","question":"A invalidez por acidente majorada da MAG paga acima de cem por cento em algum caso?"}
+{"id":"S-148","category":"invalidez","insurer":"Bradesco Seguros","question":"O Bradesco exige laudo de junta medica pra confirmar invalidez permanente total?"}
+{"id":"S-149","category":"invalidez","insurer":"Caixa Vida e Previdencia","question":"A Caixa cobre invalidez por doenca degenerativa ou so por acidente?"}
+{"id":"S-150","category":"invalidez","insurer":"Prudential do Brasil","question":"A IPA da Prudential cobre perda funcional permanente ou exige perda anatomica do membro?"}
+{"id":"S-151","category":"beneficiarios_capital","insurer":"Bradesco Seguros","question":"No Bradesco, o cliente pode dividir o capital em percentuais diferentes entre varios beneficiarios?"}
+{"id":"S-152","category":"beneficiarios_capital","insurer":"Prudential do Brasil","question":"Na Prudential, com que frequencia o segurado pode trocar os beneficiarios da apolice?"}
+{"id":"S-153","category":"beneficiarios_capital","insurer":"Icatu Seguros","question":"No VG global da Icatu, como o capital e dividido entre os beneficiarios na falta de indicacao?"}
+{"id":"S-154","category":"beneficiarios_capital","insurer":"MAG Seguros","question":"Na MAG, se o segurado nao indicar beneficiario, quem recebe a indenizacao por lei?"}
+{"id":"S-155","category":"beneficiarios_capital","insurer":"Zurich","question":"Na Zurich Vida Empresa, o capital e individual por funcionario ou global pro grupo?"}
+{"id":"S-156","category":"beneficiarios_capital","insurer":"","question":"Da pra colocar uma pessoa fora da familia como beneficiaria do seguro de vida?"}
+{"id":"S-157","category":"beneficiarios_capital","insurer":"SulAmerica","question":"Na SulAmerica, beneficiario ex-conjuge continua valendo se nao for atualizado apos o divorcio?"}
+{"id":"S-158","category":"beneficiarios_capital","insurer":"Porto Seguro","question":"No Porto, a alteracao de beneficiario precisa de assinatura reconhecida ou pode ser feita pelo app?"}
+{"id":"S-159","category":"beneficiarios_capital","insurer":"","question":"Capital global e capital individual num seguro de grupo, qual a diferenca pra explicar pro RH da empresa?"}
+{"id":"S-160","category":"beneficiarios_capital","insurer":"Bradesco Seguros","question":"No Bradesco, beneficiario menor de idade recebe direto ou o valor fica retido ate a maioridade?"}
+{"id":"S-161","category":"assistencias","insurer":"Prudential do Brasil","question":"A assistencia funeral da Prudential cobre traslado do corpo entre cidades?"}
+{"id":"S-162","category":"assistencias","insurer":"Bradesco Seguros","question":"O Bradesco oferece segunda opiniao medica como assistencia embutida no seguro de vida?"}
+{"id":"S-163","category":"assistencias","insurer":"Zurich","question":"Quais assistencias vem inclusas no seguro de acidentes pessoais da Zurich sem custo extra?"}
+{"id":"S-164","category":"assistencias","insurer":"MetLife","question":"A MetLife tem assistencia funeral pra os dependentes ou so pro titular?"}
+{"id":"S-165","category":"assistencias","insurer":"Azos","question":"A Azos oferece alguma assistencia de telemedicina junto com o seguro de vida?"}
+{"id":"S-166","category":"assistencias","insurer":"Porto Seguro","question":"A assistencia funeral do Porto tem limite de valor ou cobre o servico completo?"}
+{"id":"S-167","category":"assistencias","insurer":"MAPFRE Seguros","question":"A MAPFRE inclui assistencia de orientacao nutricional ou apoio psicologico no seguro de vida?"}
+{"id":"S-168","category":"assistencias","insurer":"","question":"Assistencia funeral costuma ter carencia ou comeca a valer junto com a apolice?"}
+{"id":"S-169","category":"assistencias","insurer":"Tokio Marine","question":"O Vida Mulher da Tokio inclui assistencia voltada a saude feminina?"}
+{"id":"S-170","category":"assistencias","insurer":"SulAmerica","question":"A SulAmerica oferece segunda opiniao medica internacional como assistencia do seguro de vida?"}
+{"id":"S-171","category":"conceitos_aplicados","insurer":"Prudential do Brasil","question":"O que significa capital remido aplicado ao Vida Inteira da Prudential?"}
+{"id":"S-172","category":"conceitos_aplicados","insurer":"MAG Seguros","question":"O conceito de premio nivelado se aplica de que forma nos produtos vitalicios da MAG?"}
+{"id":"S-173","category":"conceitos_aplicados","insurer":"Bradesco Seguros","question":"Como o conceito de capital decrescente funciona no seguro de renda familiar do Bradesco?"}
+{"id":"S-174","category":"conceitos_aplicados","insurer":"Zurich","question":"O que e DPS e por que ela importa tanto na contratacao de um produto da Zurich?"}
+{"id":"S-175","category":"conceitos_aplicados","insurer":"","question":"O que e periodo de sobrevida e como ele influencia o pagamento de uma doenca grave?"}
+{"id":"S-176","category":"conceitos_aplicados","insurer":"MetLife","question":"Como funciona o reenquadramento de risco na MetLife quando o cliente para de fumar?"}
+{"id":"S-177","category":"conceitos_aplicados","insurer":"","question":"O que e agravamento de risco e quando a seguradora pode aplicar no seguro de vida?"}
+{"id":"S-178","category":"conceitos_aplicados","insurer":"Icatu Seguros","question":"O que diferencia um seguro de vida em grupo de um individual usando o VG da Icatu como exemplo?"}
+{"id":"S-179","category":"conceitos_aplicados","insurer":"","question":"O que significa indenizacao integral versus proporcional numa cobertura de invalidez?"}
+{"id":"S-180","category":"conceitos_aplicados","insurer":"Prudential do Brasil","question":"O que e idade limite de saida do produto e como ela afeta a renovacao na Prudential?"}
+{"id":"S-181","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"No Vida Inteira da Prudential o cliente consegue resgatar parte do valor acumulado em vida ou so vira capital pra os beneficiarios?"}
+{"id":"S-182","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"A cobertura de renda hospitalar da Prudential limita o numero de diarias por internacao ou e ilimitada dentro do periodo?"}
+{"id":"S-183","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"O cliente da Prudential pode reduzir o capital da cobertura de morte ao longo do contrato pra baixar o custo mensal?"}
+{"id":"S-184","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"Na Prudential, a cobertura adicional de doenca grave acompanha o reajuste por faixa etaria igual a cobertura de morte?"}
+{"id":"S-185","category":"coberturas_produto","insurer":"Prudential do Brasil","question":"O produto temporario da Prudential aceita prorrogar a vigencia no fim do prazo sem fazer nova proposta do zero?"}
+{"id":"S-186","category":"coberturas_produto","insurer":"Bradesco Seguros","question":"No Bradesco Vida Viva da pra contratar so a cobertura de doenca grave sem ter a cobertura de morte como base obrigatoria?"}
+{"id":"S-187","category":"coberturas_produto","insurer":"Bradesco Seguros","question":"O Bradesco permite incluir o conjuge como segurado no mesmo certificado ou cada um precisa de apolice separada?"}
+{"id":"S-188","category":"coberturas_produto","insurer":"Bradesco Seguros","question":"A cobertura de cirurgia do Bradesco tem lista fechada de procedimentos ou vale pra qualquer cirurgia coberta?"}
+{"id":"S-189","category":"coberturas_produto","insurer":"Bradesco Seguros","question":"No AP Premiavel do Bradesco, o valor do sorteio sai do capital segurado ou e beneficio a parte da indenizacao?"}
+{"id":"S-190","category":"coberturas_produto","insurer":"Porto Seguro","question":"O Porto deixa o cliente escolher receber o capital de morte como renda mensal em vez de valor unico?"}
+{"id":"S-191","category":"coberturas_produto","insurer":"Porto Seguro","question":"No seguro de vida individual do Porto da pra somar cobertura de diaria de internacao hospitalar como adicional?"}
+{"id":"S-192","category":"coberturas_produto","insurer":"Porto Seguro","question":"A cobertura de morte do Porto vale 24 horas por dia ou so durante a jornada de trabalho no caso do produto AP?"}
+{"id":"S-193","category":"coberturas_produto","insurer":"SulAmerica","question":"O SulAmerica Vida Individual deixa contratar capital separado pra cobertura de morte acidental alem da morte por qualquer causa?"}
+{"id":"S-194","category":"coberturas_produto","insurer":"SulAmerica","question":"Na SulAmerica da pra contratar a cobertura de invalidez funcional por doenca sem ter doenca grave junto?"}
+{"id":"S-195","category":"coberturas_produto","insurer":"SulAmerica","question":"O produto de vida da SulAmerica permite incluir cobertura de despesas medicas por acidente como opcional?"}
+{"id":"S-196","category":"coberturas_produto","insurer":"MetLife","question":"A MetLife deixa o cliente contratar fratura ossea como cobertura avulsa sem precisar da cobertura de invalidez?"}
+{"id":"S-197","category":"coberturas_produto","insurer":"MetLife","question":"No produto individual da MetLife, a cobertura de doenca grave pode ser contratada com capital maior que a de morte?"}
+{"id":"S-198","category":"coberturas_produto","insurer":"Tokio Marine","question":"O Vida Mulher da Tokio cobre tratamento de reproducao assistida ou foca so em cancer e cirurgias femininas?"}
+{"id":"S-199","category":"coberturas_produto","insurer":"Tokio Marine","question":"Na Tokio o cliente consegue migrar do Vida Mulher pra um produto mais amplo mantendo o tempo ja decorrido de contrato?"}
+{"id":"S-200","category":"coberturas_produto","insurer":"Azos","question":"A Azos deixa o cliente ajustar o capital da apolice pelo app a qualquer momento ou so na renovacao anual?"}
+{"id":"S-201","category":"coberturas_produto","insurer":"Azos","question":"No seguro de vida da Azos a cobertura de doenca grave vem como modulo opcional ou ja entra junto na base?"}
+{"id":"S-202","category":"coberturas_produto","insurer":"MAPFRE Seguros","question":"No seguro de vida da MAPFRE o cliente pode incluir cobertura de invalidez por acidente sem contratar despesa medica junto?"}
+{"id":"S-203","category":"invalidez","insurer":"Prudential do Brasil","question":"Na Prudential, depois de pagar uma invalidez parcial por acidente a cobertura continua valendo pra um novo evento ou encerra?"}
+{"id":"S-204","category":"invalidez","insurer":"Prudential do Brasil","question":"A IPTA da Prudential considera invalidez por doenca ou cobre exclusivamente invalidez decorrente de acidente?"}
+{"id":"S-205","category":"invalidez","insurer":"Prudential do Brasil","question":"Na Prudential, perda total de audicao dos dois ouvidos por acidente paga o capital integral de invalidez?"}
+{"id":"S-206","category":"invalidez","insurer":"Bradesco Seguros","question":"No Bradesco, a soma de varias invalidezes parciais por acidentes diferentes pode ultrapassar o capital total contratado?"}
+{"id":"S-207","category":"invalidez","insurer":"Bradesco Seguros","question":"A invalidez funcional por doenca do Bradesco precisa de carater permanente ja consolidado ou aceita quadro ainda em tratamento?"}
+{"id":"S-208","category":"invalidez","insurer":"Bradesco Seguros","question":"No Bradesco, lesao de coluna por acidente que reduz a capacidade de carga conta pra graduacao de invalidez parcial?"}
+{"id":"S-209","category":"invalidez","insurer":"Porto Seguro","question":"No Porto, a invalidez total por acidente paga o capital de uma vez ou pode ser pago em parcelas conforme a evolucao do laudo?"}
+{"id":"S-210","category":"invalidez","insurer":"Porto Seguro","question":"A invalidez parcial por acidente do Porto usa tabela propria da seguradora ou segue a graduacao oficial da SUSEP?"}
+{"id":"S-211","category":"invalidez","insurer":"SulAmerica","question":"Na SulAmerica, a invalidez funcional por doenca exige que o segurado fique impedido de exercer qualquer atividade ou so a profissao dele?"}
+{"id":"S-212","category":"invalidez","insurer":"SulAmerica","question":"A SulAmerica reconhece perda de funcao de um membro por acidente como invalidez parcial mesmo sem amputacao fisica?"}
+{"id":"S-213","category":"invalidez","insurer":"MetLife","question":"Na MetLife, a invalidez funcional por doenca cobre quadro degenerativo progressivo ou exige causa subita?"}
+{"id":"S-214","category":"invalidez","insurer":"MetLife","question":"A invalidez por acidente da MetLife paga percentual reduzido quando a perda funcional do membro e so parcial?"}
+{"id":"S-215","category":"invalidez","insurer":"Tokio Marine","question":"Na Tokio, invalidez por acidente que gere perda de um dedo da mao entra na tabela de graduacao parcial?"}
+{"id":"S-216","category":"invalidez","insurer":"Azos","question":"A Azos cobre invalidez parcial por acidente ou a cobertura so paga quando a invalidez por acidente e total?"}
+{"id":"S-217","category":"invalidez","insurer":"MAPFRE Seguros","question":"Na MAPFRE, a invalidez permanente por acidente cobre perda de visao de um olho com percentual da tabela?"}
+{"id":"S-218","category":"invalidez","insurer":"MAPFRE Seguros","question":"A MAPFRE aceita invalidez por doenca na cobertura individual ou ela restringe invalidez so a causa acidental?"}
+{"id":"S-219","category":"doencas_graves","insurer":"Prudential do Brasil","question":"Na Prudential, depois de pagar uma doenca grave o premio das outras coberturas da apolice continua sendo cobrado normalmente?"}
+{"id":"S-220","category":"doencas_graves","insurer":"Prudential do Brasil","question":"O criterio da Prudential pra infarto coberto exige elevacao de marcadores cardiacos comprovada em exame?"}
+{"id":"S-221","category":"doencas_graves","insurer":"Prudential do Brasil","question":"Na Prudential, doenca de Parkinson entra como evento da cobertura de doencas graves plus?"}
+{"id":"S-222","category":"doencas_graves","insurer":"Bradesco Seguros","question":"No Bradesco, a cobertura de doenca grave aceita transplante de orgao vital como evento que aciona o pagamento?"}
+{"id":"S-223","category":"doencas_graves","insurer":"Bradesco Seguros","question":"A definicao de AVC coberto pelo Bradesco exige sequela neurologica permanente confirmada apos algum periodo?"}
+{"id":"S-224","category":"doencas_graves","insurer":"Bradesco Seguros","question":"No Bradesco, cirurgia de revascularizacao do miocardio entra na lista de eventos da cobertura de doenca grave?"}
+{"id":"S-225","category":"doencas_graves","insurer":"Porto Seguro","question":"O Porto Seguro tem cobertura de doenca grave no seguro de vida individual ou ela so aparece em produto coletivo?"}
+{"id":"S-226","category":"doencas_graves","insurer":"SulAmerica","question":"Na SulAmerica, a cobertura de doenca grave paga o capital uma unica vez ou aceita um segundo evento de doenca diferente?"}
+{"id":"S-227","category":"doencas_graves","insurer":"SulAmerica","question":"A SulAmerica exige periodo minimo de sobrevida apos o diagnostico pra liberar a indenizacao de doenca grave?"}
+{"id":"S-228","category":"doencas_graves","insurer":"MetLife","question":"Na MetLife, insuficiencia renal cronica que exige dialise definitiva conta como doenca grave coberta?"}
+{"id":"S-229","category":"doencas_graves","insurer":"MetLife","question":"A definicao de cancer coberto pela MetLife exige tumor maligno invasivo e exclui os carcinomas in situ?"}
+{"id":"S-230","category":"doencas_graves","insurer":"Tokio Marine","question":"No Vida Mulher da Tokio, carcinoma in situ de mama entra como evento coberto ou fica de fora da doenca grave?"}
+{"id":"S-231","category":"doencas_graves","insurer":"Tokio Marine","question":"A Tokio exige laudo histopatologico pra confirmar cancer feminino na cobertura de doenca grave?"}
+{"id":"S-232","category":"doencas_graves","insurer":"Azos","question":"Na Azos, depois de diagnosticada a doenca grave o cliente precisa sobreviver quantos dias pra cobertura pagar?"}
+{"id":"S-233","category":"assistencias","insurer":"Prudential do Brasil","question":"A assistencia da Prudential inclui apoio de orientacao por telefone com medico ou e so funeral?"}
+{"id":"S-234","category":"assistencias","insurer":"Prudential do Brasil","question":"Na Prudential, a assistencia funeral cobre tambem os dependentes ou vale somente pra o titular da apolice?"}
+{"id":"S-235","category":"assistencias","insurer":"Bradesco Seguros","question":"A assistencia funeral do Bradesco oferece reembolso pra a familia ou presta o servico direto com a funeraria credenciada?"}
+{"id":"S-236","category":"assistencias","insurer":"Bradesco Seguros","question":"O Bradesco inclui desconto em rede de farmacia como beneficio de assistencia no seguro de vida?"}
+{"id":"S-237","category":"assistencias","insurer":"Porto Seguro","question":"A assistencia do Porto cobre traslado de corpo quando o falecimento acontece em outro estado?"}
+{"id":"S-238","category":"assistencias","insurer":"Porto Seguro","question":"No Porto, a assistencia funeral comeca a valer junto com a apolice ou precisa cumprir algum periodo antes?"}
+{"id":"S-239","category":"assistencias","insurer":"SulAmerica","question":"A SulAmerica oferece telemedicina como assistencia inclusa no seguro de vida ou e contratada a parte?"}
+{"id":"S-240","category":"assistencias","insurer":"MetLife","question":"A assistencia da MetLife inclui apoio psicologico pra a familia em caso de falecimento do titular?"}
+{"id":"S-241","category":"assistencias","insurer":"Tokio Marine","question":"O Vida Mulher da Tokio traz assistencia de check-up preventivo voltado a saude da mulher?"}
+{"id":"S-242","category":"assistencias","insurer":"Azos","question":"A Azos oferece a assistencia de telemedicina pelo proprio app ou redireciona pra um parceiro externo?"}
+{"id":"S-243","category":"assistencias","insurer":"MAPFRE Seguros","question":"A assistencia funeral da MAPFRE permite a familia escolher a funeraria ou usa so rede credenciada da seguradora?"}
+{"id":"S-244","category":"assistencias","insurer":"MAPFRE Seguros","question":"A MAPFRE inclui assistencia de segunda opiniao medica junto com o seguro de vida individual?"}
+{"id":"S-245","category":"sinistro_operacional","insurer":"Prudential do Brasil","question":"Na Prudential, depois de entregue toda a documentacao do sinistro de morte, em quantos dias a indenizacao costuma ser paga?"}
+{"id":"S-246","category":"sinistro_operacional","insurer":"Prudential do Brasil","question":"Pra acionar a cobertura de doenca grave na Prudential, o beneficiario consegue dar entrada online ou precisa ir presencial?"}
+{"id":"S-247","category":"sinistro_operacional","insurer":"Prudential do Brasil","question":"Na Prudential, quando ha mais de um beneficiario, cada um precisa enviar documentos separados pra liberar a indenizacao?"}
+{"id":"S-248","category":"sinistro_operacional","insurer":"Bradesco Seguros","question":"No Bradesco, o sinistro de invalidez por acidente precisa de laudo de junta medica ou aceita relatorio do medico assistente?"}
+{"id":"S-249","category":"sinistro_operacional","insurer":"Bradesco Seguros","question":"Qual canal o Bradesco disponibiliza pra o corretor acompanhar o andamento da regulacao de um sinistro aberto?"}
+{"id":"S-250","category":"sinistro_operacional","insurer":"Porto Seguro","question":"No Porto, o aviso de sinistro de morte pode ser feito pelo proprio corretor em nome do beneficiario?"}
+{"id":"S-251","category":"sinistro_operacional","insurer":"Porto Seguro","question":"No Porto, quanto tempo leva entre o protocolo do sinistro de invalidez e a convocacao pra a pericia medica?"}
+{"id":"S-252","category":"sinistro_operacional","insurer":"SulAmerica","question":"Na SulAmerica, quando a seguradora pede um documento complementar, o relogio do prazo de regulacao fica suspenso ate ele chegar?"}
+{"id":"S-253","category":"sinistro_operacional","insurer":"SulAmerica","question":"Qual o prazo que a SulAmerica tem pra concluir a regulacao depois de receber toda a documentacao de doenca grave?"}
+{"id":"S-254","category":"sinistro_operacional","insurer":"MetLife","question":"Na MetLife, o sinistro de fratura ossea precisa de laudo de raio-x pra comprovar o evento na entrada?"}
+{"id":"S-255","category":"sinistro_operacional","insurer":"Tokio Marine","question":"No Vida Mulher da Tokio, a entrada de sinistro de cancer feminino exige laudo com o CID do diagnostico?"}
+{"id":"S-256","category":"sinistro_operacional","insurer":"Azos","question":"Na Azos, o beneficiario acompanha o status do sinistro pelo app ou recebe retorno so por e-mail?"}
+{"id":"S-257","category":"sinistro_operacional","insurer":"MAPFRE Seguros","question":"Na MAPFRE, o aviso de falecimento por causa natural tem prazo limite pra o beneficiario comunicar a seguradora?"}
+{"id":"S-258","category":"sinistro_operacional","insurer":"MAPFRE Seguros","question":"Na MAPFRE, o sinistro de invalidez por acidente pode ser protocolado online ou exige formulario fisico assinado?"}
+{"id":"S-259","category":"beneficiarios_capital","insurer":"Prudential do Brasil","question":"Na Prudential, o segurado pode nomear um menor de idade como beneficiario e como fica o pagamento nesse caso?"}
+{"id":"S-260","category":"beneficiarios_capital","insurer":"Prudential do Brasil","question":"Se um dos beneficiarios indicados na Prudential falecer antes do segurado, a parte dele vai pra os outros indicados?"}
+{"id":"S-261","category":"beneficiarios_capital","insurer":"Bradesco Seguros","question":"No Bradesco, o segurado consegue nomear uma empresa ou pessoa juridica como beneficiaria do capital?"}
+{"id":"S-262","category":"beneficiarios_capital","insurer":"Bradesco Seguros","question":"Na falta de indicacao de beneficiario no Bradesco, como o capital e dividido entre conjuge e herdeiros?"}
+{"id":"S-263","category":"beneficiarios_capital","insurer":"Porto Seguro","question":"No Porto, o segurado pode reservar parte do capital pra um beneficiario e deixar o resto pra ordem legal?"}
+{"id":"S-264","category":"beneficiarios_capital","insurer":"Porto Seguro","question":"Na apolice do Porto, companheiro em uniao estavel sem documento formal e aceito como beneficiario indicado?"}
+{"id":"S-265","category":"beneficiarios_capital","insurer":"SulAmerica","question":"Na SulAmerica, trocar o beneficiario da apolice tem custo ou pode ser feito gratis quantas vezes o cliente quiser?"}
+{"id":"S-266","category":"beneficiarios_capital","insurer":"SulAmerica","question":"No seguro de grupo da SulAmerica, o funcionario indica beneficiario proprio ou o capital segue regra unica do plano?"}
+{"id":"S-267","category":"beneficiarios_capital","insurer":"MetLife","question":"Na MetLife, a divisao de percentual entre beneficiarios precisa somar exatamente cem por cento na indicacao?"}
+{"id":"S-268","category":"beneficiarios_capital","insurer":"MetLife","question":"No produto coletivo da MetLife, capital global e capital individual mudam o que pra o beneficiario na hora do sinistro?"}
+{"id":"S-269","category":"beneficiarios_capital","insurer":"Tokio Marine","question":"Na Tokio, da pra nomear os filhos como beneficiarios com percentuais diferentes pra cada um no mesmo certificado?"}
+{"id":"S-270","category":"beneficiarios_capital","insurer":"Azos","question":"Na Azos, o cliente troca os beneficiarios direto pelo app ou precisa de assinatura reconhecida em cartorio?"}

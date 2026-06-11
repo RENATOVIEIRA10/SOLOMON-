@@ -140,3 +140,30 @@ Plans:
 - Guardrails são determinísticos (código), não prompt engineering — o gate doc explicitamente rejeita "mais exemplos" como correção
 - Eval Ragas existente (49 perguntas) continua como regressão; held-out set é artefato novo separado
 - `npm run build` antes de push (pgvector/pdf-parse sensíveis)
+
+---
+
+## Phase 6: SFT v2 — Dataset RAG-grounded + treino Nova 2 Lite
+
+**Goal:** Reconstruir o dataset de fine-tuning no formato real de produção (contexto numerado + pergunta → resposta grounded com citações) destilando o pipeline guarded atual, e só então treinar um candidato mais forte (Nova 2 Lite 256k). O v1 (Nova Micro) falhou porque treinou resposta de memória: 0/100 exemplos tinham contexto RAG. Gate de saída: held-out G-* 12/12 + comparação Ragas vs produção.
+
+**Requirements:** SFT-01, SFT-02, SFT-03, SFT-04
+
+Plans:
+- [ ] 06-01-PLAN.md — banco de ~180 perguntas novas (sem contaminar Ragas 49 / G-*) + validador
+- [ ] 06-02-PLAN.md — builder: chama /api/ask em prod, monta bedrock-conversation-2024 com contexto, filtros de qualidade + faithfulness judge
+- [ ] 06-03-PLAN.md — run na VPS, dataset v2 versionado, split train/heldout
+
+**Depends on:** Phase 5 (guardrails + held-out gate 12/12, fechado 2026-06-11)
+
+**Success criteria:**
+1. >= 120 exemplos aprovados em formato bedrock-conversation-2024, TODOS com contexto numerado no turno do usuário
+2. Zero contaminação: nenhuma pergunta de treino é paráfrase das 49 Ragas nem dos G-01..G-12 (validador automático)
+3. Toda resposta de treino passa filtro determinístico (citações presentes, não-recusa, >= 2 fontes) + faithfulness >= 0.8 no judge
+4. Dataset versionado em app/eval/fine_tuning/ com README de proveniência
+5. (Treino em si: só após CEO aprovar custo, com gate G-* + Ragas no modelo treinado)
+
+**Tech notes:**
+- Fonte das respostas: pipeline guarded de produção via evalMode (model fallback gemini-2.5-flash — registrar na proveniência)
+- Faithfulness judge: reusar harness Ragas da VPS (.venv em /root/solomon/repo/app/eval/ragas)
+- Base candidata: amazon.nova-2-lite-v1:0:256k (confirmada fine-tunável na conta, us-east-1)

@@ -37,9 +37,36 @@ def build_evaluator_llm():
         return _build_openrouter_judge()
     if backend == "gemini":
         return _build_gemini_judge()
+    if backend == "openai":
+        return _build_openai_judge()
     if backend == "ollama":
         return _build_ollama_judge()
     return _build_anthropic_judge()
+
+
+def _build_openai_judge():
+    """gpt-4o-mini via OpenAI direto. Adicionado 2026-06-11: fallback de judge
+    quando Anthropic/OpenRouter estao sem credito e o Gemini quebra no parse
+    do NLIStatement (structured output falha com contextos longos do SFT v2 —
+    103/109 OutputParserException em /tmp/sft-v2-judge-gemini.log). Usa a
+    OPENAI_API_KEY ja presente para embeddings."""
+    from langchain_openai import ChatOpenAI
+    from ragas.llms import LangchainLLMWrapper
+
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
+        raise RuntimeError("OPENAI_API_KEY nao definido — exporta antes de rodar.")
+
+    model = os.environ.get("OPENAI_JUDGE_MODEL", "gpt-4o-mini")
+
+    chat = ChatOpenAI(
+        model=model,
+        api_key=api_key,
+        temperature=0.0,
+        max_tokens=8192,
+        timeout=180,
+    )
+    return LangchainLLMWrapper(chat)
 
 
 def _build_gemini_judge():
