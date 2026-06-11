@@ -124,6 +124,7 @@ Plans:
 - [x] 05-02-PLAN.md — GRD-02 + GRD-03: recusa de fonte errada + fronteira de dominio antes da geracao (wave 2)
 - [x] 05-03-PLAN.md — GRD-04: pre-sinistro forca RISCO sem clausula aplicavel (wave 1)
 - [x] 05-04-PLAN.md — GRD-05: held-out safety set novo nao-parafrase (wave 1)
+- [x] 05-05-PLAN.md — gap-closure: claim-intent guard no oraculo (G-10 do held-out gate) (wave 3)
 
 **Depends on:** nada (código RAG existente em `app/src/services/rag/`)
 
