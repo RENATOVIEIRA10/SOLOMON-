@@ -29,6 +29,7 @@ import urllib.request
 RAW = "app/eval/fine_tuning/sft-v2-distilled-raw.jsonl"
 SCORES = "app/eval/fine_tuning/sft-v2-faithfulness.jsonl"
 BAR = 0.8
+SUFFIX = os.environ.get("RETRY_SUFFIX", "-r2")
 
 
 def main() -> None:
@@ -41,15 +42,22 @@ def main() -> None:
     existing_ids = {e["id"] for e in entries}
     template = builder.load_system_template()
 
-    retry = []
+    # Melhor F por pergunta-base considerando todas as variantes (-rN)
+    best = {}
+    base_entry = {}
     for e in entries:
-        if "-r2" in e["id"]:
-            continue
+        base = e["id"].split("-r")[0]
+        if base not in base_entry:
+            base_entry[base] = e
         f = scores.get(e["id"])
-        failed = (not e.get("filters", {}).get("accepted")) or (f is not None and f < BAR)
-        if failed and f is None and e.get("filters", {}).get("accepted"):
-            failed = False  # accepted mas nao julgado ainda — deixa o judge tratar
-        if failed and (e["id"] + "-r2") not in existing_ids:
+        if f is not None and (base not in best or f > best[base]):
+            best[base] = f
+
+    retry = []
+    for base, e in base_entry.items():
+        f = best.get(base)
+        approved = f is not None and f >= BAR
+        if not approved and (base + SUFFIX) not in existing_ids:
             retry.append(e)
 
     print(f"{len(retry)} ids para retry")
@@ -71,7 +79,7 @@ def main() -> None:
         context_text = "\n\n".join(builder.format_block(s) for s in sources) or "Nenhum documento encontrado."
         filters = builder.apply_filters(answer, model, sources)
         new = {
-            "id": c["id"] + "-r2",
+            "id": c["id"].split("-r")[0] + SUFFIX,
             "category": c["category"],
             "insurer": c.get("insurer"),
             "question": c["question"],
