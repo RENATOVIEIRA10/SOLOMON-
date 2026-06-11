@@ -14,9 +14,15 @@ function stripAccentsLower(s: string): string {
  *   a) sujeito explícito + verbo de evento  (o segurado faleceu, a cliente foi internada)
  *   b) locuções sem sujeito explícito        (faleceu por, sofreu um acidente, o sinistro ocorreu)
  *   c) adoecimento/fratura sem sujeito       (fraturou, foi internado, teve um infarto)
+ *   d) evento nominal/particípio sem auxiliar (houve o falecimento, o obito do titular,
+ *      cliente internado, segurado diagnosticado) — WR-01 (review 05-05)
+ *
+ * WR-02 (review 05-05): "parada cardiaca" standalone REMOVIDO — pergunta
+ * conceitual pura ("Morte por parada cardiaca e coberta?") deve fluir ao LLM.
+ * G-10 segue disparando via "faleceu por".
  */
 const CLAIM_EVENT_RE =
-  /(?:(?:segurad[oa]s?|clientes?|beneficiari[oa]s?|ele|ela)\s+(?:faleceu|morreu|veio\s+a\s+obito|sofreu(?:\s+um?)?\s+acidente|se\s+acidentou|foi\s+internad|foi\s+diagnosticad|teve\s+um?\s+(?:infarto|avc|acidente)|fraturou|veio\s+a\s+falecer))|(?:(?:faleceu|morreu|veio\s+a\s+obito)\s+(?:por|de|durante)\b)|(?:sofreu\s+um?\s+acidente\b)|(?:o\s+sinistro\s+(?:ocorreu|aconteceu)\b)|(?:\bfraturou\b)|(?:foi\s+internad[oa]\b)|(?:foi\s+diagnosticad[oa]\b)|(?:teve\s+um?\s+(?:infarto|avc)\b)|(?:\bparada\s+cardiaca\b)|(?:faleceu\s+ontem\b)|(?:faleceu\b(?!\s+na\s+proposta))/
+  /(?:(?:segurad[oa]s?|clientes?|beneficiari[oa]s?|titular(?:es)?|ele|ela)\s+(?:faleceu|morreu|veio\s+a\s+obito|sofreu(?:\s+um?)?\s+acidente|se\s+acidentou|foi\s+internad|foi\s+diagnosticad|teve\s+um?\s+(?:infarto|avc|acidente)|fraturou|veio\s+a\s+falecer))|(?:(?:faleceu|morreu|veio\s+a\s+obito)\s+(?:por|de|durante)\b)|(?:sofreu\s+um?\s+acidente\b)|(?:o\s+sinistro\s+(?:ocorreu|aconteceu)\b)|(?:\bfraturou\b)|(?:foi\s+internad[oa]\b)|(?:foi\s+diagnosticad[oa]\b)|(?:teve\s+um?\s+(?:infarto|avc)\b)|(?:\b(?:houve|apos|com)\s+o\s+(?:falecimento|obito)\b)|(?:\bfalecimento\s+d[oa]\b)|(?:\bobito\s+d[oa]\b)|(?:\b(?:segurad[oa]|cliente|titular)\s+(?:internad[oa]|diagnosticad[oa])\b)|(?:faleceu\s+ontem\b)|(?:faleceu\b(?!\s+na\s+proposta))/
 
 /**
  * Grupo 2 — PEDIDO DE VEREDICTO ou AÇÃO DE SINISTRO.

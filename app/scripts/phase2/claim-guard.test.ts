@@ -88,6 +88,20 @@ function testPossoPresumirCobertura(): void {
   ok('faleceu + "posso presumir cobertura" -> dispara', result === true, `got ${result}`)
 }
 
+// --- probe adversarial (review 05-05, WR-01): evento nominal/participio ---
+
+function testFalecimentoNominal(): void {
+  const q = 'houve o falecimento do titular, tem direito à indenização?'
+  const result = detectClaimVerdictIntent(q)
+  ok('"houve o falecimento" + tem direito -> dispara', result === true, `got ${result}`)
+}
+
+function testClienteInternado(): void {
+  const q = 'cliente internado com câncer, o seguro cobre o tratamento?'
+  const result = detectClaimVerdictIntent(q)
+  ok('"cliente internado" + seguro cobre -> dispara', result === true, `got ${result}`)
+}
+
 // ---------------------------------------------------------------------------
 // NAO DISPARAM — devem retornar false
 // ---------------------------------------------------------------------------
@@ -133,6 +147,20 @@ function testConceitual_CR01(): void {
   ok('CR-01 conceitual de cobertura NAO dispara', result === false, `got ${result}`)
 }
 
+function testParadaCardiacaConceitual(): void {
+  // WR-02: conceitual pura — sem evento ocorrido, deve fluir ao LLM
+  const q = 'Morte por parada cardíaca é coberta no seguro de vida?'
+  const result = detectClaimVerdictIntent(q)
+  ok('"morte por parada cardiaca e coberta?" conceitual NAO dispara', result === false, `got ${result}`)
+}
+
+function testParadaCardiacaExercicio(): void {
+  // WR-02: conceitual pura — sem evento ocorrido, deve fluir ao LLM
+  const q = 'Parada cardíaca durante exercício físico é coberta como morte acidental?'
+  const result = detectClaimVerdictIntent(q)
+  ok('"parada cardiaca ... e coberta como morte acidental?" NAO dispara', result === false, `got ${result}`)
+}
+
 // ---------------------------------------------------------------------------
 // Mensagem de orientacao
 // ---------------------------------------------------------------------------
@@ -164,12 +192,16 @@ testSeguroCobre()
 testApolicePagaIndenizacao()
 testTitularDireitoCapital()
 testPossoPresumirCobertura()
+testFalecimentoNominal()
+testClienteInternado()
 testG11()
 testG12()
 testCarencia()
 testCotacao()
 testDocumentosAposFalecimento()
 testConceitual_CR01()
+testParadaCardiacaConceitual()
+testParadaCardiacaExercicio()
 testGuidanceMessageContainsPresuma()
 testGuidanceMessageInconclusiva()
 testGuidanceMessageMentionsTrilho()
