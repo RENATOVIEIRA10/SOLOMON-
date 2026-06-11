@@ -13,7 +13,13 @@ findings:
   warning: 4
   info: 3
   total: 8
-status: issues_found
+status: fixed
+fixed_at: 2026-06-11
+fix_commits:
+  - "353a64a fix(05-05): CR-01 WR-04 VERDICT_RE fraseados naturais"
+  - "f9f8c83 fix(05-05): WR-01 WR-02 CLAIM_EVENT_RE nominais; remove parada cardiaca"
+  - "e5e2f4e fix(05-05): WR-03 hipoteticas se/caso"
+fix_notes: "CR-01/WR-01/WR-02/WR-03/WR-04 corrigidos; IN-01/IN-02/IN-03 fora de escopo (follow-up). Suite claim-guard 25/25, domain-guard 24/24, insurer-lexicon 10/10, npm run build exit 0."
 ---
 
 # Phase 05: Code Review Report — GRD-04 claim-guard (branch fix/grd04-claim-intent-guard)
@@ -49,6 +55,8 @@ MISS    :: O segurado faleceu, posso presumir cobertura?                 -> fals
 
 ### CR-01: VERDICT_RE nao cobre os fraseados de veredicto mais comuns — eventos concretos vazam para o LLM do oraculo (risco H11)
 
+**FIXED** (commit 353a64a): VERDICT_RE ampliado — `(o )?seguro cobre`, `cobre o/a/esse/este/isso`, `(seguradora|apolice|seguro) paga/indeniza/nega/recusa`, `tem direito a/ao` sem prefixo beneficiario, `recebe o capital/a indenizacao`. Os 6 fraseados do probe promovidos a testes positivos; G-11/G-12/CR-01 conceituais seguem false (AND com evento concreto mantido).
+
 **File:** `app/src/services/rag/claim-guard.ts:29-30`
 **Issue:** O lado "veredicto" do AND so reconhece `e/esta/seria/fica cobert*`, `tem cobertura`, `seguradora paga/indeniza/nega/recusa`, `acionar o seguro`, `abrir o sinistro`, `beneficiario recebe/tem direito`, `familia recebe`, `pode presumir`, `veredito`. Ficam de fora os tres fraseados mais naturais de corretor diante de um sinistro concreto:
 
@@ -71,6 +79,8 @@ Apos a mudanca, re-rodar G-11/G-12/CR-01 e os 4 casos negativos da suite + adici
 
 ### WR-01: CLAIM_EVENT_RE nao reconhece evento via substantivo ("falecimento", "obito de") nem participio sem "foi" ("cliente internado")
 
+**FIXED** (commit f9f8c83): adicionados `houve/apos/com o falecimento|obito`, `falecimento d[oa]`, `obito d[oa]`, `(segurad[oa]|cliente|titular) internad[oa]|diagnosticad[oa]`; `titular` incluido no grupo de sujeito. G-11/G-12 validados (seguem false).
+
 **File:** `app/src/services/rag/claim-guard.ts:18-19`
 **Issue:** O grupo de evento so reconhece formas verbais no preterito (`faleceu`, `morreu`, `sofreu`, `foi internad*`). Fraseados nominais comuns vazam: `"houve o falecimento do titular"`, `"o obito do segurado ocorreu"`, `"cliente internado com cancer"` (sem o auxiliar "foi"). Confirmado no probe: os 3 retornam `false` no lado evento. Combinado com CR-01, sao falsos negativos completos.
 **Fix:** adicionar alternativas nominais e participio sem auxiliar:
@@ -83,17 +93,23 @@ Validar contra G-11/G-12 (nenhum contem essas formas).
 
 ### WR-02: gatilho standalone `\bparada\s+cardiaca\b` bloqueia pergunta conceitual pura — regressao classe CR-01
 
+**FIXED** (commit f9f8c83): alternativa removida do CLAIM_EVENT_RE. G-10 verbatim segue disparando via `faleceu por` (teste verde). "Morte por parada cardíaca é coberta no seguro de vida?" e "Parada cardíaca durante exercício físico é coberta como morte acidental?" adicionados como negativos na suite.
+
 **File:** `app/src/services/rag/claim-guard.ts:19`
 **Issue:** `parada cardiaca` sozinho conta como EVENTO CONCRETO. `"Morte por parada cardíaca é coberta no seguro de vida?"` (conceitual, sem nenhum evento ocorrido) dispara o guard e recebe a mensagem de recusa em vez de ir ao LLM — confirmado no probe. Viola o contrato da fase (perguntas conceituais de cobertura devem fluir, classe G-11/G-12). A alternativa e desnecessaria para o heldout: G-10 ja casa via `faleceu por` (verificado removendo mentalmente a alternativa — `morreu/faleceu por...` cobre).
 **Fix:** remover a alternativa `(?:\bparada\s+cardiaca\b)` do CLAIM_EVENT_RE. Re-rodar G-10 verbatim para confirmar que continua disparando (continua: casa em `faleceu por` e em `faleceu\b`). Adicionar `"Morte por parada cardíaca é coberta no seguro de vida?"` como caso negativo na suite.
 
 ### WR-03: hipoteticas com verbo no passado ("Se o segurado teve um infarto..., está coberto?") sao bloqueadas — comportamento inconsistente com o caso condicional documentado
 
+**FIXED** (commit e5e2f4e): decisao de produto tomada e registrada em comentario no codigo — hipoteticas introduzidas por "se"/"caso" sao conceituais e NAO disparam o guard. Implementado `hasConcreteEvent()`: split por sentenca + `HYPOTHETICAL_PREFIX_RE` (`^(?:e\s+)?(?:se|caso)\b`); sentenca condicional nao conta como evento concreto. 3 hipoteticas do probe como negativos na suite; evento declarado em sentenca anterior segue disparando (G-09/G-10 verdes).
+
 **File:** `app/src/services/rag/claim-guard.ts:18-19`
 **Issue:** `"se o segurado falecer em acidente, é coberto?"` (futuro do subjuntivo) corretamente flui ao LLM, mas a mesma pergunta com preterito dentro do condicional — `"Se o segurado teve um infarto antes da carência, está coberto?"`, `"Se o cliente sofreu um acidente fora do país, tem cobertura?"` — dispara o guard (confirmado no probe). Em portugues coloquial de corretor, "se + preterito" e fraseado padrao de pergunta hipotetica/conceitual. O bloqueio e na direcao "segura" (recusa orientativa, nao veredicto errado), mas e inconsistente e degrada o produto para perguntas legitimas.
 **Fix:** decisao de produto explicita necessaria. Se o bloqueio for inaceitavel, adicionar exempcao por prefixo condicional imediatamente antes do evento, ex.: rejeitar match de evento precedido por `\b(?:se|caso|e\s+se|supondo\s+que)\s+(?:o|a|um|uma|meu|minha)?\s*(?:segurad|client|titular)` via lookbehind ou pre-check. Se for aceitavel (fail-safe), documentar no comentario do regex e adicionar os 2 casos como positivos esperados na suite para travar o comportamento.
 
 ### WR-04: regex de "presumir" nao casa o proprio caso documentado "presumir cobertura"
+
+**FIXED** (commit 353a64a): grupo reescrito como `\bpresumir\s+(?:que\s+(?:e\s+|esta\s+)?|a\s+)?cobert` (espaco simples casa "presumir cobertura") + `\b(?:pode|posso)\s+presumir\b`. "O segurado faleceu, posso presumir cobertura?" como positivo na suite.
 
 **File:** `app/src/services/rag/claim-guard.ts:24,30`
 **Issue:** O comentario (linha 24) afirma cobrir `"presumir cobertura"`, mas `(?:presumir(?:\s+que\s+(?:e\s+|esta\s+)?|\s+a\s+)?cobert)` exige que `cobert` venha colado a `presumir` quando o grupo opcional nao casa — `"presumir cobertura"` (com espaco simples) NAO casa. Confirmado: `"O segurado faleceu, posso presumir cobertura?"` retorna `false` (o `\bpode\s+presumir\b` nao salva porque o fraseado usa "posso"). G-10 passa apenas porque usa "pode presumir".
@@ -106,6 +122,8 @@ Validar contra G-11/G-12 (nenhum contem essas formas).
 E considerar `\bposso\s+presumir\b` ao lado de `\bpode\s+presumir\b`.
 
 ## Info
+
+(IN-01/IN-02/IN-03 NAO corrigidos nesta rodada — fora do escopo critical+warning; candidatos a follow-up. Nota: WR-02 removeu a alternativa `parada cardiaca` citada em IN-01, mas `faleceu ontem` redundante permanece.)
 
 ### IN-01: alternativas mortas/redundantes em CLAIM_EVENT_RE
 
