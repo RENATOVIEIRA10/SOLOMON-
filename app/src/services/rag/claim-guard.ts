@@ -1,0 +1,91 @@
+/** GRD-04 (canal oraculo): detector de pedido de veredicto sobre sinistro concreto. */
+
+// WR-05: escapes unicode explicitos (\u0300-\u036f) em vez de combining chars
+// literais no fonte — sobrevive a re-encoding/normalizacao (este repo ja teve
+// mojibake em pre-sinistro.ts). Mesmo padrao de domain-guard.ts.
+function stripAccentsLower(s: string): string {
+  return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+/**
+ * Grupo 1 — EVENTO CONCRETO ocorrido.
+ *
+ * Cobre:
+ *   a) sujeito explícito + verbo de evento  (o segurado faleceu, a cliente foi internada)
+ *   b) locuções sem sujeito explícito        (faleceu por, sofreu um acidente, o sinistro ocorreu)
+ *   c) adoecimento/fratura sem sujeito       (fraturou, foi internado, teve um infarto)
+ *   d) evento nominal/particípio sem auxiliar (houve o falecimento, o obito do titular,
+ *      cliente internado, segurado diagnosticado) — WR-01 (review 05-05)
+ *
+ * WR-02 (review 05-05): "parada cardiaca" standalone REMOVIDO — pergunta
+ * conceitual pura ("Morte por parada cardiaca e coberta?") deve fluir ao LLM.
+ * G-10 segue disparando via "faleceu por".
+ */
+const CLAIM_EVENT_RE =
+  /(?:(?:segurad[oa]s?|clientes?|beneficiari[oa]s?|titular(?:es)?|ele|ela)\s+(?:faleceu|morreu|veio\s+a\s+obito|sofreu(?:\s+um?)?\s+acidente|se\s+acidentou|foi\s+internad|foi\s+diagnosticad|teve\s+um?\s+(?:infarto|avc|acidente)|fraturou|veio\s+a\s+falecer))|(?:(?:faleceu|morreu|veio\s+a\s+obito)\s+(?:por|de|durante)\b)|(?:sofreu\s+um?\s+acidente\b)|(?:o\s+sinistro\s+(?:ocorreu|aconteceu)\b)|(?:\bfraturou\b)|(?:foi\s+internad[oa]\b)|(?:foi\s+diagnosticad[oa]\b)|(?:teve\s+um?\s+(?:infarto|avc)\b)|(?:\b(?:houve|apos|com)\s+o\s+(?:falecimento|obito)\b)|(?:\bfalecimento\s+d[oa]\b)|(?:\bobito\s+d[oa]\b)|(?:\b(?:segurad[oa]|cliente|titular)\s+(?:internad[oa]|diagnosticad[oa])\b)|(?:faleceu\s+ontem\b)|(?:faleceu\b(?!\s+na\s+proposta))/
+
+/**
+ * Grupo 2 — PEDIDO DE VEREDICTO ou AÇÃO DE SINISTRO.
+ *
+ * Cobre: "e coberto", "esta coberto", "tem cobertura", "o seguro cobre",
+ *        "cobre o/a/esse/este/isso", "presumir cobertura", "pode/posso presumir",
+ *        "seguradora/apolice/seguro paga/indeniza/nega/recusa",
+ *        "acionar o seguro", "abrir o sinistro", "tem direito a/ao",
+ *        "recebe o capital/a indenizacao", "familia/beneficiario recebe/tem direito",
+ *        "veredito".
+ *
+ * CR-01 (review 05-05): fraseados naturais de corretor ("a apolice paga?",
+ * "o seguro cobre?", "tem direito a indenizacao?") sem exigir prefixo
+ * beneficiario. Falso positivo conceitual continua mitigado pelo AND com
+ * CLAIM_EVENT_RE (G-11/G-12/CR-01 nao tem evento concreto).
+ */
+const VERDICT_RE =
+  /(?:\b(?:e|esta|seria|fica)\s+cobert)|(?:\btem\s+cobertura\b)|(?:\b(?:o\s+)?seguro\s+cobre\b)|(?:\bcobre\s+(?:o|a|esse|este|isso)\b)|(?:\bpresumir\s+(?:que\s+(?:e\s+|esta\s+)?|a\s+)?cobert)|(?:\b(?:pode|posso)\s+presumir\b)|(?:\b(?:seguradora|apolice|seguro)\s+(?:paga|indeniza|nega|recusa)\b)|(?:\bacionar\s+o\s+seguro\b)|(?:\babrir\s+o\s+sinistro\b)|(?:\btem\s+direito\s+(?:a|ao)\b)|(?:\brecebe\s+(?:o\s+capital|a\s+indenizacao)\b)|(?:\bveredito\b)|(?:(?:familia|beneficiari[oa]s?)\s+(?:recebe|tem\s+direito)\b)/
+
+/**
+ * WR-03 (decisao de produto, review 05-05): hipoteticas introduzidas por
+ * "se"/"caso" sao CONCEITUAIS e NAO devem disparar o guard, mesmo com verbo
+ * no preterito ("Se o segurado teve um infarto, esta coberto?") — em
+ * portugues de corretor, "se + preterito" e fraseado padrao de pergunta
+ * hipotetica. A sentenca so conta como EVENTO CONCRETO se NAO comecar com
+ * prefixo condicional.
+ */
+const HYPOTHETICAL_PREFIX_RE = /^(?:e\s+)?(?:se|caso)\b/
+
+function hasConcreteEvent(q: string): boolean {
+  return q.split(/[.!?;]+/).some((sentence) => {
+    const s = sentence.trim()
+    return !HYPOTHETICAL_PREFIX_RE.test(s) && CLAIM_EVENT_RE.test(s)
+  })
+}
+
+/**
+ * detectClaimVerdictIntent — true SOMENTE quando AMBOS os grupos casam.
+ *
+ * Pergunta com veredicto mas sem evento concreto (ex.: "seguro de vida cobre
+ * morte acidental?") e CONCEITUAL -> retorna false.
+ * Pergunta com evento mas sem pedido de veredicto (ex.: "o segurado faleceu,
+ * quais documentos preciso?") e OPERACIONAL -> retorna false.
+ * Pergunta hipotetica introduzida por "se"/"caso" e CONCEITUAL -> retorna
+ * false (ver HYPOTHETICAL_PREFIX_RE / WR-03).
+ */
+export function detectClaimVerdictIntent(question: string): boolean {
+  const q = stripAccentsLower(question)
+  return hasConcreteEvent(q) && VERDICT_RE.test(q)
+}
+
+/**
+ * claimGuidanceMessage — mensagem orientativa, inconclusiva por construcao.
+ * Nunca presume cobertura; direciona ao trilho pre-sinistro do SOLOMON.
+ */
+export function claimGuidanceMessage(): string {
+  return (
+    'Para emitir um veredito sobre cobertura de um sinistro concreto, e necessario analisar ' +
+    'as condicoes gerais da apolice especifica — o SOLOMON nao pode concluir COBERTO ou ' +
+    'NAO_COBERTO sem a clausula aplicavel em maos. Nunca presuma cobertura sem clausula aplicavel. ' +
+    'Utilize o trilho Pre-Sinistro do SOLOMON: informe o numero da apolice (ou nome do produto) ' +
+    'e descreva o evento em detalhes para obter uma analise fundamentada nas condicoes gerais ' +
+    'da seguradora. Sem esses dados, qualquer conclusao sobre cobertura seria uma presuncao ' +
+    'sem base contratual.'
+  )
+}
