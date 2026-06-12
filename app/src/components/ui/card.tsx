@@ -1,6 +1,13 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 
+/**
+ * Card base — superfície de luxo.
+ * - rounded-2xl, borda dourada sutil
+ * - fundo translúcido (vidro escuro)
+ * - sombra premium
+ * - hover com leve translateY + glow dourado
+ */
 const Card = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement>
@@ -8,7 +15,9 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      "rounded-xl border border-solomon-gold/40 bg-solomon-graphite/70 text-solomon-cream shadow-sm backdrop-blur-sm transition-all hover:border-solomon-gold hover:shadow-[0_0_22px_rgba(255,208,0,0.22)]",
+      "luxury-surface rounded-2xl text-solomon-cream",
+      "transition-premium",
+      "hover:-translate-y-0.5 hover:border-solomon-gold/40 hover:shadow-[0_18px_36px_-16px_rgba(0,0,0,0.7),0_0_24px_-4px_rgba(255,208,0,0.18)]",
       className
     )}
     {...props}
