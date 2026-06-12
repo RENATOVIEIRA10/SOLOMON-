@@ -46,6 +46,10 @@ export const metadata: Metadata = {
     capable: true,
     statusBarStyle: "black-translucent",
     title: "SOLOMON",
+    startupImage: [
+      // Generic splash — full device-specific set is a design follow-up
+      "/icon-512.png",
+    ],
   },
   formatDetection: {
     telephone: false,
