@@ -16,6 +16,7 @@ import {
   Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { AmbientBackground } from "@/components/ui/ambient-background";
 
 type NavItem = {
   label: string;
@@ -48,9 +49,11 @@ const NAV_ITEMS: NavItem[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-dvh flex flex-col md:flex-row bg-background text-foreground">
+    <div className="relative min-h-dvh flex flex-col md:flex-row bg-background text-foreground">
+      {/* Camada ambiente de profundidade — fixada atrás de tudo */}
+      <AmbientBackground />
       <DesktopSidebar />
-      <main className="flex-1 flex flex-col pb-20 md:pb-0 md:pl-60">
+      <main className="relative z-0 flex-1 flex flex-col pb-24 md:pb-0 md:pl-60">
         {children}
       </main>
       <MobileBottomNav />
@@ -61,19 +64,38 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function DesktopSidebar() {
   const pathname = usePathname();
   return (
-    <aside className="hidden md:flex fixed left-0 top-0 bottom-0 w-60 flex-col border-r border-solomon-gold/15 bg-solomon-graphite/30 backdrop-blur-sm z-30">
-      <div className="safe-top px-5 flex flex-col gap-1.5 pb-6">
-        <span className="font-display text-2xl font-semibold text-solomon-gold-light">
-          SOLOMON
-        </span>
-        <span className="font-mono text-[10px] uppercase text-solomon-gold/70 pl-1">
+    <aside
+      className={cn(
+        "hidden md:flex fixed left-0 top-0 bottom-0 w-60 flex-col z-30",
+        "border-r border-solomon-gold/15",
+        // Vidro escuro translúcido + glow dourado à esquerda
+        "bg-gradient-to-b from-solomon-graphite/85 via-solomon-black/80 to-solomon-graphite/85",
+        "backdrop-blur-xl backdrop-saturate-125",
+        "shadow-[1px_0_0_0_rgba(255,208,0,0.04),18px_0_60px_-20px_rgba(0,0,0,0.7)]"
+      )}
+    >
+      {/* Linha dourada vertical sutil à direita da borda */}
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-y-6 right-0 w-px bg-gradient-to-b from-transparent via-solomon-gold/25 to-transparent"
+      />
+
+      {/* Brand */}
+      <div className="safe-top px-5 flex flex-col gap-1 pb-6 pt-1">
+        <div className="flex items-baseline gap-2">
+          <span className="font-display text-[26px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light [text-shadow:0_0_18px_rgba(255,208,0,0.25)]">
+            SOLOMON
+          </span>
+        </div>
+        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-solomon-gold/70 pl-0.5">
           v1.0 · AUR.IOs
         </span>
       </div>
 
-      <div className="divider-gold mx-6" />
+      <div className="divider-gold mx-5" />
 
-      <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
+      {/* Navegação */}
+      <nav className="flex-1 px-3 py-5 flex flex-col gap-0.5">
         {NAV_ITEMS.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
@@ -82,35 +104,47 @@ function DesktopSidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "relative flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold transition-colors",
+                "relative group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold",
+                "transition-premium",
                 active
                   ? "text-solomon-black"
-                  : "text-solomon-gold-light/90 hover:text-solomon-gold hover:bg-solomon-gold/10"
+                  : "text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-gold/[0.06]"
               )}
             >
               {active && (
                 <motion.span
                   layoutId="sidebar-pill"
-                  className="absolute inset-0 rounded-md bg-solomon-gold shadow-[0_0_20px_rgba(255,208,0,0.5)]"
+                  className="absolute inset-0 rounded-md bg-gradient-to-r from-solomon-gold via-solomon-gold-light to-solomon-gold shadow-[0_0_22px_rgba(255,208,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.35)]"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
-              <Icon className="relative size-4" />
-              <span className="relative">{item.label}</span>
+              {!active && (
+                <span
+                  aria-hidden
+                  className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r-full bg-solomon-gold/0 group-hover:bg-solomon-gold/60 transition-premium"
+                />
+              )}
+              <Icon className="relative size-4 shrink-0" />
+              <span className="relative tracking-wide">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
+      {/* Footer da sidebar */}
       <div className="px-3 py-4 border-t border-solomon-gold/10 flex flex-col gap-3">
         <a
           href="/auth/signout"
-          className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-gold/10 transition-colors"
+          className={cn(
+            "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold",
+            "text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-gold/[0.06]",
+            "transition-premium"
+          )}
         >
           <LogOut className="size-4" />
           <span>Sair</span>
         </a>
-        <p className="font-mono text-[10px] uppercase text-solomon-cream-muted/50 px-3">
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-solomon-cream-muted/45 px-3">
           AUR.IOs · 2026
         </p>
       </div>
@@ -122,33 +156,52 @@ function MobileBottomNav() {
   const pathname = usePathname();
   const mobileItems = NAV_ITEMS.slice(0, 5);
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-40 safe-bottom px-3 pt-2 bg-solomon-graphite/95 border-t border-solomon-gold/15 backdrop-blur-md">
-      <ul className="flex items-center justify-around">
+    <nav
+      className={cn(
+        "md:hidden fixed bottom-0 left-0 right-0 z-40 safe-bottom px-3 pt-2",
+        // Glass + borda dourada sutil
+        "bg-gradient-to-b from-solomon-graphite/70 to-solomon-black/85",
+        "backdrop-blur-xl backdrop-saturate-150",
+        "border-t border-solomon-gold/15",
+        "shadow-[0_-12px_30px_-12px_rgba(0,0,0,0.7),0_-1px_0_0_rgba(255,208,0,0.06)_inset]"
+      )}
+    >
+      <ul className="flex items-stretch justify-around gap-1">
         {mobileItems.map((item) => {
           const active = pathname === item.href || pathname.startsWith(item.href + "/");
           const Icon = item.icon;
           return (
-            <li key={item.href}>
+            <li key={item.href} className="flex-1">
               <Link
                 href={item.href}
+                aria-current={active ? "page" : undefined}
                 className={cn(
-                  "relative flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-md transition-colors",
+                  "relative flex flex-col items-center justify-center gap-1",
+                  "min-h-[48px] px-2 py-1.5 rounded-md",
+                  "transition-premium",
                   active
                     ? "text-solomon-gold"
-                    : "text-solomon-cream-muted hover:text-solomon-cream"
+                    : "text-solomon-cream-muted active:text-solomon-gold-light"
                 )}
               >
-                <Icon className="size-5" />
-                <span className="text-[10px] font-medium">
-                  {item.shortLabel}
-                </span>
                 {active && (
                   <motion.span
-                    layoutId="mobile-nav-dot"
-                    className="absolute -top-0.5 h-0.5 w-6 rounded-full bg-solomon-gold"
+                    layoutId="mobile-nav-pill"
+                    className="absolute inset-1 rounded-md bg-solomon-gold/10 border border-solomon-gold/25"
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
+                {active && (
+                  <motion.span
+                    layoutId="mobile-nav-dot"
+                    className="absolute -top-0.5 h-[2px] w-7 rounded-full bg-solomon-gold shadow-[0_0_10px_rgba(255,208,0,0.7)]"
+                    transition={{ type: "spring", stiffness: 380, damping: 32 }}
+                  />
+                )}
+                <Icon className="relative size-5" />
+                <span className="relative text-[10px] font-medium tracking-wide">
+                  {item.shortLabel}
+                </span>
               </Link>
             </li>
           );
