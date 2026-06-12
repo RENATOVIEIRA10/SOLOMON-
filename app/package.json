@@ -62,7 +62,6 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",
-    "@serwist/turbopack": "^9.0.14",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/pdf-parse": "^1.1.5",

@@ -167,3 +167,20 @@ Plans:
 - Fonte das respostas: pipeline guarded de produção via evalMode (model fallback gemini-2.5-flash — registrar na proveniência)
 - Faithfulness judge: reusar harness Ragas da VPS (.venv em /root/solomon/repo/app/eval/ragas)
 - Base candidata: amazon.nova-2-lite-v1:0:256k (confirmada fine-tunável na conta, us-east-1)
+
+---
+
+## Phase 7: PWA produção-grade (app nativo instalável)
+
+**Goal:** O dashboard SOLOMON instalável e com cara de app nativo EM PRODUÇÃO. Diagnóstico 2026-06-12: manifest/ícones/metas Apple já existem e estão 200 em prod; o gap é o service worker — `@serwist/turbopack` só serve sw.js em dev, prod retorna 404 (sem offline, sem auto-update, install prompt degradado). Fix: SW vanilla estático em public/ + registro próprio, removendo a dep de build frágil.
+
+**Requirements:** PWA-01, PWA-02, PWA-03, PWA-04
+
+**Depends on:** nada (fundação PWA parcial já em master)
+
+**Success criteria:**
+1. `https://app-atalaia.vercel.app/sw.js` retorna 200 e o SW controla a página (auto-update via skipWaiting)
+2. Offline: navegação sem rede cai em `/~offline` (fallback funcionando em prod)
+3. Instalável: Chrome Android mostra prompt de instalação; iOS Add to Home Screen abre standalone com status bar correta
+4. `npm run build` verde; dependência `@serwist/turbopack` removida (menos superfície de build)
+5. Smoke manual do CEO no celular (UAT): instalar, abrir, usar oráculo, matar rede e ver fallback
