@@ -44,6 +44,12 @@
 - ~~Pendência: rodar suíte held-out G-01..G-12~~ RODADO 2026-06-11: **11/12, gate NÃO passou**. G-10 reprovou — oráculo (/api/ask) endossou presunção de cobertura para sinistro sem cláusula (GRD-04 vive em /api/pre-sinistro; canal de chat contorna). Veredito completo em `docs/qa/heldout-gate-baseline-2026-06-11.md`. Claim-intent guard shipado (PR #69, merge d969924) e gate RE-RODADO no mesmo dia: **12/12 — GATE PASSOU, SFT v2 DESTRAVADO**. G-09/G-10 agora `claim-verdict-guard` 0 tokens. Rerun em `solomon-guardrails-heldout-baseline-20260611-rerun2.jsonl`.
 - **Pós-merge (#67 → smoke prod → #68):** smoke em produção achou gap que review+verifier não viram — `detectInsurers` só conhecia as 13 indexadas, então seguradora desconhecida (Allianz) nunca ativava o GRD-02 (recusa vinha do LLM, probabilística). PR #68: léxico +14 seguradoras de vida BR não-indexadas + G-04 do held-out corrigido (premissava SulAmérica ausente; ela tem 563 chunks). Validado em prod: Allianz → `model: insurer-source-guard`, 0 tokens; SulAmérica responde normal. LIÇÃO: guardrail que depende de detecção léxica falha silenciosamente para entidades fora do léxico — smoke com entidade genuinamente ausente é obrigatório.
 
+**008 — PWA produção-grade (2026-06-12):**
+- Diagnóstico: fundação PWA já existia (manifest standalone, ícones, metas Apple, /~offline) mas `@serwist/turbopack` só servia sw.js em DEV — prod 404.
+- Fix (PR #71, merge 4409a4e): `public/sw.js` vanilla estático — network-first p/ documents com fallback /~offline + fallback inline, cache-first p/ /_next/static, SWR p/ assets não-hasheados, 2 caches com FIFO 60, guard same-origin. Invariantes: /api/ nunca interceptado, HTML autenticado nunca cacheado. `@serwist/turbopack` removido (−29 pacotes).
+- Review: 0 críticos, 3 warnings corrigidos pré-merge. Smoke prod: sw.js 200 application/javascript, manifest 200, /~offline 200.
+- PENDENTE: UAT manual do CEO no celular (instalar, standalone, modo avião → offline). Follow-up de design: splash screens iOS por device.
+
 **007 — SFT v2: dataset RAG-grounded + treino e gate Nova 2 Lite (2026-06-11):**
 - Dataset v2/v2.1 (PR #70 + push direto eval-only): 390 perguntas anti-contaminadas → 547 destilações do pipeline guarded de produção → faithfulness juiz único gpt-4o-mini → 229 perguntas únicas F≥0.8 → corte best-of 206 train + 23 heldout. Pipeline com retry estocástico (-r2/-r3) que elevou aproveitamento de 113→229.
 - Treino Bedrock `amazon.nova-2-lite-v1:0:256k` (job 214210) COMPLETOU. 1ª tentativa falhou: Nova 2 exige 200+ prompts (v1/Micro aceitava 100).
