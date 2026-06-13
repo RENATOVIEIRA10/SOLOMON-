@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AmbientBackground } from "@/components/ui/ambient-background";
+import { tapHaptic } from "@/lib/haptics";
 
 type NavItem = {
   label: string;
@@ -103,9 +104,10 @@ function DesktopSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={tapHaptic}
               className={cn(
                 "relative group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold",
-                "transition-premium",
+                "transition-premium active:scale-[0.97]",
                 active
                   ? "text-solomon-black"
                   : "text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-gold/[0.06]"
@@ -175,10 +177,11 @@ function MobileBottomNav() {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                onClick={tapHaptic}
                 className={cn(
                   "relative flex flex-col items-center justify-center gap-1",
                   "min-h-[48px] px-2 py-1.5 rounded-md",
-                  "transition-premium",
+                  "transition-premium active:scale-[0.97]",
                   active
                     ? "text-solomon-gold"
                     : "text-solomon-cream-muted active:text-solomon-gold-light"

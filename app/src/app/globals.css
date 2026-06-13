@@ -322,6 +322,29 @@ body {
   }
 }
 
+/* ============================================================
+   Ambient drift — glows respiram sutilmente sob no-preference.
+   Sob prefers-reduced-motion: glows ficam parados (sem animação).
+   ============================================================ */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes ambient-drift-a {
+    0%   { transform: translate(0, 0);     opacity: 1; }
+    50%  { transform: translate(18px, -12px); opacity: 0.85; }
+    100% { transform: translate(0, 0);     opacity: 1; }
+  }
+  @keyframes ambient-drift-b {
+    0%   { transform: translate(0, 0);       opacity: 0.85; }
+    50%  { transform: translate(-18px, 12px); opacity: 1; }
+    100% { transform: translate(0, 0);       opacity: 0.85; }
+  }
+  .ambient-drift-a {
+    animation: ambient-drift-a 24s ease-in-out infinite alternate;
+  }
+  .ambient-drift-b {
+    animation: ambient-drift-b 30s ease-in-out infinite alternate;
+  }
+}
+
 /* Accessibility: respect user motion preference */
 @media (prefers-reduced-motion: reduce) {
   *,
