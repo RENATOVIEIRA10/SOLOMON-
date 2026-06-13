@@ -1,4 +1,5 @@
 import { createHubClient } from "@/lib/supabase-hub";
+import { getAuthUser, isAdmin } from "@/lib/auth";
 import { EvalDashboard, RunSummary, EvalRunRow } from "@/components/admin/eval-dashboard";
 
 type HubClient = ReturnType<typeof createHubClient>;
@@ -110,9 +111,13 @@ async function getInsurersMap(supabase: HubClient): Promise<Record<string, strin
 }
 
 export default async function AdminPage() {
+  // Gate: verificar se o usuário atual é admin
+  const user = await getAuthUser();
+  const userIsAdmin = isAdmin(user?.email ?? null);
+
   const supabase = createHubClient();
   const summaries = await getRunsSummary(supabase);
-  
+
   let initialDetail: EvalRunRow[] = [];
   if (summaries.length > 0) {
     initialDetail = await getRunDetail(supabase, summaries[0].run_id);
@@ -123,14 +128,29 @@ export default async function AdminPage() {
   if (summaries.length === 0) {
     return (
       <div className="w-full min-h-[50vh] flex flex-col justify-center items-center gap-4 text-center p-8 max-w-xl mx-auto mt-20">
-        <div className="h-12 w-12 rounded-full bg-solomon-gold/10 border border-solomon-gold/25 flex items-center justify-center text-solomon-gold text-lg">
-          ⚠️
-        </div>
-        <h1 className="font-display text-2xl font-semibold text-solomon-gold-light">Nenhuma run de avaliação encontrada</h1>
-        <p className="text-sm text-solomon-cream-muted/70 leading-relaxed">
-          Nenhuma métrica foi encontrada na tabela <code className="font-mono text-xs text-solomon-gold bg-solomon-charcoal/40 p-1 rounded">eval_runs</code>.
-          Execute uma avaliação Ragas na VPS para preencher a base de dados.
-        </p>
+        {/* Painel de disparo mesmo sem runs — admin pode iniciar o primeiro */}
+        {userIsAdmin && (
+          <div className="w-full max-w-md mb-4">
+            <EvalDashboard
+              summaries={[]}
+              initialDetail={[]}
+              allInsurers={{}}
+              isAdmin={userIsAdmin}
+            />
+          </div>
+        )}
+        {!userIsAdmin && (
+          <>
+            <div className="h-12 w-12 rounded-full bg-solomon-gold/10 border border-solomon-gold/25 flex items-center justify-center text-solomon-gold text-lg">
+              -
+            </div>
+            <h1 className="font-display text-2xl font-semibold text-solomon-gold-light">Nenhuma run de avaliação encontrada</h1>
+            <p className="text-sm text-solomon-cream-muted/70 leading-relaxed">
+              Nenhuma métrica foi encontrada na tabela <code className="font-mono text-xs text-solomon-gold bg-solomon-charcoal/40 p-1 rounded">eval_runs</code>.
+              Execute uma avaliação Ragas na VPS para preencher a base de dados.
+            </p>
+          </>
+        )}
       </div>
     );
   }
@@ -140,6 +160,7 @@ export default async function AdminPage() {
       summaries={summaries}
       initialDetail={initialDetail}
       allInsurers={allInsurers}
+      isAdmin={userIsAdmin}
     />
   );
 }

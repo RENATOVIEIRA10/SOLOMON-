@@ -16,6 +16,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { EvalTrigger } from "@/components/admin/eval-trigger";
 
 export interface EvalRunRow {
   id: string;
@@ -62,6 +63,7 @@ interface EvalDashboardProps {
   summaries: RunSummary[];
   initialDetail: EvalRunRow[];
   allInsurers: Record<string, string>; // Maps ID -> Name
+  isAdmin?: boolean;
 }
 
 const METRIC_CONFIGS = [
@@ -116,7 +118,7 @@ const CHART_WIDTH = 720;
 const CHART_HEIGHT = 240;
 const CHART_PADDING = { top: 15, right: 25, bottom: 35, left: 35 } as const;
 
-export function EvalDashboard({ summaries, initialDetail, allInsurers }: EvalDashboardProps) {
+export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin = false }: EvalDashboardProps) {
   const [selectedRunId, setSelectedRunId] = useState<string>(
     summaries[0]?.run_id || ""
   );
@@ -277,6 +279,9 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers }: EvalDas
 
   return (
     <div className="w-full flex flex-col gap-6 p-4 md:p-8 max-w-7xl mx-auto">
+      {/* Painel de disparo — visível apenas para admin */}
+      {isAdmin && <EvalTrigger />}
+
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-solomon-gold/15 pb-6">
         <div>
