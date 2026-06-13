@@ -54,11 +54,58 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       {/* Camada ambiente de profundidade — fixada atrás de tudo */}
       <AmbientBackground />
       <DesktopSidebar />
-      <main className="relative z-0 flex-1 flex flex-col pb-24 md:pb-0 md:pl-60">
+      <MobileHeader />
+      {/*
+        pt-14 compensa o MobileHeader fixo em mobile (h-14 = 56px).
+        Em md+, o header não existe — sem padding extra.
+        Os componentes de conteúdo que usam safe-top adicionam espaço interno
+        além desse padding — resultado: padding generoso mas sem sobreposição.
+      */}
+      <main className="relative z-0 flex-1 flex flex-col pb-24 md:pb-0 md:pl-60 pt-14 md:pt-0">
         {children}
       </main>
       <MobileBottomNav />
     </div>
+  );
+}
+
+/**
+ * MobileHeader — barra fixa no topo, visível apenas em mobile (md:hidden).
+ * Glass idêntico ao bottom-nav. Wordmark à esquerda + título da rota à direita.
+ * Inclui safe-area-inset-top para dispositivos com notch.
+ */
+function MobileHeader() {
+  const pathname = usePathname();
+  // Encontra o NAV_ITEM que melhor corresponde ao pathname atual
+  const activeItem = NAV_ITEMS.find(
+    (item) => pathname === item.href || pathname.startsWith(item.href + "/")
+  );
+  const routeLabel = activeItem?.label ?? "SOLOMON";
+
+  return (
+    <header
+      className={cn(
+        "md:hidden fixed top-0 left-0 right-0 z-40",
+        // Safe-area inset + altura base de 56px
+        "safe-top pb-2 px-4",
+        // Glass idêntico ao bottom-nav
+        "bg-gradient-to-b from-solomon-graphite/85 to-solomon-black/80",
+        "backdrop-blur-xl backdrop-saturate-150",
+        "border-b border-solomon-gold/15",
+        "shadow-[0_12px_30px_-12px_rgba(0,0,0,0.5),0_1px_0_0_rgba(255,208,0,0.06)_inset]"
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        {/* Wordmark — pequeno, dourado, editorial */}
+        <span className="font-display text-[18px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light [text-shadow:0_0_14px_rgba(255,208,0,0.25)]">
+          SOLOMON
+        </span>
+        {/* Título da rota atual — mono-tag à direita */}
+        <span className="mono-tag truncate max-w-[50%] text-right">
+          {routeLabel}
+        </span>
+      </div>
+    </header>
   );
 }
 
