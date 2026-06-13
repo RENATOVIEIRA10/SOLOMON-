@@ -48,6 +48,12 @@ LIMIT_MAX = 50
 # Últimas N linhas do stderr/stdout capturadas em caso de falha
 ERROR_TAIL_LINES = 30
 
+# TTL de job órfão: o subprocess tem timeout de 2h; se um job fica em 'running'
+# além disto (poller morto por OOM/kill/deploy entre o claim e o patch final),
+# ele é reclamado como 'failed' para a fila não travar (o anti-dupla-fila do
+# trigger conta requested+running — um órfão eterno = 409 para sempre).
+STALE_RUNNING_TTL_SECONDS = 3 * 60 * 60  # 3h (> timeout de 2h do subprocess)
+
 
 def _hub_headers() -> dict[str, str]:
     key = os.environ.get("MANAGED_SUPABASE_KEY") or os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
@@ -76,9 +82,11 @@ def _http(method: str, url: str, body: dict[str, Any] | None = None, timeout: in
     """Faz request HTTP simples via urllib (stdlib, sem deps extras)."""
     data = json.dumps(body).encode() if body is not None else None
     req = urllib.request.Request(url, data=data, method=method, headers=_hub_headers())
+    # TLS verificado (default). A service-role key viaja no header Authorization;
+    # desabilitar verificacao exporia a chave a MITM na rede da VPS. O hub Supabase
+    # tem cert valido. Se um dia houver proxy com cert self-signed, passar o CA via
+    # SSL_CERT_FILE/cafile — nunca desligar a verificacao.
     ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
     try:
         with urllib.request.urlopen(req, context=ctx, timeout=timeout) as r:
             raw = r.read().decode("utf-8")
@@ -118,9 +126,8 @@ def claim_job(job_id: str) -> bool:
     headers_extra = {"Prefer": "return=representation,count=exact"}
     data = json.dumps({"status": "running"}).encode()
     req = urllib.request.Request(url, data=data, method="PATCH", headers={**_hub_headers(), **headers_extra})
+    # TLS verificado (default) — ver _http.
     ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
     try:
         with urllib.request.urlopen(req, context=ctx, timeout=20) as r:
             raw = r.read().decode("utf-8")
@@ -136,6 +143,43 @@ def patch_job(job_id: str, fields: dict[str, Any]) -> None:
     params = urllib.parse.urlencode({"id": f"eq.{job_id}"})
     url = _hub_url(f"eval_jobs?{params}")
     _http("PATCH", url, fields)
+
+
+def reclaim_stale_jobs() -> int:
+    """
+    Reclama jobs órfãos: jobs em 'running' cujo updated_at é mais antigo que o
+    TTL viram 'failed' com erro de timeout/órfão. Sem isto, um poller morto
+    (OOM/kill/deploy) entre o claim e o patch final deixa o job eternamente em
+    'running' — e o anti-dupla-fila do trigger (conta requested+running) trava
+    a fila com 409 para sempre. Roda no início de cada ciclo do poller.
+    Retorna quantos jobs foram reclamados.
+    """
+    cutoff = time.gmtime(time.time() - STALE_RUNNING_TTL_SECONDS)
+    cutoff_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", cutoff)
+    params = urllib.parse.urlencode({
+        "project": "eq.solomon",
+        "status": "eq.running",
+        "updated_at": f"lt.{cutoff_iso}",
+        "select": "id,updated_at",
+    })
+    url = _hub_url(f"eval_jobs?{params}")
+    status, payload = _http("GET", url)
+    if status != 200 or not isinstance(payload, list) or len(payload) == 0:
+        return 0
+
+    reclaimed = 0
+    for job in payload:
+        stale_id = job.get("id")
+        if not stale_id:
+            continue
+        print(f"[poller] job orfao id={stale_id} running desde {job.get('updated_at')!r} — reclamando como failed")
+        patch_job(stale_id, {
+            "status": "failed",
+            "error": f"orfao: preso em 'running' alem do TTL de {STALE_RUNNING_TTL_SECONDS // 3600}h "
+                     "(poller provavelmente morreu entre claim e conclusao)",
+        })
+        reclaimed += 1
+    return reclaimed
 
 
 def validate_params(params: dict[str, Any]) -> tuple[int, str, bool] | str:
@@ -157,6 +201,42 @@ def validate_params(params: dict[str, Any]) -> tuple[int, str, bool] | str:
     multi_judge = bool(params.get("multiJudge", False))
 
     return limit, judge, multi_judge
+
+
+# Sinais (em stdout/stderr do run_eval) de erro TRANSITÓRIO de API de judge —
+# quota/rate/5xx. Por feedback_llm_erro_api_vs_logico.md, esses NÃO são erro
+# lógico do matcher; a mensagem persistida deixa isso explícito para que o admin
+# saiba que vale re-disparar (re-enfileiro automático fica como dívida — IN/WR-02).
+_TRANSIENT_API_SIGNALS = (
+    "429",
+    "rate limit",
+    "rate_limit",
+    "ratelimit",
+    "too many requests",
+    "quota",
+    "insufficient_quota",
+    "overloaded",
+    "503",
+    "502",
+    "504",
+    "service unavailable",
+    "timeout",
+    "timed out",
+    "connection reset",
+    "temporarily unavailable",
+)
+
+
+def classify_error(text: str) -> str:
+    """
+    Classifica o erro do run_eval: 'transitorio' (API/quota/rate/5xx) vs 'logico'.
+    Não re-enfileira — só rotula para a UI/audit deixarem claro se vale re-disparar.
+    """
+    low = text.lower()
+    for sig in _TRANSIENT_API_SIGNALS:
+        if sig in low:
+            return "transitorio"
+    return "logico"
 
 
 def run_eval(limit: int, judge: str, multi_judge: bool, dry_run: bool = False) -> tuple[int, str, str]:
@@ -196,9 +276,9 @@ def run_eval(limit: int, judge: str, multi_judge: bool, dry_run: bool = False) -
             timeout=7200,  # 2h máximo (full 49q pode demorar)
         )
     except subprocess.TimeoutExpired:
-        return 1, "", "timeout apos 2h"
+        return 1, "", "[transitorio: subprocess excedeu 2h — vale re-disparar] timeout apos 2h"
     except Exception as exc:
-        return 1, "", f"erro ao iniciar processo: {exc}"
+        return 1, "", f"[erro] ao iniciar processo: {exc}"
 
     stdout = result.stdout or ""
     stderr = result.stderr or ""
@@ -219,7 +299,13 @@ def run_eval(limit: int, judge: str, multi_judge: bool, dry_run: bool = False) -
 
     if result.returncode != 0:
         tail = "\n".join(combined.splitlines()[-ERROR_TAIL_LINES:])
-        return result.returncode, run_id, tail
+        kind = classify_error(tail)
+        if kind == "transitorio":
+            prefix = ("[transitorio: erro de API de judge (rate/quota/5xx) — "
+                      "NAO e erro logico do matcher; vale re-disparar] ")
+        else:
+            prefix = "[erro] "
+        return result.returncode, run_id, prefix + tail
 
     return 0, run_id, ""
 
@@ -230,6 +316,16 @@ def main() -> int:
     args = parser.parse_args()
 
     print(f"[poller] iniciando — {time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime())}")
+
+    # 0. Reclamar jobs órfãos antes de tudo — destrava a fila se um poller morreu
+    #    no meio (job preso em 'running' faz o trigger retornar 409 pra sempre).
+    try:
+        reclaimed = reclaim_stale_jobs()
+        if reclaimed:
+            print(f"[poller] {reclaimed} job(s) orfao(s) reclamado(s) como failed")
+    except RuntimeError as e:
+        print(f"[poller] ERRO configuracao: {e}")
+        return 1
 
     # 1. Buscar job mais antigo com status 'requested'
     try:
