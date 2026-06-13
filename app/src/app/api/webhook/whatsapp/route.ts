@@ -17,6 +17,11 @@ import { createServiceClient } from '@/lib/supabase'
 
 const PROVIDER = process.env.WHATSAPP_PROVIDER ?? 'kapso'
 const VERIFY_TOKEN = process.env.WHATSAPP_VERIFY_TOKEN ?? ''
+// When '1', POST webhooks MUST carry a valid token header or are rejected (401).
+// Default off so enabling it is a deliberate, reversible step: confirm in the
+// logs below that legit Kapso deliveries carry the token, then flip to close the
+// forgeable-ingress gap without risking a production outage for the broker.
+const REQUIRE_TOKEN = (process.env.WHATSAPP_REQUIRE_TOKEN ?? '') === '1'
 const DEDUP_TTL_HOURS = 24
 
 export async function GET(request: NextRequest) {
@@ -66,9 +71,23 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     console.log('[webhook/whatsapp] RAW PAYLOAD:', JSON.stringify(body).slice(0, 1000))
 
+    // Webhook authentication. Kapso can be configured to send a secret header
+    // (x-webhook-token / apikey) on every delivery, matching WHATSAPP_VERIFY_TOKEN.
     const headerToken = request.headers.get('x-webhook-token') ?? request.headers.get('apikey')
-    if (VERIFY_TOKEN && headerToken && headerToken !== VERIFY_TOKEN) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    const tokenValid = !!VERIFY_TOKEN && headerToken === VERIFY_TOKEN
+    if (!VERIFY_TOKEN) {
+      console.warn('[webhook/whatsapp] AUTH WARNING: WHATSAPP_VERIFY_TOKEN not set — endpoint is unauthenticated')
+    } else if (!tokenValid) {
+      if (REQUIRE_TOKEN) {
+        // Enforced: reject forged/unauthenticated POSTs outright.
+        console.warn('[webhook/whatsapp] REJECTED: missing/invalid webhook token (REQUIRE_TOKEN on)')
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+      }
+      // Legacy mode: accept but log loudly so we can confirm whether legit Kapso
+      // deliveries carry the token before flipping WHATSAPP_REQUIRE_TOKEN=1.
+      console.warn(
+        `[webhook/whatsapp] AUTH WARNING: accepted POST without valid token (REQUIRE_TOKEN off). headerPresent=${!!headerToken}. Set WHATSAPP_REQUIRE_TOKEN=1 once Kapso is confirmed to send the token.`
+      )
     }
 
     const message = parseWebhook(PROVIDER, body)
