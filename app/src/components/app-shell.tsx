@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "motion/react";
+import { motion, MotionConfig } from "motion/react";
 import {
   MessageSquare,
   LayoutDashboard,
@@ -50,22 +50,30 @@ const NAV_ITEMS: NavItem[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-dvh flex flex-col md:flex-row bg-background text-foreground">
-      {/* Camada ambiente de profundidade — fixada atrás de tudo */}
-      <AmbientBackground />
-      <DesktopSidebar />
-      <MobileHeader />
-      {/*
-        pt-14 compensa o MobileHeader fixo em mobile (h-14 = 56px).
-        Em md+, o header não existe — sem padding extra.
-        Os componentes de conteúdo que usam safe-top adicionam espaço interno
-        além desse padding — resultado: padding generoso mas sem sobreposição.
-      */}
-      <main className="relative z-0 flex-1 flex flex-col pb-24 md:pb-0 md:pl-60 pt-14 md:pt-0">
-        {children}
-      </main>
-      <MobileBottomNav />
-    </div>
+    // MotionConfig reducedMotion="user" — ponto único que faz TODOS os
+    // componentes Motion abaixo (incluindo os pills layoutId da sidebar e do
+    // bottom-nav) respeitarem prefers-reduced-motion. Sob reduce, springs/layout
+    // são zerados automaticamente — sem deslize do pill dourado entre itens.
+    // Não conflita com o useReducedMotion explícito do PageTransition (que já
+    // gateia manualmente; aqui apenas reforça o mesmo comportamento).
+    <MotionConfig reducedMotion="user">
+      <div className="relative min-h-dvh flex flex-col md:flex-row bg-background text-foreground">
+        {/* Camada ambiente de profundidade — fixada atrás de tudo */}
+        <AmbientBackground />
+        <DesktopSidebar />
+        <MobileHeader />
+        {/*
+          O <main> compensa o MobileHeader fixo usando EXATAMENTE a mesma medida
+          que o header: barra de 56px + safe-area-inset-top. Sem número mágico
+          divergente — header e main usam o mesmo calc(). Em md+ o header não
+          existe (md:pt-0).
+        */}
+        <main className="relative z-0 flex-1 flex flex-col pb-24 md:pb-0 md:pl-60 pt-[calc(env(safe-area-inset-top,0px)+56px)] md:pt-0">
+          {children}
+        </main>
+        <MobileBottomNav />
+      </div>
+    </MotionConfig>
   );
 }
 
@@ -86,8 +94,10 @@ function MobileHeader() {
     <header
       className={cn(
         "md:hidden fixed top-0 left-0 right-0 z-40",
-        // Safe-area inset + altura base de 56px
-        "safe-top pb-2 px-4",
+        // Altura determinística = safe-area-inset-top + barra fixa de 56px.
+        // O offset do <main> usa o mesmo calc() — header e main em sincronia,
+        // acompanhando o notch real do device em vez de assumir 56px fixos.
+        "h-[calc(env(safe-area-inset-top,0px)+56px)] pt-[env(safe-area-inset-top,0px)] px-4",
         // Glass idêntico ao bottom-nav
         "bg-gradient-to-b from-solomon-graphite/85 to-solomon-black/80",
         "backdrop-blur-xl backdrop-saturate-150",
@@ -95,7 +105,7 @@ function MobileHeader() {
         "shadow-[0_12px_30px_-12px_rgba(0,0,0,0.5),0_1px_0_0_rgba(255,208,0,0.06)_inset]"
       )}
     >
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex h-14 items-center justify-between gap-2">
         {/* Wordmark — pequeno, dourado, editorial */}
         <span className="font-display text-[18px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light [text-shadow:0_0_14px_rgba(255,208,0,0.25)]">
           SOLOMON

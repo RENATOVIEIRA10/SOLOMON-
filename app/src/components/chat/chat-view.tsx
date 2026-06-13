@@ -208,7 +208,11 @@ export function ChatView() {
   const hasMessages = messages.length > 0;
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 max-h-dvh">
+    // Sem max-h-dvh: o <main> pai (flex-1, com pt do header + pb-24 do
+    // bottom-nav) já define a caixa. Um 100dvh aqui — num container já
+    // deslocado pela altura do header — transbordaria a viewport e empurraria
+    // a top-bar/input para fora. min-h-0 preserva o scroll interno das mensagens.
+    <div className="flex-1 flex flex-col min-h-0">
       {/* Top bar */}
       <div className="safe-top px-4 md:px-6 pb-3 flex items-center justify-between gap-3 border-b border-solomon-gold/10 bg-background/70 backdrop-blur-sm">
         <div className="flex items-center gap-2">
