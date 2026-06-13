@@ -78,13 +78,17 @@ export async function POST(request: NextRequest) {
   }
 
   // 4. Inserir job
+  // requested_by nunca pode virar '' — perde a atribuição de quem disparou um
+  // processo que gera custo. requireAdmin garante email não-nulo, mas usamos
+  // auth.id como fallback identificável caso de borda (auditoria > string vazia).
+  const requestedBy = auth.email || auth.id
   const { data, error: insertErr } = await supabase
     .from('eval_jobs')
     .insert({
       project: 'solomon',
       status: 'requested',
       params: { limit, judge, multiJudge },
-      requested_by: auth.email,
+      requested_by: requestedBy,
     })
     .select('id, status')
     .single()

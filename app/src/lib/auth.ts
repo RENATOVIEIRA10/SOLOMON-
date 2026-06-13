@@ -168,8 +168,12 @@ export function isAdmin(email: string | null): boolean {
 export async function requireAdmin(): Promise<{ id: string; email: string } | NextResponse> {
   const user = await getAuthUser()
   if (!user) return unauthorized()
-  if (!isAdmin(user.email)) return forbidden('admin only')
-  return { id: user.id, email: user.email ?? '' }
+  // isAdmin(null) já retorna false, então um admin sempre tem email não-nulo
+  // aqui. Checar !user.email explicitamente reflete esse invariante no tipo de
+  // retorno (email: string) sem precisar do fallback inseguro `?? ''`, que
+  // criava um estado logicamente impossível e gravaria requested_by=''.
+  if (!user.email || !isAdmin(user.email)) return forbidden('admin only')
+  return { id: user.id, email: user.email }
 }
 
 // ---------------------------------------------------------------------------
