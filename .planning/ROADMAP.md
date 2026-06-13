@@ -184,23 +184,3 @@ Plans:
 3. Instalável: Chrome Android mostra prompt de instalação; iOS Add to Home Screen abre standalone com status bar correta
 4. `npm run build` verde; dependência `@serwist/turbopack` removida (menos superfície de build)
 5. Smoke manual do CEO no celular (UAT): instalar, abrir, usar oráculo, matar rede e ver fallback
-
----
-
-## Phase 8: Shell PWA elevado — camada de movimento nativo
-
-**Goal:** Adicionar a camada de movimento/sensação-de-nativo SOBRE as superfícies premium já entregues (6 commits "cockpit premium"). Transições de página, ambient vivo, nav com feedback, header mobile e unificação de motion. Direção: elevar o luxo atual (preto+ouro+Cormorant), não reinventar.
-
-**Requirements:** SHL-01, SHL-02, SHL-03, SHL-04, SHL-05
-
-**Depends on:** superfícies premium (já em master)
-
-**Success criteria:**
-1. Troca de rota anima (entra/sai), sem flash; reduced-motion zera a animação
-2. Uma só lib de motion no bundle (framer-motion removido)
-3. Nav dá feedback de toque; Android vibra leve no tap (onde suportado)
-4. Glows do ambient respiram (drift lento) e congelam sob reduced-motion
-5. Mobile tem header com título da rota + safe-area; `npm run build` verde
-6. GATE: preview Vercel aprovado pelo CEO no celular antes do merge
-
-**Plans:** 08-01 (1 wave)
