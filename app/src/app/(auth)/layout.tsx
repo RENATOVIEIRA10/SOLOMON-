@@ -17,7 +17,10 @@ export default function AuthLayout({
         }}
       />
 
-      <header className="relative z-10 safe-top px-6 flex items-center justify-center">
+      {/* Tela de auth não tem MobileHeader cobrindo a notch — aqui o próprio
+          header é dono do inset-top, inclusive em mobile (a regra global
+          .safe-top só aplica o inset em md+). pt arbitrário restaura o inset. */}
+      <header className="relative z-10 safe-top pt-[calc(env(safe-area-inset-top,0px)+0.875rem)] px-6 flex items-center justify-center">
         <Link href="/" className="inline-flex items-center">
           <Image
             src="/solomon-wordmark.png"

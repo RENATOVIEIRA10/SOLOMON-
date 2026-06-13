@@ -19,17 +19,17 @@ export function AmbientBackground({ className }: { className?: string }) {
       aria-hidden="true"
       className={cn("pointer-events-none fixed inset-0 -z-10", className)}
     >
-      {/* Glow dourado superior direito — sol/halo */}
+      {/* Glow dourado superior direito — sol/halo (respira sob no-preference) */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 ambient-drift-a"
         style={{
           background:
             "radial-gradient(900px 520px at 88% -8%, rgba(255, 208, 0, 0.16), transparent 62%)",
         }}
       />
-      {/* Glow secundário inferior esquerdo — equilíbrio */}
+      {/* Glow secundário inferior esquerdo — equilíbrio (drift oposto) */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 ambient-drift-b"
         style={{
           background:
             "radial-gradient(700px 460px at 0% 100%, rgba(255, 208, 0, 0.08), transparent 60%)",

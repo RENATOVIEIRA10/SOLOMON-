@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { motion } from "motion/react";
+import { motion, MotionConfig } from "motion/react";
 import {
   MessageSquare,
   LayoutDashboard,
@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AmbientBackground } from "@/components/ui/ambient-background";
+import { tapHaptic } from "@/lib/haptics";
 
 type NavItem = {
   label: string;
@@ -49,15 +50,72 @@ const NAV_ITEMS: NavItem[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-dvh flex flex-col md:flex-row bg-background text-foreground">
-      {/* Camada ambiente de profundidade — fixada atrás de tudo */}
-      <AmbientBackground />
-      <DesktopSidebar />
-      <main className="relative z-0 flex-1 flex flex-col pb-24 md:pb-0 md:pl-60">
-        {children}
-      </main>
-      <MobileBottomNav />
-    </div>
+    // MotionConfig reducedMotion="user" — ponto único que faz TODOS os
+    // componentes Motion abaixo (incluindo os pills layoutId da sidebar e do
+    // bottom-nav) respeitarem prefers-reduced-motion. Sob reduce, springs/layout
+    // são zerados automaticamente — sem deslize do pill dourado entre itens.
+    // Não conflita com o useReducedMotion explícito do PageTransition (que já
+    // gateia manualmente; aqui apenas reforça o mesmo comportamento).
+    <MotionConfig reducedMotion="user">
+      <div className="relative min-h-dvh flex flex-col md:flex-row bg-background text-foreground">
+        {/* Camada ambiente de profundidade — fixada atrás de tudo */}
+        <AmbientBackground />
+        <DesktopSidebar />
+        <MobileHeader />
+        {/*
+          O <main> compensa o MobileHeader fixo usando EXATAMENTE a mesma medida
+          que o header: barra de 56px + safe-area-inset-top. Sem número mágico
+          divergente — header e main usam o mesmo calc(). Em md+ o header não
+          existe (md:pt-0).
+        */}
+        <main className="relative z-0 flex-1 flex flex-col pb-24 md:pb-0 md:pl-60 pt-[calc(env(safe-area-inset-top,0px)+56px)] md:pt-0">
+          {children}
+        </main>
+        <MobileBottomNav />
+      </div>
+    </MotionConfig>
+  );
+}
+
+/**
+ * MobileHeader — barra fixa no topo, visível apenas em mobile (md:hidden).
+ * Glass idêntico ao bottom-nav. Wordmark à esquerda + título da rota à direita.
+ * Inclui safe-area-inset-top para dispositivos com notch.
+ */
+function MobileHeader() {
+  const pathname = usePathname();
+  // Encontra o NAV_ITEM que melhor corresponde ao pathname atual
+  const activeItem = NAV_ITEMS.find(
+    (item) => pathname === item.href || pathname.startsWith(item.href + "/")
+  );
+  const routeLabel = activeItem?.label ?? "SOLOMON";
+
+  return (
+    <header
+      className={cn(
+        "md:hidden fixed top-0 left-0 right-0 z-40",
+        // Altura determinística = safe-area-inset-top + barra fixa de 56px.
+        // O offset do <main> usa o mesmo calc() — header e main em sincronia,
+        // acompanhando o notch real do device em vez de assumir 56px fixos.
+        "h-[calc(env(safe-area-inset-top,0px)+56px)] pt-[env(safe-area-inset-top,0px)] px-4",
+        // Glass idêntico ao bottom-nav
+        "bg-gradient-to-b from-solomon-graphite/85 to-solomon-black/80",
+        "backdrop-blur-xl backdrop-saturate-150",
+        "border-b border-solomon-gold/15",
+        "shadow-[0_12px_30px_-12px_rgba(0,0,0,0.5),0_1px_0_0_rgba(255,208,0,0.06)_inset]"
+      )}
+    >
+      <div className="flex h-14 items-center justify-between gap-2">
+        {/* Wordmark — pequeno, dourado, editorial */}
+        <span className="font-display text-[18px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light [text-shadow:0_0_14px_rgba(255,208,0,0.25)]">
+          SOLOMON
+        </span>
+        {/* Título da rota atual — mono-tag à direita */}
+        <span className="mono-tag truncate max-w-[50%] text-right">
+          {routeLabel}
+        </span>
+      </div>
+    </header>
   );
 }
 
@@ -103,9 +161,10 @@ function DesktopSidebar() {
             <Link
               key={item.href}
               href={item.href}
+              onClick={tapHaptic}
               className={cn(
                 "relative group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold",
-                "transition-premium",
+                "transition-premium active:scale-[0.97]",
                 active
                   ? "text-solomon-black"
                   : "text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-gold/[0.06]"
@@ -175,10 +234,11 @@ function MobileBottomNav() {
               <Link
                 href={item.href}
                 aria-current={active ? "page" : undefined}
+                onClick={tapHaptic}
                 className={cn(
                   "relative flex flex-col items-center justify-center gap-1",
                   "min-h-[48px] px-2 py-1.5 rounded-md",
-                  "transition-premium",
+                  "transition-premium active:scale-[0.97]",
                   active
                     ? "text-solomon-gold"
                     : "text-solomon-cream-muted active:text-solomon-gold-light"

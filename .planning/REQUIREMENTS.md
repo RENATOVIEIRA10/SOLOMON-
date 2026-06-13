@@ -102,3 +102,13 @@ Fonte: `docs/qa/sft-v2-model-gate-2026-06-07.md` — trabalho exigido antes de q
 ## Traceability (preenchido pelo ROADMAP)
 
 Ver `.planning/ROADMAP.md` para mapeamento requirement → phase.
+
+## Shell PWA elevado — sensação de app nativo (adicionado 2026-06-13)
+
+Direção CEO: moderno, luxuoso, animado, concentrado — elevar o luxo atual (preto+ouro+Cormorant), não reinventar. Gate: preview Vercel julgado no celular antes do merge.
+
+- [ ] **SHL-01**: Transição de página em troca de rota (entrada/saída suave), via `template.tsx` + `motion/react`, respeitando `prefers-reduced-motion`
+- [ ] **SHL-02**: Unificar lib de motion — remover `framer-motion`, padronizar `motion/react` em todos os componentes
+- [ ] **SHL-03**: Nav elevada — micro-interações no sidebar desktop + bottom-nav mobile, feedback de toque, haptic leve Android (Web Vibration API, gated em suporte)
+- [ ] **SHL-04**: Ambient background vivo — drift lentíssimo dos glows dourados, reduced-motion safe (zero animação quando o usuário pede)
+- [ ] **SHL-05**: Header contextual mobile — tratamento de topo que fecha a moldura de app nativo (título da rota + safe-area)
