@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { ExternalLink, Bell } from "lucide-react";
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { Card, CardContent } from "@/components/ui/card";
