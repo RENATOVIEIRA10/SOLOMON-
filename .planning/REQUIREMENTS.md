@@ -115,4 +115,4 @@ Direção CEO: moderno, luxuoso, animado, concentrado — elevar o luxo atual (p
 
 ## Disparo de eval pela web (ciclo 002 item 4 — adicionado 2026-06-13)
 
-- [ ] **EVAL-TRIGGER-01**: Admin dispara/monitora eval Ragas pelo /admin via fila (`eval_jobs` no hub) + poller cron na VPS. Sem RCE: web só enfileira; poller executa comando fixo com params validados 2×. Gate admin (`SOLOMON_ADMIN_EMAILS`), anti-dupla-fila, limit cap 50.
+- [x] **EVAL-TRIGGER-01**: Admin dispara/monitora eval Ragas pelo /admin via fila (`eval_jobs` no hub) + poller cron na VPS. Sem RCE: web só enfileira; poller executa comando fixo com params validados 2×. Gate admin (`SOLOMON_ADMIN_EMAILS`), anti-dupla-fila, limit cap 50.

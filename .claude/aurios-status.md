@@ -23,7 +23,7 @@
 | # | Título | Status | Commits | Data |
 |---|--------|--------|---------|------|
 | 001 | Validar rag_exclude filter + rotate secrets + CI build | FECHADO | ad-hoc (notebook check) | 2026-06-03 |
-| 002 | Dashboard admin + baseline Ragas automatizado | PENDENTE | — | — |
+| 002 | Dashboard admin + baseline Ragas automatizado | FECHADO | PRs #74 (eval-trigger) + admin dashboard | 2026-06-13 |
 | 003 | Suite de testes unitários (extractors, RAG pipeline) | PENDENTE | — | — |
 | 006 | Guardrails determinísticos pré-SFT v2 (GSD Phase 5, GRD-01..05) | FECHADO (PRs #67 + #68 merged, prod validado) | `6c95109` + `4618574` | 2026-06-10 |
 | Ops-001 | Stop hook light para Claude Code (operacional, não-produto) | FECHADO | `feat(ops): stop-hook light` | 2026-05-16 |
