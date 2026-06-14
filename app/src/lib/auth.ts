@@ -18,6 +18,10 @@
  * any authenticated user is allowed (so the pilot isn't locked out before the
  * env is configured). Account creation itself should be admin-only (disable
  * public signups in Supabase Auth) — that is the first line of the allowlist.
+ *
+ * Admin gate (Phase 9.1 — eval trigger): opt-in via `SOLOMON_ADMIN_EMAILS`
+ * (comma-separated lowercase emails). When unset, NO ONE is admin (fail-safe
+ * closed — the opposite of the pilot allowlist). Triggers costly VPS processes.
  */
 
 import { NextResponse } from 'next/server'
@@ -121,6 +125,58 @@ export async function getOptionalBrokerContext(): Promise<BrokerContext | null> 
   if (!brokerId) return null
   return { authUserId: user.id, brokerId, email: user.email }
 }
+
+// ---------------------------------------------------------------------------
+// Admin gate (Phase 9.1 — eval trigger)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parses SOLOMON_ADMIN_EMAILS into a lowercase email set.
+ * Returns an EMPTY set when the env var is unset/blank (fail-safe closed).
+ */
+function adminEmails(): Set<string> {
+  const raw = process.env.SOLOMON_ADMIN_EMAILS ?? ''
+  return new Set(
+    raw
+      .split(',')
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean)
+  )
+}
+
+/**
+ * Returns true only when the email is explicitly present in SOLOMON_ADMIN_EMAILS.
+ * When the env var is empty/unset, returns FALSE for everyone (opt-in, not opt-out).
+ * This is intentionally stricter than isAllowlisted, which defaults to open.
+ */
+export function isAdmin(email: string | null): boolean {
+  if (!email) return false
+  const admins = adminEmails()
+  if (admins.size === 0) return false
+  return admins.has(email.toLowerCase())
+}
+
+/**
+ * Requires a verified session from an admin user.
+ * Returns {id, email} on success, or a NextResponse (401/403) to return as-is.
+ *
+ * Usage:
+ *   const auth = await requireAdmin()
+ *   if (auth instanceof NextResponse) return auth
+ *   // auth.email is an admin
+ */
+export async function requireAdmin(): Promise<{ id: string; email: string } | NextResponse> {
+  const user = await getAuthUser()
+  if (!user) return unauthorized()
+  // isAdmin(null) já retorna false, então um admin sempre tem email não-nulo
+  // aqui. Checar !user.email explicitamente reflete esse invariante no tipo de
+  // retorno (email: string) sem precisar do fallback inseguro `?? ''`, que
+  // criava um estado logicamente impossível e gravaria requested_by=''.
+  if (!user.email || !isAdmin(user.email)) return forbidden('admin only')
+  return { id: user.id, email: user.email }
+}
+
+// ---------------------------------------------------------------------------
 
 export async function requireBrokerContext(): Promise<BrokerContext | NextResponse> {
   const user = await getAuthUser()

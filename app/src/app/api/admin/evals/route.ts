@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdmin } from "@/lib/auth";
 import { createHubClient } from "@/lib/supabase-hub";
 
 export const revalidate = 0;
 
 export async function GET(request: NextRequest) {
+  // Gate admin — sem isto, qualquer requisição (até deslogada) lê os dados de
+  // eval (perguntas do Julio, gabaritos, respostas da IA, métricas) via
+  // service-role. Mesma classe de IDOR que auth.ts eliminou na Phase 5.2.
+  const auth = await requireAdmin();
+  if (auth instanceof NextResponse) return auth;
+
   try {
     const { searchParams } = new URL(request.url);
     const runId = searchParams.get("runId");

@@ -1,4 +1,5 @@
 import { createHubClient } from "@/lib/supabase-hub";
+import { getAuthUser, isAdmin } from "@/lib/auth";
 import { EvalDashboard, RunSummary, EvalRunRow } from "@/components/admin/eval-dashboard";
 
 type HubClient = ReturnType<typeof createHubClient>;
@@ -110,9 +111,31 @@ async function getInsurersMap(supabase: HubClient): Promise<Record<string, strin
 }
 
 export default async function AdminPage() {
+  // Gate admin ANTES de qualquer query ao hub. /admin é admin-only: os dados de
+  // eval (perguntas do Julio, gabaritos, respostas da IA, métricas) são
+  // sensíveis. Não-admin (ou sem sessão) não dispara getRunsSummary /
+  // getRunDetail / getInsurersMap — vê apenas "Área restrita".
+  const user = await getAuthUser();
+  const userIsAdmin = isAdmin(user?.email ?? null);
+
+  if (!userIsAdmin) {
+    return (
+      <div className="w-full min-h-[50vh] flex flex-col justify-center items-center gap-4 text-center p-8 max-w-xl mx-auto mt-20">
+        <div className="h-12 w-12 rounded-full bg-solomon-gold/10 border border-solomon-gold/25 flex items-center justify-center text-solomon-gold text-lg">
+          -
+        </div>
+        <h1 className="font-display text-2xl font-semibold text-solomon-gold-light">Área restrita</h1>
+        <p className="text-sm text-solomon-cream-muted/70 leading-relaxed">
+          Esta página é exclusiva para administradores. Os dados de avaliação são confidenciais.
+        </p>
+      </div>
+    );
+  }
+
+  // A partir daqui o usuário é admin — só então buscamos dados de eval.
   const supabase = createHubClient();
   const summaries = await getRunsSummary(supabase);
-  
+
   let initialDetail: EvalRunRow[] = [];
   if (summaries.length > 0) {
     initialDetail = await getRunDetail(supabase, summaries[0].run_id);
@@ -123,14 +146,15 @@ export default async function AdminPage() {
   if (summaries.length === 0) {
     return (
       <div className="w-full min-h-[50vh] flex flex-col justify-center items-center gap-4 text-center p-8 max-w-xl mx-auto mt-20">
-        <div className="h-12 w-12 rounded-full bg-solomon-gold/10 border border-solomon-gold/25 flex items-center justify-center text-solomon-gold text-lg">
-          ⚠️
+        {/* Painel de disparo mesmo sem runs — admin pode iniciar o primeiro */}
+        <div className="w-full max-w-md mb-4">
+          <EvalDashboard
+            summaries={[]}
+            initialDetail={[]}
+            allInsurers={{}}
+            isAdmin={userIsAdmin}
+          />
         </div>
-        <h1 className="font-display text-2xl font-semibold text-solomon-gold-light">Nenhuma run de avaliação encontrada</h1>
-        <p className="text-sm text-solomon-cream-muted/70 leading-relaxed">
-          Nenhuma métrica foi encontrada na tabela <code className="font-mono text-xs text-solomon-gold bg-solomon-charcoal/40 p-1 rounded">eval_runs</code>.
-          Execute uma avaliação Ragas na VPS para preencher a base de dados.
-        </p>
       </div>
     );
   }
@@ -140,6 +164,7 @@ export default async function AdminPage() {
       summaries={summaries}
       initialDetail={initialDetail}
       allInsurers={allInsurers}
+      isAdmin={userIsAdmin}
     />
   );
 }
