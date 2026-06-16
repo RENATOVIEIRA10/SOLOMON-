@@ -18,7 +18,20 @@ created_at  timestamptz default now()
 updated_at  timestamptz -- trigger automático
 ```
 
-RLS on, sem políticas de anon — apenas service_role acessa (igual `eval_runs`).
+RLS on, com políticas `{public}` `true` para SELECT/INSERT/UPDATE — **igual a `eval_runs`**
+(a chave do hub usada por app + poller é a anon/policy-based, server-only, NÃO service-role).
+O controle de **quem pode disparar eval vive na camada de app** (`requireAdmin` no endpoint
+`/api/admin/evals/trigger`), não no DB — a chave do hub não carrega identidade de admin.
+
+> **Correção 2026-06-15:** a migration inicial criou `eval_jobs` com RLS-on-sem-política
+> assumindo acesso só por service_role. O hub deste projeto NÃO usa service-role para
+> app/poller — usa chave anon server-only com políticas `{public}` (mesmo modelo de
+> `eval_runs`/`sync_context`). Sem política, o poller via `[]` (deny-all) e nunca achava o
+> job. Corrigido espelhando `eval_runs`. **Hardening futuro:** migrar o hub inteiro para
+> service-role keys nos clientes (app + poller) e travar `eval_jobs` em RLS-on-sem-política.
+> O risco residual (alguém com a anon key server-only do hub inserindo job direto via REST,
+> burlando o `requireAdmin`) é baixo: a anon key do hub não é exposta ao browser (os
+> `NEXT_PUBLIC_*` apontam para o DB de produto), e o impacto é custo de judge limitado.
 
 ---
 
