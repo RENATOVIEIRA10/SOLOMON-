@@ -134,3 +134,5 @@ WHERE project = 'solomon'
 ORDER BY created_at DESC
 LIMIT 10;
 ```
+
+<!-- redeploy 2026-06-16T02:15Z: carregar SOLOMON_ADMIN_EMAILS -->
