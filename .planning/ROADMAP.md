@@ -184,3 +184,22 @@ Plans:
 3. Instalável: Chrome Android mostra prompt de instalação; iOS Add to Home Screen abre standalone com status bar correta
 4. `npm run build` verde; dependência `@serwist/turbopack` removida (menos superfície de build)
 5. Smoke manual do CEO no celular (UAT): instalar, abrir, usar oráculo, matar rede e ver fallback
+
+---
+
+## Phase 10: Suíte de testes — lógica crítica RAG (ciclo 003)
+
+**Goal:** Fechar o risco "zero cobertura em lógica crítica de cotação". Testes unitários tsx (convenção do repo) para a lógica pura, determinística e crítica do RAG que hoje não tem teste — priorizando o motor de cotação (detectRateIntent + formatRateAnswer) que é o coração do produto e o roteador mais frágil.
+
+**Requirements:** TST-01, TST-02, TST-03, TST-04, TST-05
+
+**Depends on:** nada (lógica já em produção)
+
+**Success criteria:**
+1. detectRateIntent coberto por corpus de fraseados reais + edge; mismatches viram findings
+2. formatRateAnswer cobre os 5 rate_units + capital + comparativo (math correta, sem inversão mensal/anual)
+3. citation, context-builder, query-decomposer/expansion com testes que passam (ou findings se o código diverge)
+4. Cada teste tem script `phase2:*:test` no package.json e exita 0
+5. Nenhuma mudança de código de produção, EXCETO fixes justificados por teste que revelou bug real (com finding documentado)
+
+**Plans:** 10-01 (1 wave, arquivos de teste independentes)
