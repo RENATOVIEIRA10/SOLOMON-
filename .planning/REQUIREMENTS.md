@@ -121,8 +121,8 @@ Direção CEO: moderno, luxuoso, animado, concentrado — elevar o luxo atual (p
 
 Risco aberto: zero cobertura na lógica crítica de cotação/parsing/scoring. Convenção: testes tsx standalone (`tsx --tsconfig scripts/tsconfig.json`), exit 0/1, padrão dos `phase2/*.test.ts`. Teste que falhar contra o código atual = FINDING (surface, não corrigir silencioso).
 
-- [ ] **TST-01**: `detectRateIntent` (rate-lookup) — corpus de fraseados reais de corretor + edge cases; assert hasIntent + campos extraídos (age, capital, gender, productHint/Code, franquia, rendaMensal). É o roteador frágil (Kimi: 5/50 mismatches).
-- [ ] **TST-02**: `formatRateAnswer` + helpers de math/formatação — todos os 5 rate_units (fixed_brl_monthly, per_1000_monthly, per_1000_annual, per_100_diaria_monthly, per_1000_renda_monthly), cálculo com capital, comparativo (mais barato), linha única. Estende o rate-unit-guard.
-- [ ] **TST-03**: `citation.ts` — parse/validação de citações [N], detecção de índice inválido, mapeamento fonte.
-- [ ] **TST-04**: `context-builder.ts` — formatBlock, chunk stitching, truncação por orçamento de chars.
-- [ ] **TST-05**: `query-decomposer.ts` — detecção de query comparativa + sub-queries; e `query-expansion.ts` jargon.
+- [x] **TST-01**: `detectRateIntent` (rate-lookup) — corpus de fraseados reais de corretor + edge cases; assert hasIntent + campos extraídos (age, capital, gender, productHint/Code, franquia, rendaMensal). É o roteador frágil (Kimi: 5/50 mismatches).
+- [x] **TST-02**: `formatRateAnswer` + helpers de math/formatação — todos os 5 rate_units (fixed_brl_monthly, per_1000_monthly, per_1000_annual, per_100_diaria_monthly, per_1000_renda_monthly), cálculo com capital, comparativo (mais barato), linha única. Estende o rate-unit-guard.
+- [x] **TST-03**: `citation.ts` — parse/validação de citações [N], detecção de índice inválido, mapeamento fonte.
+- [x] **TST-04**: `context-builder.ts` — formatBlock, chunk stitching, truncação por orçamento de chars.
+- [x] **TST-05**: `query-decomposer.ts` — detecção de query comparativa + sub-queries; e `query-expansion.ts` jargon.
