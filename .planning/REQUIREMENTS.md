@@ -116,3 +116,13 @@ Direção CEO: moderno, luxuoso, animado, concentrado — elevar o luxo atual (p
 ## Disparo de eval pela web (ciclo 002 item 4 — adicionado 2026-06-13)
 
 - [x] **EVAL-TRIGGER-01**: Admin dispara/monitora eval Ragas pelo /admin via fila (`eval_jobs` no hub) + poller cron na VPS. Sem RCE: web só enfileira; poller executa comando fixo com params validados 2×. Gate admin (`SOLOMON_ADMIN_EMAILS`), anti-dupla-fila, limit cap 50.
+
+## Suíte de testes — lógica crítica RAG (ciclo 003 — adicionado 2026-06-15)
+
+Risco aberto: zero cobertura na lógica crítica de cotação/parsing/scoring. Convenção: testes tsx standalone (`tsx --tsconfig scripts/tsconfig.json`), exit 0/1, padrão dos `phase2/*.test.ts`. Teste que falhar contra o código atual = FINDING (surface, não corrigir silencioso).
+
+- [ ] **TST-01**: `detectRateIntent` (rate-lookup) — corpus de fraseados reais de corretor + edge cases; assert hasIntent + campos extraídos (age, capital, gender, productHint/Code, franquia, rendaMensal). É o roteador frágil (Kimi: 5/50 mismatches).
+- [ ] **TST-02**: `formatRateAnswer` + helpers de math/formatação — todos os 5 rate_units (fixed_brl_monthly, per_1000_monthly, per_1000_annual, per_100_diaria_monthly, per_1000_renda_monthly), cálculo com capital, comparativo (mais barato), linha única. Estende o rate-unit-guard.
+- [ ] **TST-03**: `citation.ts` — parse/validação de citações [N], detecção de índice inválido, mapeamento fonte.
+- [ ] **TST-04**: `context-builder.ts` — formatBlock, chunk stitching, truncação por orçamento de chars.
+- [ ] **TST-05**: `query-decomposer.ts` — detecção de query comparativa + sub-queries; e `query-expansion.ts` jargon.
