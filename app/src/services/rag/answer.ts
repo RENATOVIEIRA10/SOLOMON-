@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RAG Answer Orchestrator
  *
  * Main entry point for the SOLOMON RAG engine.
@@ -893,6 +893,7 @@ const PRODUCT_MATCH_STOPWORDS = new Set([
   'beneficio','beneficios','assistencia','funeral','antecipacao','prazo',
   'declaracoes','condicoes','gerais','documentos','referencias','minha','meu',
   'meus','minhas','sua','seu','seus','suas','este','esta','estes','estas',
+  'http','https','example','test','www','pdf','com','br','html','aspx','conditions',
 ])
 
 function stripAccentsLower(s: string): string {
@@ -918,14 +919,25 @@ export function boostByProductMatch(chunks: SearchResult[], queryTokens: Set<str
   if (queryTokens.size === 0 || chunks.length === 0) return [...chunks]
   return [...chunks]
     .map((c) => {
-      const pname = (c.metadata?.product_name as string | undefined) ?? ''
-      if (!pname) return { ...c, similarity: c.similarity ?? 0 }
-      const ptoks = tokenizeForProductMatch(pname)
+      const productSignal = [
+        c.product_id,
+        c.insurer_id,
+        c.metadata?.product_name,
+        c.metadata?.product_code,
+        c.metadata?.source_title,
+        c.source_url,
+      ]
+        .filter(Boolean)
+        .map(String)
+        .join(' ')
+      if (!productSignal) return { ...c, similarity: c.similarity ?? 0 }
+      const ptoks = tokenizeForProductMatch(productSignal)
       if (ptoks.size === 0) return { ...c, similarity: c.similarity ?? 0 }
       let overlap = 0
       for (const t of ptoks) if (queryTokens.has(t)) overlap++
-      const productOverlap = overlap / ptoks.size
-      const factor = 1 + 0.5 * productOverlap
+      const productOverlap = overlap / Math.min(ptoks.size, queryTokens.size)
+      const hasStrongProductSignal = productOverlap >= 0.35 && overlap >= 2
+      const factor = hasStrongProductSignal ? 1 + 0.9 * productOverlap : 1 + 0.5 * productOverlap
       return { ...c, similarity: (c.similarity ?? 0) * factor }
     })
     .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
