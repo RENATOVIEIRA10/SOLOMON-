@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Copy, Check, ThumbsUp, ThumbsDown, ExternalLink, AlertTriangle } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { cn } from "@/lib/utils";
@@ -123,50 +123,50 @@ export function MessageBubble({
               transition={{ duration: 0.2, ease: "easeOut" }}
               className="flex items-center gap-1 text-solomon-cream-muted/60 pt-1"
             >
-            <button
-              onClick={handleCopy}
-              aria-label="Copiar resposta"
-              className="p-1.5 rounded-md hover:text-solomon-gold hover:bg-solomon-graphite/60 transition-colors"
-              title="Copiar resposta"
-              type="button"
-            >
-              {copied ? (
-                <Check className="size-3.5 text-solomon-gold" />
-              ) : (
-                <Copy className="size-3.5" />
-              )}
-            </button>
-            <button
-              onClick={() => onFeedback?.("up")}
-              aria-label="Marcar resposta como util"
-              className={cn(
-                "p-1.5 rounded-md hover:bg-solomon-graphite/60 transition-colors",
-                message.feedback === "up"
-                  ? "text-solomon-gold"
-                  : "hover:text-solomon-gold"
-              )}
-              title="Resposta útil"
-              type="button"
-            >
-              <ThumbsUp className="size-3.5" />
-            </button>
-            <button
-              onClick={() => onFeedback?.("down")}
-              aria-label="Marcar resposta com problema"
-              className={cn(
-                "p-1.5 rounded-md hover:bg-solomon-graphite/60 transition-colors",
-                message.feedback === "down"
-                  ? "text-destructive"
-                  : "hover:text-destructive"
-              )}
-              title="Resposta com problema"
-              type="button"
-            >
-              <ThumbsDown className="size-3.5" />
-            </button>
-          </motion.div>
-        )}
-      </AnimatePresence>
+              <button
+                onClick={handleCopy}
+                aria-label="Copiar resposta"
+                className="p-1.5 rounded-md hover:text-solomon-gold hover:bg-solomon-graphite/60 transition-colors"
+                title="Copiar resposta"
+                type="button"
+              >
+                {copied ? (
+                  <Check className="size-3.5 text-solomon-gold" />
+                ) : (
+                  <Copy className="size-3.5" />
+                )}
+              </button>
+              <button
+                onClick={() => onFeedback?.("up")}
+                aria-label="Marcar resposta como util"
+                className={cn(
+                  "p-1.5 rounded-md hover:bg-solomon-graphite/60 transition-colors",
+                  message.feedback === "up"
+                    ? "text-solomon-gold"
+                    : "hover:text-solomon-gold"
+                )}
+                title="Resposta útil"
+                type="button"
+              >
+                <ThumbsUp className="size-3.5" />
+              </button>
+              <button
+                onClick={() => onFeedback?.("down")}
+                aria-label="Marcar resposta com problema"
+                className={cn(
+                  "p-1.5 rounded-md hover:bg-solomon-graphite/60 transition-colors",
+                  message.feedback === "down"
+                    ? "text-destructive"
+                    : "hover:text-destructive"
+                )}
+                title="Resposta com problema"
+                type="button"
+              >
+                <ThumbsDown className="size-3.5" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   );
@@ -214,25 +214,30 @@ function CitationCard({ citation }: { citation: Citation }) {
       href={citation.sourceUrl ?? "#"}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex flex-col gap-1 px-3 py-2 rounded-md border border-solomon-gold/15 bg-solomon-graphite/40 hover:bg-solomon-graphite hover:border-solomon-gold/30 transition-colors text-xs"
+      className="group flex flex-col gap-1.5 px-4 py-3 rounded-xl border border-solomon-gold/15 bg-solomon-graphite/30 hover:bg-solomon-graphite/60 hover:border-solomon-gold/30 transition-premium text-xs"
     >
       <div className="flex items-center gap-2">
         <span className="font-mono text-[10px] font-semibold text-solomon-gold bg-solomon-gold/10 px-1.5 py-0.5 rounded">
           {citation.index}
         </span>
-        <span className="font-medium text-solomon-cream">
+        <span className="font-medium text-solomon-cream font-display text-sm tracking-wide">
           {citation.insurerName}
         </span>
-        <span className="text-solomon-cream-muted/60">·</span>
-        <span className="text-solomon-cream-muted flex-1 truncate">
+        <span className="text-solomon-gold/40">·</span>
+        <span className="text-solomon-cream-muted/80 flex-1 truncate font-mono text-[11px]">
           {citation.productName}
         </span>
         {citation.sourceUrl && (
-          <ExternalLink className="size-3 text-solomon-cream-muted/60 group-hover:text-solomon-gold transition-colors shrink-0" />
+          <ExternalLink className="size-3 text-solomon-cream-muted/50 group-hover:text-solomon-gold transition-colors shrink-0" />
         )}
       </div>
+      {citation.excerpt && (
+        <p className="text-[11px] text-solomon-cream-muted/65 leading-relaxed font-mono pl-3 border-l border-solomon-gold/20 ml-2 italic group-hover:text-solomon-cream-muted/85 transition-colors">
+          "{citation.excerpt.trim()}"
+        </p>
+      )}
       {citation.susepProcess && (
-        <span className="font-mono text-[10px] text-solomon-cream-muted/70 pl-7">
+        <span className="font-mono text-[9px] text-solomon-cream-muted/40 pl-7 mt-0.5">
           SUSEP {citation.susepProcess}
         </span>
       )}
@@ -240,12 +245,45 @@ function CitationCard({ citation }: { citation: Citation }) {
   );
 }
 
+const WISDOM_QUOTES = [
+  "A sabedoria é o alvo do prudente.",
+  "Quem anda com os sábios será sábio.",
+  "Como águas profundas é o conselho no coração.",
+  "O homem prudente prevê o perigo e busca proteção.",
+  "Os planos bem preparados levam ao sucesso.",
+  "O coração inteligente busca o conhecimento.",
+  "Adquira a sabedoria e o entendimento."
+];
+
 function TypingIndicator() {
+  const [quoteIndex, setQuoteIndex] = useState(0);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setQuoteIndex((prev) => (prev + 1) % WISDOM_QUOTES.length);
+    }, 2800);
+    return () => clearInterval(interval);
+  }, []);
+
   return (
-    <div className="flex items-center gap-1.5 py-1 px-1">
-      <span className="size-1.5 rounded-full bg-solomon-gold animate-pulse [animation-delay:-0.3s]" />
-      <span className="size-1.5 rounded-full bg-solomon-gold animate-pulse [animation-delay:-0.15s]" />
-      <span className="size-1.5 rounded-full bg-solomon-gold animate-pulse" />
+    <div className="flex flex-col gap-2 py-1 px-1 max-w-[260px] sm:max-w-xs md:max-w-md">
+      <div className="flex items-center gap-1.5">
+        <span className="size-1.5 rounded-full bg-solomon-gold animate-pulse [animation-delay:-0.3s]" />
+        <span className="size-1.5 rounded-full bg-solomon-gold animate-pulse [animation-delay:-0.15s]" />
+        <span className="size-1.5 rounded-full bg-solomon-gold animate-pulse" />
+      </div>
+      <AnimatePresence mode="wait">
+        <motion.p
+          key={quoteIndex}
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -4 }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
+          className="text-[10px] font-mono tracking-wider text-solomon-gold/70 italic leading-snug"
+        >
+          {WISDOM_QUOTES[quoteIndex]}
+        </motion.p>
+      </AnimatePresence>
     </div>
   );
 }

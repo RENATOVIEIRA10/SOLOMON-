@@ -95,7 +95,7 @@ export function DashboardHome() {
   }, [brokerId]);
 
   return (
-    <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top max-w-7xl w-full mx-auto">
+    <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top max-w-7xl w-full mx-auto ambient-grid">
       {/* ===========================================================
           HERO — "Sua sabedoria, instantânea."
           =========================================================== */}
@@ -213,7 +213,9 @@ export function DashboardHome() {
               transition={{ duration: 0.5, delay: 0.06 * (i + 5), ease }}
             >
               <Link href={item.href} className="group block h-full">
-                <Card className="h-full p-6">
+                <Card className="h-full p-6 relative overflow-hidden group hover:shadow-[0_12px_28px_-10px_rgba(0,0,0,0.6),0_0_20px_-6px_rgba(255,208,0,0.15)]">
+                  {/* Subtle top accent gradient that lights up on card hover */}
+                  <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-solomon-gold/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center justify-between mb-4">
                     <div className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-solomon-gold/10 text-solomon-gold border border-solomon-gold/20 transition-premium group-hover:bg-solomon-gold/20 group-hover:border-solomon-gold/40">
                       <item.icon className="h-5 w-5" />
@@ -388,7 +390,7 @@ function StatCard({
       {...fadeUp}
       transition={{ duration: 0.5, delay: 0.06 * index, ease }}
     >
-      <Card className="h-full">
+      <Card className="h-full hover:shadow-[0_12px_24px_-10px_rgba(0,0,0,0.5),0_0_16px_-6px_rgba(255,208,0,0.12)]">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <span className="mono-tag">{label}</span>

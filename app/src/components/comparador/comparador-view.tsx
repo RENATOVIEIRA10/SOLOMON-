@@ -218,58 +218,98 @@ function CompareTable({ result }: { result: CompareResult }) {
         </Card>
       )}
 
-      <Card>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-solomon-gold/20">
-                <th className="text-left px-5 py-3 text-xs uppercase tracking-widest text-solomon-cream-muted font-medium w-1/4">
-                  Dimensão
-                </th>
-                {result.insurerNames.map((name) => (
-                  <th
-                    key={name}
-                    className="text-left px-5 py-3 text-xs uppercase tracking-widest text-solomon-gold font-medium font-display"
-                  >
-                    {name}
+      {/* Mobile-friendly comparison cards */}
+      <div className="block md:hidden space-y-4">
+        {result.dimensions.map((dim, i) => (
+          <Card key={i} className="border border-solomon-gold/15 bg-solomon-graphite/40">
+            <CardHeader className="py-3 px-4 border-b border-solomon-gold/10 bg-solomon-gold/[0.02]">
+              <CardTitle className="text-sm font-display text-solomon-gold tracking-wide">
+                {dim.dimension}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3.5">
+              {result.insurerNames.map((name) => {
+                const row = dim.rows.find((r) => r.insurerName === name);
+                return (
+                  <div key={name} className="flex flex-col gap-1.5 border-b border-solomon-gold/5 pb-3 last:border-b-0 last:pb-0">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-solomon-cream-muted/70">
+                      {name}
+                    </span>
+                    {row ? (
+                      <div className="flex items-start gap-2">
+                        <AdvantageBadge advantage={row.advantage} />
+                        <p className="text-sm text-solomon-cream leading-relaxed">
+                          {row.value}
+                        </p>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-solomon-cream-muted/40">
+                        — Sem dados —
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Desktop side-by-side table */}
+      <div className="hidden md:block">
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-solomon-gold/20">
+                  <th className="text-left px-5 py-3 text-xs uppercase tracking-widest text-solomon-cream-muted font-medium w-1/4">
+                    Dimensão
                   </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {result.dimensions.map((dim, i) => (
-                <tr
-                  key={i}
-                  className="border-b border-solomon-gold/10 hover:bg-solomon-charcoal/30"
-                >
-                  <td className="align-top px-5 py-4 text-sm text-solomon-cream font-medium">
-                    {dim.dimension}
-                  </td>
-                  {result.insurerNames.map((name) => {
-                    const row = dim.rows.find((r) => r.insurerName === name);
-                    return (
-                      <td key={name} className="align-top px-5 py-4">
-                        {row ? (
-                          <div className="flex items-start gap-2">
-                            <AdvantageBadge advantage={row.advantage} />
-                            <p className="text-sm text-solomon-cream leading-relaxed">
-                              {row.value}
-                            </p>
-                          </div>
-                        ) : (
-                          <span className="text-xs text-solomon-cream-muted/50">
-                            —
-                          </span>
-                        )}
-                      </td>
-                    );
-                  })}
+                  {result.insurerNames.map((name) => (
+                    <th
+                      key={name}
+                      className="text-left px-5 py-3 text-xs uppercase tracking-widest text-solomon-gold font-medium font-display"
+                    >
+                      {name}
+                    </th>
+                  ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+              </thead>
+              <tbody>
+                {result.dimensions.map((dim, i) => (
+                  <tr
+                    key={i}
+                    className="border-b border-solomon-gold/10 hover:bg-solomon-charcoal/30"
+                  >
+                    <td className="align-top px-5 py-4 text-sm text-solomon-cream font-medium">
+                      {dim.dimension}
+                    </td>
+                    {result.insurerNames.map((name) => {
+                      const row = dim.rows.find((r) => r.insurerName === name);
+                      return (
+                        <td key={name} className="align-top px-5 py-4">
+                          {row ? (
+                            <div className="flex items-start gap-2">
+                              <AdvantageBadge advantage={row.advantage} />
+                              <p className="text-sm text-solomon-cream leading-relaxed">
+                                {row.value}
+                              </p>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-solomon-cream-muted/50">
+                              —
+                            </span>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </div>
     </motion.div>
   );
 }
