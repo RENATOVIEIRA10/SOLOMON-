@@ -4,10 +4,16 @@
  * EvalTrigger — painel de disparo de eval Ragas pela web.
  *
  * Ações:
- *   1. POST /api/admin/evals/trigger com { limit, judge, multiJudge }
+ *   1. POST /api/admin/evals/trigger com { limit, judge, multiJudge, questionSet }
  *   2. Ao receber 201, inicia polling GET /api/admin/evals/jobs a cada 8s
  *   3. Exibe status do job ativo: requested → running → done/failed
  *   4. Para o polling quando status done/failed
+ *
+ * questionSet (2026-06-24):
+ *   - "all"    → suite legado (49 perguntas), limit variável (3 smoke / 49 full)
+ *   - "focus5" → subset comercial ativo (Azos, Prudential, Icatu, MAG, MetLife),
+ *                limit fixo em 26 (= total do questions_focus5.jsonl).
+ *                Referência: docs/qa/focus5-baseline-2026-06-23.md
  *
  * Estética SOLOMON: gold, mono-tag, sem azul, sem emoji estrutural.
  * Ícones via lucide-react.
@@ -18,18 +24,36 @@ import { Play, RefreshCw, CheckCircle2, XCircle, Loader2, ChevronDown } from "lu
 import { cn } from "@/lib/utils";
 
 type Judge = "openai" | "gemini" | "anthropic";
+type QuestionSet = "all" | "focus5";
 type JobStatus = "requested" | "running" | "done" | "failed";
 
 interface EvalJob {
   id: string;
   status: JobStatus;
-  params: { limit: number; judge: Judge; multiJudge: boolean };
+  params: {
+    limit: number;
+    judge: Judge;
+    multiJudge: boolean;
+    questionSet?: QuestionSet;
+  };
   requested_by: string;
   run_id: string | null;
   error: string | null;
   created_at: string;
   updated_at: string;
 }
+
+// Suites com limit fixo travam o select de limit (suite É a unidade de
+// comparação apples-to-apples com o baseline). Suites variáveis deixam o
+// usuário escolher smoke/full.
+const QUESTION_SET_OPTIONS: {
+  value: QuestionSet;
+  label: string;
+  fixedLimit: number | null;
+}[] = [
+  { value: "all", label: "Todas (49)", fixedLimit: null },
+  { value: "focus5", label: "Focus5 (26)", fixedLimit: 26 },
+];
 
 const LIMIT_OPTIONS = [
   { value: 3, label: "3 — smoke" },
@@ -77,6 +101,7 @@ function formatRelative(iso: string): string {
 }
 
 export function EvalTrigger() {
+  const [questionSet, setQuestionSet] = useState<QuestionSet>("all");
   const [limit, setLimit] = useState<number>(3);
   const [judge, setJudge] = useState<Judge>("openai");
   const [multiJudge, setMultiJudge] = useState<boolean>(false);
@@ -87,6 +112,10 @@ export function EvalTrigger() {
   const [activeJob, setActiveJob] = useState<EvalJob | null>(null);
   const [recentJobs, setRecentJobs] = useState<EvalJob[]>([]);
   const [polling, setPolling] = useState(false);
+
+  // Resolve o limit efetivo (fixo pela suite OU variável pelo usuário)
+  const fixedLimit =
+    QUESTION_SET_OPTIONS.find((o) => o.value === questionSet)?.fixedLimit ?? null;
 
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -137,10 +166,18 @@ export function EvalTrigger() {
     setFiring(true);
     setError(null);
     try {
+      // Se a suite tem limit fixo (focus5), usar ele. Senão, o estado do usuário.
+      // Garante que nunca enviamos limit incompatível com a suite.
+      const effectiveLimit = fixedLimit ?? limit;
       const res = await fetch("/api/admin/evals/trigger", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ limit, judge, multiJudge }),
+        body: JSON.stringify({
+          limit: effectiveLimit,
+          judge,
+          multiJudge,
+          questionSet,
+        }),
       });
 
       if (res.status === 409) {
@@ -188,7 +225,41 @@ export function EvalTrigger() {
       </div>
 
       {/* Controles */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        {/* Suite */}
+        <div className="space-y-1">
+          <label className="font-mono text-[10px] tracking-widest text-solomon-cream-muted/60 uppercase">
+            Suite
+          </label>
+          <div className="relative">
+            <select
+              value={questionSet}
+              onChange={(e) => {
+                const next = e.target.value as QuestionSet;
+                setQuestionSet(next);
+                // Ao trocar pra suite com limit fixo, sincroniza o state
+                // de limit pro valor fixo (UX: não muta o input, só atualiza).
+                const fixed = QUESTION_SET_OPTIONS.find((o) => o.value === next)?.fixedLimit;
+                if (fixed !== null && fixed !== undefined) setLimit(fixed);
+              }}
+              disabled={!canFire}
+              className={cn(
+                "w-full appearance-none bg-solomon-charcoal border border-solomon-gold/20 rounded px-3 py-2",
+                "text-xs text-solomon-cream font-mono",
+                "focus:outline-none focus:border-solomon-gold/50",
+                "disabled:opacity-40 disabled:cursor-not-allowed"
+              )}
+            >
+              {QUESTION_SET_OPTIONS.map((o) => (
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 w-3 h-3 text-solomon-gold/40" />
+          </div>
+        </div>
+
         {/* Limit */}
         <div className="space-y-1">
           <label className="font-mono text-[10px] tracking-widest text-solomon-cream-muted/60 uppercase">
@@ -198,7 +269,7 @@ export function EvalTrigger() {
             <select
               value={limit}
               onChange={(e) => setLimit(Number(e.target.value))}
-              disabled={!canFire}
+              disabled={!canFire || fixedLimit !== null}
               className={cn(
                 "w-full appearance-none bg-solomon-charcoal border border-solomon-gold/20 rounded px-3 py-2",
                 "text-xs text-solomon-cream font-mono",
@@ -206,7 +277,10 @@ export function EvalTrigger() {
                 "disabled:opacity-40 disabled:cursor-not-allowed"
               )}
             >
-              {LIMIT_OPTIONS.map((o) => (
+              {(fixedLimit !== null
+                ? [{ value: fixedLimit, label: `${fixedLimit} — suite` }]
+                : LIMIT_OPTIONS
+              ).map((o) => (
                 <option key={o.value} value={o.value}>
                   {o.label}
                 </option>
@@ -314,6 +388,9 @@ export function EvalTrigger() {
             <span>limit={activeJob.params.limit}</span>
             <span>judge={activeJob.params.judge}</span>
             {activeJob.params.multiJudge && <span>multi</span>}
+            {activeJob.params.questionSet && activeJob.params.questionSet !== "all" && (
+              <span>suite={activeJob.params.questionSet}</span>
+            )}
           </div>
         </div>
       )}
@@ -336,6 +413,9 @@ export function EvalTrigger() {
                   {statusIcon(job.status)}
                   <span className="text-[10px] font-mono text-solomon-cream-muted/70 flex-1">
                     limit={job.params.limit} · {job.params.judge}
+                    {job.params.questionSet && job.params.questionSet !== "all" && (
+                      <> · suite={job.params.questionSet}</>
+                    )}
                     {job.run_id && (
                       <> · <span className="text-solomon-gold/70">{job.run_id}</span></>
                     )}
