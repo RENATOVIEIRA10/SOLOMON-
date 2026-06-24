@@ -347,6 +347,8 @@ function MobileBottomNav() {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsOpen(false)}
+              aria-hidden="true"
+              role="presentation"
               className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm md:hidden"
             />
 

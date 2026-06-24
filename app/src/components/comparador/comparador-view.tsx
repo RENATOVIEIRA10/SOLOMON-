@@ -90,10 +90,10 @@ export function ComparadorView() {
           <span className="mono-tag">Análise lado a lado</span>
           <span className="gold-rule flex-1 max-w-[60px]" />
         </div>
-        <h1 className="font-display text-4xl text-solomon-cream tracking-tight">
+        <h1 className="font-display text-4xl text-solomon-cream tracking-tight text-balance">
           Comparador
         </h1>
-        <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed">
+        <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed text-pretty">
           Selecione de 2 a 3 seguradoras e analise coberturas, exclusões e carências em paralelo. Destaques visuais revelam vantagens e desvantagens de cada proposta.
         </p>
       </header>

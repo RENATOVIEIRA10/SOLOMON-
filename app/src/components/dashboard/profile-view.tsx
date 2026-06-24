@@ -108,10 +108,10 @@ export function ProfileView() {
           <span className="mono-tag">Conta</span>
           <span className="gold-rule flex-1 max-w-[60px]" />
         </div>
-        <h1 className="font-display text-4xl text-solomon-cream tracking-tight">
+        <h1 className="font-display text-4xl text-solomon-cream tracking-tight text-balance">
           Seu Perfil
         </h1>
-        <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed">
+        <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed text-pretty">
           Gerencie suas informações profissionais, credenciais e visualize detalhes do plano de consultas ativo.
         </p>
       </header>
