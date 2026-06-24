@@ -45,6 +45,19 @@ JUDGE_WHITELIST = frozenset({"openai", "gemini", "anthropic"})
 LIMIT_MIN = 1
 LIMIT_MAX = 50
 
+# Whitelist de suites de perguntas + mapping para arquivo jsonl dentro de
+# SCRIPT_DIR. O path é SEMPRE resolvido via SCRIPT_DIR / ... — nunca
+# aceitamos path absoluto vindo do banco (defesa contra path traversal).
+# Para adicionar uma suite nova: (1) arquivo em app/eval/ragas/, (2) entrada
+# aqui, (3) entrada equivalente em app/src/app/api/admin/evals/trigger/route.ts
+# (whitelist + FIXED_LIMITS) e em app/src/components/admin/eval-trigger.tsx
+# (QUESTION_SET_OPTIONS).
+QUESTION_SET_WHITELIST = frozenset({"all", "focus5"})
+QUESTION_SET_FILES: dict[str, str | None] = {
+    "all": None,        # None = deixa run_eval.py usar o default (questions.jsonl)
+    "focus5": "questions_focus5.jsonl",
+}
+
 # Últimas N linhas do stderr/stdout capturadas em caso de falha
 ERROR_TAIL_LINES = 30
 
@@ -182,10 +195,10 @@ def reclaim_stale_jobs() -> int:
     return reclaimed
 
 
-def validate_params(params: dict[str, Any]) -> tuple[int, str, bool] | str:
+def validate_params(params: dict[str, Any]) -> tuple[int, str, bool, str] | str:
     """
     Revalida params do job (defesa em profundidade — nunca confiar no banco).
-    Retorna (limit, judge, multi_judge) se OK, ou mensagem de erro se inválido.
+    Retorna (limit, judge, multi_judge, question_set) se OK, ou mensagem de erro se inválido.
     """
     try:
         limit = int(params.get("limit", 0))
@@ -200,7 +213,11 @@ def validate_params(params: dict[str, Any]) -> tuple[int, str, bool] | str:
 
     multi_judge = bool(params.get("multiJudge", False))
 
-    return limit, judge, multi_judge
+    question_set = str(params.get("questionSet", "all")).strip().lower()
+    if question_set not in QUESTION_SET_WHITELIST:
+        return f"questionSet={question_set!r} nao esta na whitelist {sorted(QUESTION_SET_WHITELIST)}"
+
+    return limit, judge, multi_judge, question_set
 
 
 # Sinais (em stdout/stderr do run_eval) de erro TRANSITÓRIO de API de judge —
@@ -239,11 +256,15 @@ def classify_error(text: str) -> str:
     return "logico"
 
 
-def run_eval(limit: int, judge: str, multi_judge: bool, dry_run: bool = False) -> tuple[int, str, str]:
+def run_eval(limit: int, judge: str, multi_judge: bool, question_set: str = "all", dry_run: bool = False) -> tuple[int, str, str]:
     """
     Executa run_eval.py como subprocesso com params validados.
     Retorna (exit_code, run_id_capturado, error_msg).
     run_id é o timestamp gerado pelo run_eval ('YYYYMMDD_HHMMSS').
+
+    question_set (2026-06-24): "all" (default, legacy) usa questions.jsonl
+    do run_eval.py. Outras suites (ex: "focus5") passam --questions com path
+    resolvido dentro de SCRIPT_DIR — nunca aceita path externo.
     """
     python = str(SCRIPT_DIR / ".venv" / "bin" / "python")
     if not Path(python).exists():
@@ -254,6 +275,13 @@ def run_eval(limit: int, judge: str, multi_judge: bool, dry_run: bool = False) -
 
     # Comando fixo — params passados como argumentos tipados, nunca interpolados
     cmd = [python, run_eval_path, "--limit", str(limit)]
+
+    # --questions: apenas se a suite tem arquivo mapeado (whitelist).
+    # Path resolvido via SCRIPT_DIR — defesa contra path traversal.
+    questions_file = QUESTION_SET_FILES.get(question_set)
+    if questions_file is not None:
+        cmd.extend(["--questions", str(SCRIPT_DIR / questions_file)])
+
     if multi_judge:
         cmd.append("--multi-judge")
 
@@ -357,11 +385,11 @@ def main() -> int:
         patch_job(job_id, {"status": "failed", "error": error_msg})
         return 1
 
-    limit, judge, multi_judge = validation
-    print(f"[poller] params validados: limit={limit} judge={judge} multi_judge={multi_judge}")
+    limit, judge, multi_judge, question_set = validation
+    print(f"[poller] params validados: limit={limit} judge={judge} multi_judge={multi_judge} question_set={question_set}")
 
     # 4. Executar run_eval.py
-    exit_code, run_id, error_msg = run_eval(limit, judge, multi_judge, dry_run=args.dry_run)
+    exit_code, run_id, error_msg = run_eval(limit, judge, multi_judge, question_set, dry_run=args.dry_run)
 
     # 5. Atualizar status no banco
     if exit_code == 0:

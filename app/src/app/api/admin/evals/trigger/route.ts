@@ -19,7 +19,20 @@ import { createHubClient } from '@/lib/supabase-hub'
 
 export const revalidate = 0
 
+// Whitelist de judges suportados
 const JUDGE_WHITELIST = new Set(['openai', 'gemini', 'anthropic'])
+
+// Whitelist de suites de perguntas. "all" é o legado (49 perguntas);
+// "focus5" é o subset comercial ativo (Azos, Prudential, Icatu, MAG,
+// MetLife) — definido em docs/qa/focus5-baseline-2026-06-23.md.
+// Para suites com limit fixo, o limit é FORÇADO pela suite (o do body
+// é ignorado). Suites variáveis ("all") usam o limit do body.
+type QuestionSet = 'all' | 'focus5'
+const QUESTION_SET_WHITELIST = new Set<QuestionSet>(['all', 'focus5'])
+const FIXED_LIMITS: Record<QuestionSet, number | null> = {
+  all: null,    // usuário escolhe (3 smoke / 49 full)
+  focus5: 26,   // suite inteira, sem escolha
+}
 
 export async function POST(request: NextRequest) {
   // 1. Gate admin
@@ -34,15 +47,28 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'invalid json body' }, { status: 400 })
   }
 
-  // limit: inteiro 1..50, default 49
+  // questionSet: whitelisted, default 'all'
+  const questionSet = String(body.questionSet ?? 'all') as QuestionSet
+  if (!QUESTION_SET_WHITELIST.has(questionSet)) {
+    return NextResponse.json(
+      { error: `questionSet inválido: deve ser um de ${[...QUESTION_SET_WHITELIST].join(', ')}` },
+      { status: 400 }
+    )
+  }
+
+  // limit: inteiro 1..50; para suites com FIXED_LIMITS, o fixo tem prioridade.
+  // Aceita o limit do body e normaliza — mais robusto (UI mandando 49 com
+  // questionSet=focus5 vira 26 sem erro).
   const rawLimit = body.limit ?? 49
-  const limit = Number(rawLimit)
-  if (!Number.isInteger(limit) || limit < 1 || limit > 50) {
+  const requestedLimit = Number(rawLimit)
+  if (!Number.isInteger(requestedLimit) || requestedLimit < 1 || requestedLimit > 50) {
     return NextResponse.json(
       { error: 'limit deve ser inteiro entre 1 e 50' },
       { status: 400 }
     )
   }
+  const fixedForSuite = FIXED_LIMITS[questionSet]
+  const limit = fixedForSuite ?? requestedLimit
 
   // judge: whitelist {openai,gemini,anthropic}, default 'openai'
   const judge = (body.judge ?? 'openai') as string
@@ -87,7 +113,7 @@ export async function POST(request: NextRequest) {
     .insert({
       project: 'solomon',
       status: 'requested',
-      params: { limit, judge, multiJudge },
+      params: { limit, judge, multiJudge, questionSet },
       requested_by: requestedBy,
     })
     .select('id, status')
