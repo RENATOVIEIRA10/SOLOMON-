@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, MotionConfig, AnimatePresence } from "motion/react";
@@ -51,6 +51,15 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  useEffect(() => {
+    const savedTheme = localStorage.getItem("solomon-theme") || "classic";
+    const html = document.documentElement;
+    html.classList.remove("theme-midnight", "theme-emerald");
+    if (savedTheme !== "classic") {
+      html.classList.add(`theme-${savedTheme}`);
+    }
+  }, []);
+
   return (
     // MotionConfig reducedMotion="user" — ponto único que faz TODOS os
     // componentes Motion abaixo (incluindo os pills layoutId da sidebar e do

@@ -34,11 +34,33 @@
   --accent-foreground: var(--solomon-black);
   --destructive: #C94F4F;
   --destructive-foreground: var(--solomon-cream);
-  --border: rgba(255, 208, 0, 0.4);
+  --border: color-mix(in srgb, var(--solomon-gold) 25%, transparent);
   --input: rgba(255, 255, 255, 0.10);
   --ring: var(--solomon-gold);
 
   --radius: 0.5rem;
+}
+
+.theme-midnight {
+  --solomon-black: #060a16;
+  --solomon-graphite: #0f1626;
+  --solomon-charcoal: #1e293b;
+  --solomon-gold: #38bdf8;
+  --solomon-gold-light: #7dd3fc;
+  --solomon-gold-dark: #0284c7;
+  --solomon-cream: #f8fafc;
+  --solomon-cream-muted: #93c5fd;
+}
+
+.theme-emerald {
+  --solomon-black: #030806;
+  --solomon-graphite: #0a1410;
+  --solomon-charcoal: #142e24;
+  --solomon-gold: #10b981;
+  --solomon-gold-light: #34d399;
+  --solomon-gold-dark: #047857;
+  --solomon-cream: #f0fdf4;
+  --solomon-cream-muted: #6ee7b7;
 }
 
 @theme inline {
@@ -96,8 +118,8 @@ html {
 
 body {
   background:
-    radial-gradient(1200px 600px at 80% -10%, rgba(255, 208, 0, 0.14), transparent 60%),
-    radial-gradient(900px 500px at 0% 100%, rgba(255, 208, 0, 0.09), transparent 55%),
+    radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, var(--solomon-gold) 14%, transparent), transparent 60%),
+    radial-gradient(900px 500px at 0% 100%, color-mix(in srgb, var(--solomon-gold) 9%, transparent), transparent 55%),
     var(--background);
   background-attachment: fixed;
   color: var(--foreground);

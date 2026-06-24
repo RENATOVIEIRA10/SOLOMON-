@@ -6,6 +6,8 @@ import { Check, User, Phone, Mail, FileText, IdCard } from "lucide-react";
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { tapHaptic } from "@/lib/haptics";
 
 type Profile = {
   id: string;
@@ -33,6 +35,26 @@ export function ProfileView() {
   const [form, setForm] = useState<Partial<Profile>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [currentTheme, setCurrentTheme] = useState("classic");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedTheme = localStorage.getItem("solomon-theme") || "classic";
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setCurrentTheme(savedTheme);
+    }
+  }, []);
+
+  function changeTheme(theme: string) {
+    setCurrentTheme(theme);
+    localStorage.setItem("solomon-theme", theme);
+    const html = document.documentElement;
+    html.classList.remove("theme-midnight", "theme-emerald");
+    if (theme !== "classic") {
+      html.classList.add(`theme-${theme}`);
+    }
+    tapHaptic();
+  }
 
   useEffect(() => {
     if (!brokerId) return;
@@ -101,6 +123,43 @@ export function ProfileView() {
             {PLAN_LABELS[profile.plan] ?? profile.plan}
           </CardDescription>
         </CardHeader>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-xl">Aparência do Cockpit</CardTitle>
+          <CardDescription>
+            Personalize o esquema de cores secundárias do seu painel.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row gap-3">
+          {[
+            { id: "classic", label: "Ouro Clássico", desc: "Grafite & Ouro", color: "bg-[#FFD000]" },
+            { id: "midnight", label: "Vigília", desc: "Azul Profundo", color: "bg-[#38bdf8]" },
+            { id: "emerald", label: "Esmeralda", desc: "Verde Imperial", color: "bg-[#10b981]" },
+          ].map((t) => {
+            const active = currentTheme === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                onClick={() => changeTheme(t.id)}
+                className={cn(
+                  "flex-1 flex flex-col items-start gap-1.5 p-3.5 rounded-lg border text-left transition-all active:scale-[0.98] cursor-pointer",
+                  active
+                    ? "border-solomon-gold bg-solomon-gold/5 shadow-[0_0_15px_rgba(255,208,0,0.15)]"
+                    : "border-solomon-gold/10 bg-solomon-charcoal/20 hover:border-solomon-gold/30"
+                )}
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <span className={cn("size-3 rounded-full shrink-0", t.color)} />
+                  <span className="text-xs font-semibold text-solomon-cream leading-none">{t.label}</span>
+                </div>
+                <span className="text-[10px] text-solomon-cream-muted/50 leading-none pl-5 mt-1">{t.desc}</span>
+              </button>
+            );
+          })}
+        </CardContent>
       </Card>
 
       <form onSubmit={save}>
