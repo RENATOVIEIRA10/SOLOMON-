@@ -360,16 +360,22 @@ export async function ask(
         })
         nameResults.push(...r)
       }
-      const productBoostedCandidates = boostByCoverageIntent(
-        boostByProductMatch(nameResults, queryTokens),
+      const productBoostedCandidates = boostByAdditionalCoverageIntent(
+        boostByCoverageIntent(
+          boostByProductMatch(nameResults, queryTokens),
+          expandedQuery
+        ),
         expandedQuery
       )
       const locallyRanked =
         shouldRerankWithinEntity && productBoostedCandidates.length > perInsurer
           ? await rerankWithinEntity(expandedQuery, productBoostedCandidates, perInsurer)
           : productBoostedCandidates
-      const boosted = boostByCoverageIntent(
-        boostByProductMatch(locallyRanked, queryTokens),
+      const boosted = boostByAdditionalCoverageIntent(
+        boostByCoverageIntent(
+          boostByProductMatch(locallyRanked, queryTokens),
+          expandedQuery
+        ),
         expandedQuery
       )
       const trimmed = boosted.slice(0, perInsurer)
@@ -995,6 +1001,84 @@ export function boostByCoverageIntent(chunks: SearchResult[], query: string): Se
       return {
         ...chunk,
         similarity: Math.max(0, (chunk.similarity ?? 0) * Math.max(0.3, factor)),
+      }
+    })
+    .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
+}
+
+export function boostByAdditionalCoverageIntent(chunks: SearchResult[], query: string): SearchResult[] {
+  if (chunks.length === 0) return []
+
+  const q = stripAccentsLower(query)
+  const wantsAdditionalCoverage =
+    (q.includes('cobertura') || q.includes('coberturas')) &&
+    (q.includes('adicional') || q.includes('adicionais') || q.includes('oferece') || q.includes('oferecem'))
+
+  if (!wantsAdditionalCoverage) return [...chunks]
+
+  const coveragePatterns = [
+    /\bipa\b/,
+    /\bdmh\b/,
+    /\bdg\b/,
+    /invalidez permanente/,
+    /despesas medico/,
+    /despesas hospital/,
+    /doencas graves/,
+    /procedimentos cirurgicos/,
+    /diaria de internacao/,
+    /renda por incapacidade/,
+    /doencas incapacitantes/,
+    /auxilio funeral/,
+    /\bfuneral\b/,
+    /invalidez funcional/,
+    /\bifpd\b/,
+    /fratura ossea/,
+    /\bcirurgia\b/,
+    /\bcirurgias\b/,
+    /temporaria de morte/,
+    /morte acidental/,
+  ]
+
+  return [...chunks]
+    .map((chunk) => {
+      const metadataText = [
+        chunk.metadata?.product_name,
+        chunk.metadata?.coverage_name,
+        chunk.metadata?.product_code,
+        chunk.metadata?.source_title,
+        chunk.source_type,
+        chunk.source_url,
+      ]
+        .filter(Boolean)
+        .map(String)
+        .join(' ')
+
+      const text = stripAccentsLower(`${metadataText} ${chunk.content}`)
+      const hasAdditionalCoverageHeader =
+        /coberturas?\s+adiciona/.test(text) ||
+        /condicao especial.*cobertura adicional/.test(text) ||
+        /conheca as regras das suas coberturas/.test(text)
+      const coverageHits = coveragePatterns.reduce(
+        (count, pattern) => count + (pattern.test(text) ? 1 : 0),
+        0
+      )
+
+      let factor = 1
+      if (hasAdditionalCoverageHeader) factor += 0.35
+      factor += Math.min(0.9, coverageHits * 0.1)
+
+      const genericLegalChunk =
+        text.includes('ambito territorial') ||
+        text.includes('pagamento da indenizacao') ||
+        text.includes('premio') ||
+        text.includes('sub-rogacao') ||
+        text.includes('foro')
+      if (!hasAdditionalCoverageHeader && coverageHits < 2 && genericLegalChunk) factor -= 0.25
+      if (!hasAdditionalCoverageHeader && coverageHits === 0) factor -= 0.15
+
+      return {
+        ...chunk,
+        similarity: Math.max(0, (chunk.similarity ?? 0) * Math.max(0.4, factor)),
       }
     })
     .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
