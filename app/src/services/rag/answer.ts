@@ -1,4 +1,4 @@
-﻿/**
+/**
  * RAG Answer Orchestrator
  *
  * Main entry point for the SOLOMON RAG engine.
@@ -360,16 +360,22 @@ export async function ask(
         })
         nameResults.push(...r)
       }
-      const productBoostedCandidates = boostByCoverageIntent(
-        boostByProductMatch(nameResults, queryTokens),
+      const productBoostedCandidates = boostByAdditionalCoverageIntent(
+        boostByCoverageIntent(
+          boostByProductMatch(nameResults, queryTokens),
+          expandedQuery
+        ),
         expandedQuery
       )
       const locallyRanked =
         shouldRerankWithinEntity && productBoostedCandidates.length > perInsurer
           ? await rerankWithinEntity(expandedQuery, productBoostedCandidates, perInsurer)
           : productBoostedCandidates
-      const boosted = boostByCoverageIntent(
-        boostByProductMatch(locallyRanked, queryTokens),
+      const boosted = boostByAdditionalCoverageIntent(
+        boostByCoverageIntent(
+          boostByProductMatch(locallyRanked, queryTokens),
+          expandedQuery
+        ),
         expandedQuery
       )
       const trimmed = boosted.slice(0, perInsurer)
@@ -893,6 +899,7 @@ const PRODUCT_MATCH_STOPWORDS = new Set([
   'beneficio','beneficios','assistencia','funeral','antecipacao','prazo',
   'declaracoes','condicoes','gerais','documentos','referencias','minha','meu',
   'meus','minhas','sua','seu','seus','suas','este','esta','estes','estas',
+  'http','https','example','test','www','pdf','com','br','html','aspx','conditions',
 ])
 
 function stripAccentsLower(s: string): string {
@@ -918,14 +925,25 @@ export function boostByProductMatch(chunks: SearchResult[], queryTokens: Set<str
   if (queryTokens.size === 0 || chunks.length === 0) return [...chunks]
   return [...chunks]
     .map((c) => {
-      const pname = (c.metadata?.product_name as string | undefined) ?? ''
-      if (!pname) return { ...c, similarity: c.similarity ?? 0 }
-      const ptoks = tokenizeForProductMatch(pname)
+      const productSignal = [
+        c.product_id,
+        c.insurer_id,
+        c.metadata?.product_name,
+        c.metadata?.product_code,
+        c.metadata?.source_title,
+        c.source_url,
+      ]
+        .filter(Boolean)
+        .map(String)
+        .join(' ')
+      if (!productSignal) return { ...c, similarity: c.similarity ?? 0 }
+      const ptoks = tokenizeForProductMatch(productSignal)
       if (ptoks.size === 0) return { ...c, similarity: c.similarity ?? 0 }
       let overlap = 0
       for (const t of ptoks) if (queryTokens.has(t)) overlap++
-      const productOverlap = overlap / ptoks.size
-      const factor = 1 + 0.5 * productOverlap
+      const productOverlap = overlap / Math.min(ptoks.size, queryTokens.size)
+      const hasStrongProductSignal = productOverlap >= 0.35 && overlap >= 2
+      const factor = hasStrongProductSignal ? 1 + 0.9 * productOverlap : 1 + 0.5 * productOverlap
       return { ...c, similarity: (c.similarity ?? 0) * factor }
     })
     .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
@@ -983,6 +1001,84 @@ export function boostByCoverageIntent(chunks: SearchResult[], query: string): Se
       return {
         ...chunk,
         similarity: Math.max(0, (chunk.similarity ?? 0) * Math.max(0.3, factor)),
+      }
+    })
+    .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
+}
+
+export function boostByAdditionalCoverageIntent(chunks: SearchResult[], query: string): SearchResult[] {
+  if (chunks.length === 0) return []
+
+  const q = stripAccentsLower(query)
+  const wantsAdditionalCoverage =
+    (q.includes('cobertura') || q.includes('coberturas')) &&
+    (q.includes('adicional') || q.includes('adicionais') || q.includes('oferece') || q.includes('oferecem'))
+
+  if (!wantsAdditionalCoverage) return [...chunks]
+
+  const coveragePatterns = [
+    /\bipa\b/,
+    /\bdmh\b/,
+    /\bdg\b/,
+    /invalidez permanente/,
+    /despesas medico/,
+    /despesas hospital/,
+    /doencas graves/,
+    /procedimentos cirurgicos/,
+    /diaria de internacao/,
+    /renda por incapacidade/,
+    /doencas incapacitantes/,
+    /auxilio funeral/,
+    /\bfuneral\b/,
+    /invalidez funcional/,
+    /\bifpd\b/,
+    /fratura ossea/,
+    /\bcirurgia\b/,
+    /\bcirurgias\b/,
+    /temporaria de morte/,
+    /morte acidental/,
+  ]
+
+  return [...chunks]
+    .map((chunk) => {
+      const metadataText = [
+        chunk.metadata?.product_name,
+        chunk.metadata?.coverage_name,
+        chunk.metadata?.product_code,
+        chunk.metadata?.source_title,
+        chunk.source_type,
+        chunk.source_url,
+      ]
+        .filter(Boolean)
+        .map(String)
+        .join(' ')
+
+      const text = stripAccentsLower(`${metadataText} ${chunk.content}`)
+      const hasAdditionalCoverageHeader =
+        /coberturas?\s+adiciona/.test(text) ||
+        /condicao especial.*cobertura adicional/.test(text) ||
+        /conheca as regras das suas coberturas/.test(text)
+      const coverageHits = coveragePatterns.reduce(
+        (count, pattern) => count + (pattern.test(text) ? 1 : 0),
+        0
+      )
+
+      let factor = 1
+      if (hasAdditionalCoverageHeader) factor += 0.35
+      factor += Math.min(0.9, coverageHits * 0.1)
+
+      const genericLegalChunk =
+        text.includes('ambito territorial') ||
+        text.includes('pagamento da indenizacao') ||
+        text.includes('premio') ||
+        text.includes('sub-rogacao') ||
+        text.includes('foro')
+      if (!hasAdditionalCoverageHeader && coverageHits < 2 && genericLegalChunk) factor -= 0.25
+      if (!hasAdditionalCoverageHeader && coverageHits === 0) factor -= 0.15
+
+      return {
+        ...chunk,
+        similarity: Math.max(0, (chunk.similarity ?? 0) * Math.max(0.4, factor)),
       }
     })
     .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))

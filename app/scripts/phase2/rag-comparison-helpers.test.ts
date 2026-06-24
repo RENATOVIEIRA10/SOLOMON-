@@ -11,7 +11,7 @@ process.env.SUPABASE_SERVICE_ROLE_KEY = 'test-service-role-key'
 
 import { detectRateIntent } from '@/services/rag/rate-lookup'
 import { buildRerankDocument, type SearchResult } from '@/services/rag/search'
-import { boostByCoverageIntent } from '@/services/rag/answer'
+import { boostByAdditionalCoverageIntent, boostByCoverageIntent, boostByProductMatch, tokenizeForProductMatch } from '@/services/rag/answer'
 import { expandQueryWithJargon } from '@/config/jargon'
 
 let passed = 0
@@ -133,10 +133,94 @@ function gateDoencasGravesBoost(): void {
   ok('DG product outranks generic institutional report', ranked[0]?.id === 'dg-product')
 }
 
+function gateProductMatchBoostUsesSourceUrl(): void {
+  console.log('\n## product match boost')
+  const genericCarencia: SearchResult = {
+    id: 'capital-global-carencia',
+    content: '16. Carencia. No caso de suicidio, havera carencia de 24 meses.',
+    similarity: 0.9,
+    metadata: {
+      insurer_name: 'Prudential do Brasil',
+      product_name: 'PRUDENTIAL CAPITAL GLOBAL',
+    },
+    source_url: 'https://example.test/capital-global.pdf',
+    source_type: 'conditions_pdf',
+    product_id: 'capital-global',
+    insurer_id: 'prudential',
+  }
+  const vidaInteiraClause: SearchResult = {
+    id: 'vida-inteira-carencia',
+    content: '4.1 Morte da pessoa segurada. De 2(dois) anos, em caso de morte resultante de suicidio.',
+    similarity: 0.74,
+    metadata: {
+      insurer_name: 'Prudential do Brasil',
+      product_name: 'Conditions PDF',
+    },
+    source_url: 'https://example.test/condicoes-gerais-vida-inteira-modificado-30.pdf',
+    source_type: 'conditions_pdf',
+    product_id: 'vida-inteira',
+    insurer_id: 'prudential',
+  }
+
+  const ranked = boostByProductMatch(
+    [genericCarencia, vidaInteiraClause],
+    tokenizeForProductMatch('Qual o periodo de carencia para suicidio no Seguro Vida Inteira da Prudential?')
+  )
+
+  ok('explicit Vida Inteira source outranks generic Prudential carencia chunk', ranked[0]?.id === 'vida-inteira-carencia')
+}
+
+function gateAdditionalCoverageBoost(): void {
+  console.log('\n## additional coverage boost')
+  const genericLegalClause: SearchResult = {
+    id: 'metlife-territorial',
+    content: 'Ambito territorial de cobertura. Pagamento da indenizacao. Premio e foro.',
+    similarity: 0.9,
+    metadata: {
+      insurer_name: 'MetLife',
+      product_name: 'Vida Segura',
+    },
+    source_url: 'https://example.test/metlife-vida-segura.pdf',
+    source_type: 'conditions_pdf',
+    product_id: 'vida-segura',
+    insurer_id: 'metlife',
+  }
+  const coverageIndex: SearchResult = {
+    id: 'metlife-coverage-index',
+    content: [
+      'Conheca as regras das suas coberturas.',
+      'Condicao Especial - Cobertura Adicional Invalidez Permanente por Acidente (IPA).',
+      'Cobertura Adicional de Doencas Graves e Procedimentos Cirurgicos.',
+      'Cobertura Adicional Diaria de Internacao Hospitalar.',
+      'Cobertura Adicional Funeral.',
+      'Cobertura Adicional Invalidez Funcional Permanente por Doenca.',
+      'Cobertura Adicional Fratura Ossea.',
+    ].join(' '),
+    similarity: 0.62,
+    metadata: {
+      insurer_name: 'MetLife',
+      product_name: 'Vida Segura',
+    },
+    source_url: 'https://example.test/metlife-vida-segura.pdf',
+    source_type: 'conditions_pdf',
+    product_id: 'vida-segura',
+    insurer_id: 'metlife',
+  }
+
+  const ranked = boostByAdditionalCoverageIntent(
+    [genericLegalClause, coverageIndex],
+    'Que coberturas adicionais o MetLife oferece em seus produtos de vida?'
+  )
+
+  ok('MetLife coverage list outranks generic legal clause', ranked[0]?.id === 'metlife-coverage-index')
+}
+
 gateMultiProductRateIntent()
 gateRerankDocumentMetadata()
 gateAcidentesPessoaisExpansion()
 gateDoencasGravesBoost()
+gateProductMatchBoostUsesSourceUrl()
+gateAdditionalCoverageBoost()
 
 if (failed > 0) {
   console.error(`\n${failed} failed, ${passed} passed`)
