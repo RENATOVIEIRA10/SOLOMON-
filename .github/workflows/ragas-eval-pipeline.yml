@@ -1,0 +1,94 @@
+name: SOLOMON Ragas Evaluation
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Limite de perguntas a avaliar (0 = todas)'
+        required: false
+        default: '0'
+      skip_hub:
+        description: 'Pular gravação de métricas no Agentes Hub'
+        type: boolean
+        required: false
+        default: false
+  schedule:
+    # Dispara semanalmente às segundas-feiras às 03:00 UTC
+    - cron: '0 3 * * 1'
+
+jobs:
+  ragas-eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Executar Avaliação na VPS via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST || '104.131.187.118' }}
+          username: root
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            echo "=== Iniciando Ragas Eval Harness ==="
+            cd /root/solomon/repo/app/eval/ragas
+            
+            # Ativa ambiente virtual
+            source .venv/bin/activate
+            
+            # Carrega variáveis de ambiente
+            set -a
+            source /root/agents/config/.env
+            source /root/solomon/repo/app/.env.local
+            set +a
+            
+            # Atualiza repositório para o commit mais recente
+            git fetch origin master
+            git reset --hard origin/master
+            
+            # Configura argumentos
+            ARGS=""
+            if [ "${{ github.event.inputs.limit }}" != "" ] && [ "${{ github.event.inputs.limit }}" != "0" ]; then
+              ARGS="$ARGS --limit ${{ github.event.inputs.limit }}"
+            fi
+            if [ "${{ github.event.inputs.skip_hub }}" = "true" ]; then
+              ARGS="$ARGS --skip-hub"
+            fi
+            
+            # Executa com multi-judge para mitigar viés do avaliador
+            python run_eval.py --multi-judge $ARGS
+            
+            # Encontra a pasta de resultados mais recente
+            LATEST_RUN=$(ls -td results/*/ | head -1)
+            echo "Pasta de resultados: $LATEST_RUN"
+            
+            # Gera o relatório MD
+            python report.py "$LATEST_RUN"
+            
+            # Imprime os resultados agregados no console
+            cat "$LATEST_RUN/ragas_scores.json"
+            
+            # Validação de Regression Gates
+            echo "=== Validando Limiares Mínimos (Gates) ==="
+            FAITHFULNESS=$(jq '.faithfulness' "$LATEST_RUN/ragas_scores.json")
+            CORRECTNESS=$(jq '.answer_correctness' "$LATEST_RUN/ragas_scores.json")
+            PRECISION=$(jq '.context_precision' "$LATEST_RUN/ragas_scores.json")
+            
+            echo "Faithfulness: $FAITHFULNESS (Min: 0.75)"
+            echo "Correctness: $CORRECTNESS (Min: 0.70)"
+            echo "Precision: $PRECISION (Min: 0.80)"
+            
+            # Fail-fast caso haja regressões graves
+            if (( $(echo "$FAITHFULNESS < 0.75" | bc -l) )); then
+              echo "ERRO: Faithfulness abaixo do limite tolerado!"
+              exit 1
+            fi
+            if (( $(echo "$CORRECTNESS < 0.70" | bc -l) )); then
+              echo "ERRO: Answer Correctness abaixo do limite tolerado!"
+              exit 1
+            fi
+            if (( $(echo "$PRECISION < 0.80" | bc -l) )); then
+              echo "ERRO: Context Precision abaixo do limite tolerado!"
+              exit 1
+            fi
+            
+            echo "Sucesso: Todos os Regression Gates passaram."
