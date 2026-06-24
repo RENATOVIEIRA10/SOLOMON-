@@ -76,17 +76,21 @@ export function ClientsView() {
 
   return (
     <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top">
-      <header className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+      <header className="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-8 md:mb-10">
         <div>
-          <p className="font-mono text-xs uppercase text-solomon-gold/80">
-            Carteira
-          </p>
-          <h1 className="mt-2 font-display text-4xl text-solomon-cream text-balance">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="mono-tag">Carteira</span>
+            <span className="gold-rule flex-1 max-w-[60px]" />
+          </div>
+          <h1 className="font-display text-4xl text-solomon-cream tracking-tight">
             Meus Clientes
           </h1>
+          <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed">
+            Gerencie seus clientes segurados e acesse históricos e análises de cobertura de forma centralizada.
+          </p>
         </div>
-        <Button onClick={() => setDialogOpen(true)}>
-          <Plus className="size-4" />
+        <Button onClick={() => setDialogOpen(true)} className="shrink-0 self-start md:self-center">
+          <Plus className="size-4 animate-pulse" />
           Novo cliente
         </Button>
       </header>

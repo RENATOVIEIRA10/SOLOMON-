@@ -37,16 +37,16 @@ export function KnowledgeView() {
 
   return (
     <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top max-w-4xl mx-auto w-full">
-      <header className="mb-8">
-        <p className="font-mono text-xs uppercase tracking-widest text-solomon-gold/80">
-          Busca direta
-        </p>
-        <h1 className="mt-2 font-display text-4xl text-solomon-cream">
+      <header className="mb-8 md:mb-10">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="mono-tag">Busca direta</span>
+          <span className="gold-rule flex-1 max-w-[60px]" />
+        </div>
+        <h1 className="font-display text-4xl text-solomon-cream tracking-tight">
           Base de Conhecimento
         </h1>
-        <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl">
-          Busque trechos exatos das condições gerais indexadas. Sem
-          interpretação da IA — o texto cru, como está no PDF.
+        <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed">
+          Busque cláusulas e termos literais nas condições gerais indexadas. Sem interpretação sintética da IA — o texto cru, exatamente como publicado nos regulamentos.
         </p>
       </header>
 

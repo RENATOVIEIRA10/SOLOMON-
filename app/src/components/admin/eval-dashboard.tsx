@@ -285,11 +285,15 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
       {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-solomon-gold/15 pb-6">
         <div>
-          <h1 className="font-display text-3xl md:text-4xl font-semibold tracking-wide text-solomon-gold-light">
-            Evolução de Qualidade IA
+          <div className="flex items-center gap-2 mb-2">
+            <span className="mono-tag">Qualidade Ragas</span>
+            <span className="gold-rule flex-1 max-w-[60px]" />
+          </div>
+          <h1 className="font-display text-4xl text-solomon-cream tracking-tight">
+            Evolução Ragas
           </h1>
-          <p className="text-sm text-solomon-cream-muted/70 mt-1.5 font-sans">
-            Métricas Ragas geradas automaticamente para avaliar a acurácia do SOLOMON
+          <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed">
+            Métricas de assertividade avaliadas automaticamente para monitorar a precisão e confiabilidade das respostas do SOLOMON.
           </p>
         </div>
         

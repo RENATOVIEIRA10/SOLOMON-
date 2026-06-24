@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 // validate-heldout.cjs
 // Valida app/eval/fine_tuning/solomon-guardrails-heldout.jsonl
 // Regras:

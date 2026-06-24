@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+/* eslint-disable @typescript-eslint/no-require-imports */
 // validate-sft-v2-questions.cjs
 // Valida app/eval/fine_tuning/sft-v2-questions.jsonl (banco de perguntas SFT v2).
 //

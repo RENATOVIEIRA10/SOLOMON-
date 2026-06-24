@@ -81,13 +81,17 @@ export function ProfileView() {
 
   return (
     <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top max-w-3xl mx-auto w-full">
-      <header className="mb-8">
-        <p className="font-mono text-xs uppercase tracking-widest text-solomon-gold/80">
-          Conta
-        </p>
-        <h1 className="mt-2 font-display text-4xl text-solomon-cream">
-          Seu perfil
+      <header className="mb-8 md:mb-10">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="mono-tag">Conta</span>
+          <span className="gold-rule flex-1 max-w-[60px]" />
+        </div>
+        <h1 className="font-display text-4xl text-solomon-cream tracking-tight">
+          Seu Perfil
         </h1>
+        <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed">
+          Gerencie suas informações profissionais, credenciais e visualize detalhes do plano de consultas ativo.
+        </p>
       </header>
 
       <Card className="mb-6">

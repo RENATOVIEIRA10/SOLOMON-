@@ -233,7 +233,7 @@ function CitationCard({ citation }: { citation: Citation }) {
       </div>
       {citation.excerpt && (
         <p className="text-[11px] text-solomon-cream-muted/65 leading-relaxed font-mono pl-3 border-l border-solomon-gold/20 ml-2 italic group-hover:text-solomon-cream-muted/85 transition-colors">
-          "{citation.excerpt.trim()}"
+          &quot;{citation.excerpt.trim()}&quot;
         </p>
       )}
       {citation.susepProcess && (
