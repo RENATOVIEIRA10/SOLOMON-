@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion, MotionConfig, AnimatePresence } from "motion/react";
 import {
   MessageSquare,
+  MessageCircle,
   LayoutDashboard,
   Scale,
   ShieldCheck,
@@ -42,6 +43,12 @@ const NAV_ITEMS: NavItem[] = [
     shortLabel: "Comparar",
     href: "/comparador",
     icon: Scale,
+  },
+  {
+    label: "WhatsApp",
+    shortLabel: "WhatsApp",
+    href: "/whatsapp",
+    icon: MessageCircle,
   },
   { label: "Clientes", shortLabel: "Clientes", href: "/clientes", icon: Users },
   { label: "Base", shortLabel: "Base", href: "/base", icon: BookOpen },
@@ -230,11 +237,12 @@ function MobileBottomNav() {
   const primaryItems = NAV_ITEMS.slice(0, 4);
 
   // Verifica se alguma das rotas do menu "Mais" está ativa
-  const isMoreActive = ["/clientes", "/base", "/alertas", "/admin", "/perfil"].some(
+  const isMoreActive = ["/whatsapp", "/clientes", "/base", "/alertas", "/admin", "/perfil"].some(
     (href) => pathname === href || pathname.startsWith(href + "/")
   );
 
   const moreItems = [
+    { label: "WhatsApp", desc: "Conversas do canal", href: "/whatsapp", icon: MessageCircle },
     { label: "Clientes", desc: "Carteira de clientes", href: "/clientes", icon: Users },
     { label: "Base", desc: "Condições gerais", href: "/base", icon: BookOpen },
     { label: "Alertas", desc: "Feed regulatório", href: "/alertas", icon: Bell },

@@ -320,9 +320,11 @@ export type Database = {
         Row: {
           broker_id: string
           channel: string
+          confidence_score: number | null
           created_at: string
           id: string
           latency_ms: number | null
+          low_confidence: boolean
           message: string
           model: string | null
           response: string | null
@@ -333,9 +335,11 @@ export type Database = {
         Insert: {
           broker_id: string
           channel: string
+          confidence_score?: number | null
           created_at?: string
           id?: string
           latency_ms?: number | null
+          low_confidence?: boolean
           message: string
           model?: string | null
           response?: string | null
@@ -346,9 +350,11 @@ export type Database = {
         Update: {
           broker_id?: string
           channel?: string
+          confidence_score?: number | null
           created_at?: string
           id?: string
           latency_ms?: number | null
+          low_confidence?: boolean
           message?: string
           model?: string | null
           response?: string | null

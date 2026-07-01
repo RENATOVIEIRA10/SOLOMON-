@@ -183,7 +183,7 @@ export async function ask(
     const answer = refusalMessageForDomain(domainCheck.detectedDomain)
     let conversationId: string | undefined
     if (options?.brokerId) {
-      conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? 'api', message: question, response: answer, model: 'domain-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] })
+      conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? 'api', message: question, response: answer, model: 'domain-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [], confidenceScore: 1.0, lowConfidence: false })
     }
     return { answer, citations: [], sources: [], model: 'domain-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, conversationId, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] }
   }
@@ -195,7 +195,7 @@ export async function ask(
     const answer = claimGuidanceMessage()
     let conversationId: string | undefined
     if (options?.brokerId) {
-      conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? 'api', message: question, response: answer, model: 'claim-verdict-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] })
+      conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? 'api', message: question, response: answer, model: 'claim-verdict-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [], confidenceScore: 1.0, lowConfidence: false })
     }
     return { answer, citations: [], sources: [], model: 'claim-verdict-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, conversationId, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] }
   }
@@ -293,6 +293,8 @@ export async function ask(
               tokensUsed: 0,
               latencyMs: Date.now() - startTime,
               sources: [],
+              confidenceScore: confidence,
+              lowConfidence: !hasEnoughDimensions,
             })
           }
           console.log(`[rag/ask] Rate fast-path HIT — ${rateRows.length} rows, confidence=${confidence}. Bypassing LLM.`)
@@ -560,7 +562,7 @@ export async function ask(
       const answer = `Nao tenho documentos da ${mentionedInsurers.join(' / ')} indexados para responder isso com seguranca. Nao posso usar documentos de outra seguradora como substituto.`
       let conversationId: string | undefined
       if (options?.brokerId) {
-        conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? 'api', message: question, response: answer, model: 'insurer-source-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] })
+        conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? 'api', message: question, response: answer, model: 'insurer-source-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [], confidenceScore: 1.0, lowConfidence: false })
       }
       return { answer, citations: [], sources: [], model: 'insurer-source-guard', tokensUsed: 0, latencyMs: Date.now() - startTime, conversationId, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] }
     }
@@ -677,6 +679,8 @@ export async function ask(
       tokensUsed: llmResponse.tokensUsed,
       latencyMs: Date.now() - startTime,
       sources: citationAudit.citations,
+      confidenceScore: finalConfidenceScore,
+      lowConfidence: finalLowConfidence,
     })
   }
 
@@ -1436,6 +1440,8 @@ export async function saveConversation(params: {
   tokensUsed: number
   latencyMs: number
   sources: Citation[]
+  confidenceScore?: number
+  lowConfidence?: boolean
 }): Promise<string | undefined> {
   try {
     const supabase = createServiceClient()
@@ -1451,6 +1457,8 @@ export async function saveConversation(params: {
         tokens_used: params.tokensUsed,
         latency_ms: params.latencyMs,
         sources: JSON.parse(JSON.stringify(params.sources)),
+        confidence_score: params.confidenceScore ?? null,
+        low_confidence: params.lowConfidence ?? false,
       })
       .select('id')
       .single()

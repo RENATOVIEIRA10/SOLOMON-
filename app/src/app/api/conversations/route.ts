@@ -2,7 +2,7 @@
  * GET /api/conversations
  *
  * Lista histórico de conversas do corretor (últimas 30).
- * Query params: ?limit=30
+ * Query params: ?limit=30&channel=whatsapp|dashboard|api
  */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -20,13 +20,26 @@ export async function GET(request: NextRequest) {
       100
     );
 
+    const VALID_CHANNELS = ["whatsapp", "dashboard", "api"];
+    const channelParam = url.searchParams.get("channel");
+    const channel =
+      channelParam && VALID_CHANNELS.includes(channelParam)
+        ? channelParam
+        : null;
+
     const supabase = createServiceClient();
-    const { data, error } = await supabase
+    let query = supabase
       .from("conversations")
-      .select("id, message, response, sources, model, latency_ms, created_at")
+      .select(
+        "id, message, response, sources, model, channel, confidence_score, low_confidence, latency_ms, created_at"
+      )
       .eq("broker_id", broker.brokerId)
       .order("created_at", { ascending: false })
       .limit(limit);
+
+    if (channel) query = query.eq("channel", channel);
+
+    const { data, error } = await query;
 
     if (error) {
       console.error("[api/conversations] query failed:", error.message);

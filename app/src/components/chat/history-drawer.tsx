@@ -11,7 +11,18 @@ type HistoryItem = {
   message: string;
   response: string;
   created_at: string;
+  channel?: string | null;
+  confidence_score?: number | null;
+  low_confidence?: boolean | null;
 };
+
+type ChannelFilter = "all" | "whatsapp" | "dashboard";
+
+const CHANNEL_FILTERS: { value: ChannelFilter; label: string }[] = [
+  { value: "all", label: "Todos" },
+  { value: "whatsapp", label: "WhatsApp" },
+  { value: "dashboard", label: "Dashboard" },
+];
 
 export function HistoryDrawer({
   brokerId,
@@ -23,6 +34,7 @@ export function HistoryDrawer({
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<HistoryItem[]>([]);
   const [loading, setLoading] = useState(false);
+  const [filter, setFilter] = useState<ChannelFilter>("all");
 
   function handleOpenChange(nextOpen: boolean) {
     setOpen(nextOpen);
@@ -31,12 +43,13 @@ export function HistoryDrawer({
 
   useEffect(() => {
     if (!open || !brokerId) return;
-    fetch("/api/conversations?limit=30")
+    const channelQuery = filter === "all" ? "" : `&channel=${filter}`;
+    fetch(`/api/conversations?limit=30${channelQuery}`)
       .then((r) => r.json())
       .then((data) => setItems(data.conversations ?? []))
       .catch(() => setItems([]))
       .finally(() => setLoading(false));
-  }, [open, brokerId]);
+  }, [open, brokerId, filter]);
 
   return (
     <Dialog.Root open={open} onOpenChange={handleOpenChange}>
@@ -72,7 +85,36 @@ export function HistoryDrawer({
             </Dialog.Close>
           </div>
 
-          <div className="overflow-y-auto h-[calc(100dvh-80px)] px-3 py-3">
+          <div
+            role="tablist"
+            aria-label="Filtrar histórico por canal"
+            className="flex items-center gap-1.5 px-5 py-3 border-b border-solomon-gold/10"
+          >
+            {CHANNEL_FILTERS.map((f) => (
+              <button
+                key={f.value}
+                type="button"
+                role="tab"
+                aria-selected={filter === f.value}
+                onClick={() => {
+                  if (f.value !== filter) {
+                    setLoading(true);
+                    setFilter(f.value);
+                  }
+                }}
+                className={cn(
+                  "rounded-full px-3 py-1 text-[11px] font-medium tracking-wide transition-colors border",
+                  filter === f.value
+                    ? "bg-solomon-gold/15 border-solomon-gold/40 text-solomon-gold"
+                    : "border-solomon-gold/10 text-solomon-cream-muted hover:text-solomon-gold hover:border-solomon-gold/30"
+                )}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+
+          <div className="overflow-y-auto h-[calc(100dvh-128px)] px-3 py-3">
             <AnimatePresence mode="wait">
               {loading && (
                 <motion.p
@@ -117,9 +159,17 @@ export function HistoryDrawer({
                     <p className="text-sm text-solomon-cream line-clamp-2 group-hover:text-solomon-gold-light transition-colors">
                       {item.message}
                     </p>
-                    <time className="font-mono text-[10px] text-solomon-cream-muted/60 uppercase tabular-nums mt-1 block">
-                      {formatDate(item.created_at)}
-                    </time>
+                    <span className="mt-1 flex items-center gap-2">
+                      <ChannelBadge channel={item.channel} />
+                      {item.low_confidence && (
+                        <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-400/25">
+                          Baixa confiança
+                        </span>
+                      )}
+                      <time className="font-mono text-[10px] text-solomon-cream-muted/60 uppercase tabular-nums">
+                        {formatDate(item.created_at)}
+                      </time>
+                    </span>
                   </button>
                 </li>
               ))}
@@ -129,6 +179,24 @@ export function HistoryDrawer({
       </Dialog.Portal>
     </Dialog.Root>
   );
+}
+
+function ChannelBadge({ channel }: { channel?: string | null }) {
+  if (channel === "whatsapp") {
+    return (
+      <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-green-500/15 text-green-300 border border-green-400/25">
+        WhatsApp
+      </span>
+    );
+  }
+  if (channel === "dashboard") {
+    return (
+      <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-solomon-gold/15 text-solomon-gold border border-solomon-gold/25">
+        Dashboard
+      </span>
+    );
+  }
+  return null;
 }
 
 function formatDate(iso: string) {

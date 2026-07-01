@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import {
   MessageSquare,
+  MessageCircle,
   ShieldCheck,
   Scale,
   BookOpen,
@@ -33,6 +34,12 @@ type Client = {
   name: string;
   phone: string | null;
   email: string | null;
+  created_at: string;
+};
+type Conversation = {
+  id: string;
+  message: string;
+  low_confidence: boolean | null;
   created_at: string;
 };
 
@@ -74,6 +81,7 @@ export function DashboardHome() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [clients, setClients] = useState<Client[]>([]);
+  const [whatsappConvs, setWhatsappConvs] = useState<Conversation[]>([]);
 
   useEffect(() => {
     if (!brokerId) return;
@@ -91,6 +99,10 @@ export function DashboardHome() {
     fetch("/api/clients")
       .then((r) => r.json())
       .then((d) => setClients((d.clients ?? []).slice(0, 4)))
+      .catch(() => {});
+    fetch("/api/conversations?limit=4&channel=whatsapp")
+      .then((r) => r.json())
+      .then((d) => setWhatsappConvs(d.conversations ?? []))
       .catch(() => {});
   }, [brokerId]);
 
@@ -239,6 +251,83 @@ export function DashboardHome() {
           COCKPIT — Alertas + Clientes recentes
           =========================================================== */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-5 md:gap-6">
+        <motion.div
+          {...fadeUp}
+          transition={{ duration: 0.5, delay: 0.42, ease }}
+          className="lg:col-span-2"
+        >
+          <Card className="h-full">
+            <CardHeader>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                  <span className="mono-tag">Canal</span>
+                  <CardTitle className="text-xl text-solomon-cream">
+                    WhatsApp recentes
+                  </CardTitle>
+                </div>
+                <Link
+                  href="/whatsapp"
+                  className="inline-flex items-center gap-1 text-xs text-solomon-gold hover:text-solomon-gold-light transition-premium"
+                >
+                  Ver todas <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
+              <CardDescription>
+                Suas últimas consultas ao SOLOMON pelo WhatsApp.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="pt-0">
+              {whatsappConvs.length === 0 ? (
+                <div className="py-4">
+                  <p className="text-sm text-solomon-cream-muted">
+                    Nenhuma conversa pelo WhatsApp ainda. Mande uma pergunta ao
+                    SOLOMON e ela aparece aqui.
+                  </p>
+                </div>
+              ) : (
+                <ul className="flex flex-col">
+                  {whatsappConvs.map((c, i) => (
+                    <li
+                      key={c.id}
+                      className={
+                        i > 0 ? "mt-2 pt-2 border-t border-solomon-gold/10" : ""
+                      }
+                    >
+                      <Link
+                        href="/whatsapp"
+                        className="flex items-center gap-3 rounded-md px-2 py-2.5 hover:bg-solomon-gold/[0.04] transition-premium group"
+                      >
+                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-green-500/10 text-green-300 border border-green-400/20">
+                          <MessageCircle className="h-4 w-4" />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm text-solomon-cream line-clamp-1 font-medium">
+                            {c.message}
+                          </p>
+                          <p className="text-[10px] text-solomon-cream-muted/60 font-mono uppercase tabular-nums mt-0.5">
+                            {new Date(c.created_at).toLocaleDateString("pt-BR", {
+                              day: "2-digit",
+                              month: "short",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </p>
+                        </div>
+                        {c.low_confidence && (
+                          <span className="shrink-0 font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-400/25">
+                            Baixa confiança
+                          </span>
+                        )}
+                        <ArrowRight className="h-3.5 w-3.5 text-solomon-cream-muted/30 group-hover:text-solomon-gold transition-premium shrink-0" />
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+
         <motion.div
           {...fadeUp}
           transition={{ duration: 0.5, delay: 0.5, ease }}

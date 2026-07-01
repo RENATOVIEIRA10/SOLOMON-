@@ -86,7 +86,7 @@ export async function* askStream(
       const answer = refusalMessageForDomain(domainCheck.detectedDomain);
       let conversationId: string | undefined;
       if (options?.brokerId) {
-        conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "domain-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] });
+        conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "domain-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [], confidenceScore: 1.0, lowConfidence: false });
       }
       yield { type: "token", delta: answer };
       yield { type: "meta", model: "domain-guard", conversationId, citations: [], tokensUsed: 0, latencyMs: Date.now() - startTime, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] };
@@ -100,7 +100,7 @@ export async function* askStream(
       const answer = claimGuidanceMessage();
       let conversationId: string | undefined;
       if (options?.brokerId) {
-        conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "claim-verdict-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] });
+        conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "claim-verdict-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [], confidenceScore: 1.0, lowConfidence: false });
       }
       yield { type: "token", delta: answer };
       yield { type: "meta", model: "claim-verdict-guard", conversationId, citations: [], tokensUsed: 0, latencyMs: Date.now() - startTime, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] };
@@ -170,6 +170,8 @@ export async function* askStream(
                 tokensUsed: 0,
                 latencyMs: Date.now() - startTime,
                 sources: [],
+                confidenceScore: confidence,
+                lowConfidence: !hasEnoughDimensions,
               });
             }
 
@@ -261,7 +263,7 @@ export async function* askStream(
         const answer = `Nao tenho documentos da ${mentionedInsurers.join(" / ")} indexados para responder isso com seguranca. Nao posso usar documentos de outra seguradora como substituto.`;
         let conversationId: string | undefined;
         if (options?.brokerId) {
-          conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "insurer-source-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [] });
+          conversationId = await saveConversation({ brokerId: options.brokerId, channel: options.channel ?? "api", message: question, response: answer, model: "insurer-source-guard", tokensUsed: 0, latencyMs: Date.now() - startTime, sources: [], confidenceScore: 1.0, lowConfidence: false });
         }
         yield { type: "token", delta: answer };
         yield { type: "meta", model: "insurer-source-guard", conversationId, citations: [], tokensUsed: 0, latencyMs: Date.now() - startTime, confidenceScore: 1.0, avgSimilarity: 0, sourceCount: 0, lowConfidence: false, citationCoverage: 1, invalidCitationIndexes: [], answerWarnings: [] };
@@ -359,6 +361,8 @@ export async function* askStream(
         tokensUsed,
         latencyMs: Date.now() - startTime,
         sources: citationAudit.citations,
+        confidenceScore: finalConfidenceScore,
+        lowConfidence: finalLowConfidence,
       });
     }
 
