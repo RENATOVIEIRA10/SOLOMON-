@@ -50,28 +50,28 @@ export function HistoryDrawer({
         <button
           type="button"
           aria-label="Abrir historico de consultas"
-          className="inline-flex items-center gap-2 h-9 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 px-3 text-xs text-solomon-cream hover:border-solomon-gold/50 hover:bg-solomon-charcoal transition-colors"
+          className="inline-flex items-center gap-2 h-9 rounded-md border border-edge bg-surface-2/60 px-3 text-xs text-ink hover:border-brand/50 hover:bg-surface-2 transition-colors"
         >
-          <History className="size-3.5 text-solomon-gold" />
+          <History className="size-3.5 text-brand" />
           <span className="hidden sm:inline">Histórico</span>
         </button>
       </Dialog.Trigger>
 
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-solomon-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
         <Dialog.Content
           className={cn(
-            "fixed z-50 inset-y-0 right-0 h-full w-full sm:w-96 bg-solomon-graphite border-l border-solomon-gold/20 shadow-2xl shadow-solomon-black/50",
+            "fixed z-50 inset-y-0 right-0 h-full w-full sm:w-96 bg-surface border-l border-edge shadow-2xl shadow-black/50",
             "data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:slide-in-from-right data-[state=closed]:slide-out-to-right duration-200 ease-out"
           )}
         >
-          <div className="flex items-center justify-between px-5 safe-top pb-4 border-b border-solomon-gold/10">
-            <Dialog.Title className="font-display text-xl text-solomon-cream">
+          <div className="flex items-center justify-between px-5 safe-top pb-4 border-b border-edge">
+            <Dialog.Title className="font-display text-xl text-ink">
               Histórico
             </Dialog.Title>
             <Dialog.Close
               aria-label="Fechar historico"
-              className="rounded-md p-1.5 text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-charcoal transition-colors"
+              className="rounded-md p-1.5 text-ink-muted hover:text-brand hover:bg-surface-2 transition-colors"
             >
               <X className="size-4" />
               <span className="sr-only">Fechar</span>
@@ -81,7 +81,7 @@ export function HistoryDrawer({
           <div
             role="tablist"
             aria-label="Filtrar histórico por canal"
-            className="flex items-center gap-1.5 px-5 py-3 border-b border-solomon-gold/10"
+            className="flex items-center gap-1.5 px-5 py-3 border-b border-edge"
           >
             {CHANNEL_FILTERS.map((f) => (
               <button
@@ -97,8 +97,8 @@ export function HistoryDrawer({
                 className={cn(
                   "rounded-full px-3 py-1 text-[11px] font-medium tracking-wide transition-colors border",
                   filter === f.value
-                    ? "bg-solomon-gold/15 border-solomon-gold/40 text-solomon-gold"
-                    : "border-solomon-gold/10 text-solomon-cream-muted hover:text-solomon-gold hover:border-solomon-gold/30"
+                    ? "bg-brand/10 border-brand/40 text-brand"
+                    : "border-edge text-ink-muted hover:text-brand hover:border-brand/30"
                 )}
               >
                 {f.label}
@@ -142,7 +142,7 @@ export function HistoryDrawer({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="flex flex-col items-center gap-3 py-12 text-center text-solomon-cream-muted"
+                  className="flex flex-col items-center gap-3 py-12 text-center text-ink-muted"
                 >
                   <MessageSquare className="size-8 opacity-40" />
                   <p className="text-sm">Nenhuma consulta ainda.</p>
@@ -160,10 +160,10 @@ export function HistoryDrawer({
                       onSelect(item);
                       setOpen(false);
                     }}
-                    className="w-full text-left px-3 py-2.5 rounded-md hover:bg-solomon-charcoal/70 transition-colors group"
+                    className="w-full text-left px-3 py-2.5 rounded-md hover:bg-surface-2/70 transition-colors group"
                     type="button"
                   >
-                    <p className="text-sm text-solomon-cream line-clamp-2 group-hover:text-solomon-gold-light transition-colors">
+                    <p className="text-sm text-ink line-clamp-2 group-hover:text-brand-strong transition-colors">
                       {item.message}
                     </p>
                     <span className="mt-1 flex items-center gap-2">
@@ -171,7 +171,7 @@ export function HistoryDrawer({
                       {item.low_confidence && (
                         <Badge variant="warning">Baixa confiança</Badge>
                       )}
-                      <time className="font-mono text-[10px] text-solomon-cream-muted/60 uppercase tabular-nums">
+                      <time className="font-mono text-[10px] text-ink-muted/60 uppercase tabular-nums">
                         {formatDate(item.created_at)}
                       </time>
                     </span>

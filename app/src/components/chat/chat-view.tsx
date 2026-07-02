@@ -214,16 +214,16 @@ export function ChatView() {
     // a top-bar/input para fora. min-h-0 preserva o scroll interno das mensagens.
     <div className="flex-1 flex flex-col min-h-0">
       {/* Top bar */}
-      <div className="safe-top px-4 md:px-6 pb-3 flex items-center justify-between gap-3 border-b border-solomon-gold/10 bg-background/70 backdrop-blur-sm">
+      <div className="safe-top px-4 md:px-6 pb-3 flex items-center justify-between gap-3 border-b border-edge bg-background/70 backdrop-blur-sm">
         <div className="flex items-center gap-2">
-          <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-solomon-gold/10 text-solomon-gold">
+          <div className="inline-flex items-center justify-center h-8 w-8 rounded-md bg-brand/10 text-brand">
             <Sparkles className="h-4 w-4" />
           </div>
           <div className="flex flex-col leading-tight">
-            <span className="font-display text-lg text-solomon-cream">
+            <span className="font-display text-lg text-ink">
               SOLOMON
             </span>
-            <span className="text-[10px] font-mono uppercase tracking-widest text-solomon-gold/70">
+            <span className="text-[10px] font-mono uppercase tracking-widest text-brand/70">
               Consultor privado
             </span>
           </div>
@@ -264,7 +264,7 @@ export function ChatView() {
       </div>
 
       {/* Input */}
-      <div className="safe-bottom px-4 md:px-6 pt-2 pb-3 border-t border-solomon-gold/10 bg-background/95 backdrop-blur-md sticky bottom-0">
+      <div className="safe-bottom px-4 md:px-6 pt-2 pb-3 border-t border-edge bg-background/95 backdrop-blur-md sticky bottom-0">
         <div className="max-w-3xl mx-auto">
           <ChatInput
             value={input}
@@ -289,19 +289,19 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
         transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
         className="flex flex-col items-center"
       >
-        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-solomon-gold/10 text-solomon-gold mb-6">
+        <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-brand/10 text-brand mb-6">
           <FileSearch className="h-7 w-7" />
         </div>
-        <h1 className="font-display text-3xl md:text-4xl text-solomon-cream">
+        <h1 className="font-display text-3xl md:text-4xl text-ink">
           Como posso ajudar?
         </h1>
-        <p className="mt-3 text-sm text-solomon-cream-muted max-w-md">
+        <p className="mt-3 text-sm text-ink-muted max-w-md">
           Pergunte sobre condições gerais, coberturas, carências, exclusões de
           qualquer seguradora indexada.
         </p>
 
         <div className="mt-10 w-full flex flex-col gap-2">
-          <p className="text-[10px] font-mono uppercase tracking-widest text-solomon-gold/70 mb-1 text-left">
+          <p className="text-[10px] font-mono uppercase tracking-widest text-brand/70 mb-1 text-left">
             Sugestões
           </p>
           {SUGGESTIONS.map((s) => (
@@ -309,7 +309,7 @@ function EmptyState({ onPick }: { onPick: (text: string) => void }) {
               key={s}
               type="button"
               onClick={() => onPick(s)}
-              className="text-left px-4 py-3 rounded-lg border border-solomon-gold/15 bg-solomon-graphite/40 hover:border-solomon-gold/40 hover:bg-solomon-graphite transition-colors text-sm text-solomon-cream"
+              className="text-left px-4 py-3 rounded-lg border border-edge bg-surface/40 hover:border-brand/40 hover:bg-surface transition-colors text-sm text-ink"
             >
               {s}
             </button>

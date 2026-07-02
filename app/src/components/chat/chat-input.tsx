@@ -44,7 +44,7 @@ export function ChatInput({
       <div className="flex items-center gap-2">
         <InsurerFilter value={insurer} onChange={onInsurerChange} />
       </div>
-      <div className="relative flex items-end gap-2 rounded-xl border border-solomon-gold/20 bg-solomon-graphite/80 p-2 focus-within:border-solomon-gold/60 focus-within:ring-2 focus-within:ring-solomon-gold/20 transition-colors">
+      <div className="relative flex items-end gap-2 rounded-xl border border-edge bg-surface/80 p-2 focus-within:border-brand/60 focus-within:ring-2 focus-within:ring-brand/20 transition-colors">
         <Textarea
           ref={textareaRef}
           value={value}
@@ -70,7 +70,7 @@ export function ChatInput({
           )}
         </Button>
       </div>
-      <p className="text-[10px] text-solomon-cream-muted/50 px-1">
+      <p className="text-[10px] text-ink-muted/50 px-1">
         Enter para enviar · Shift+Enter para quebrar linha
       </p>
     </div>
