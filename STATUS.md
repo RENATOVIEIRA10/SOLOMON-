@@ -1,6 +1,14 @@
 # SOLOMON — Estado do produto
 
-**Ultima atualizacao**: 2026-06-04 (Query Expansion, Chunk Stitching & Rerank Enrichment implementados)
+**Ultima atualizacao**: 2026-07-02 (UI Redesign F1–F5 completo — dual theme + fluidez)
+
+> **2026-07-02 update (UI Redesign completo, F1–F5):**
+> - **Dual theme real** (claro/escuro, default segue o sistema, toggle no Perfil) sobre tokens semanticos `--ui-*`; camada legada `--solomon-*` REMOVIDA do CSS; acentos Vigilia/Esmeralda preservados nos 2 modos.
+> - **Fluidez**: SWR com cache (navegacao instantanea), skeletons shimmer (zero "Carregando..." literal), toasts + estados de erro com "Tentar de novo" em toda leitura; delete otimista em Clientes.
+> - **Primitivos**: Input/Select/Label/Badge(size)/Skeleton/EmptyState/sonner; `apiFetch` com contrato de erro unico (testes node:test 4/4).
+> - **Contraste AA no claro** (brand fill 5.4:1+), chart do admin theme-aware (`--chart-1..5`), a11y (focus-visible, hit-targets 44px, touch delete), PWA theme-color dinamico.
+> - Processo: specs+planos em `docs/superpowers/`; execucao subagent-driven com review por task + 3 reviews whole-branch; gates visuais do CEO em F1, Onda A e finais.
+> - Backlog pos-redesign (nao bloqueante): unificar `--destructive`→`danger`, distinguibilidade chart-1/4, roving-tabindex do retry no dropdown, splash assets PWA, achados estruturais do passe de motion (ledger `.superpowers/sdd/progress.md`).
 **Baseline Ragas**: `app/eval/ragas/results/20260603_193757/` (judge OpenRouter / Claude Haiku)
 **Persistencia**: tabela `eval_runs` no agentes-hub (60+ linhas, run_id=20260603_193757)
 **Ground truth**: 21/24 perguntas flaggeadas validadas por Julio; Q48-Q50 pendentes
