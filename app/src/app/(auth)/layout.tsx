@@ -13,7 +13,7 @@ export default function AuthLayout({
         className="pointer-events-none absolute inset-0 opacity-60"
         style={{
           background:
-            "radial-gradient(circle at 50% 0%, rgba(184,147,58,0.14) 0%, transparent 60%)",
+            "radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--ui-accent) 14%, transparent) 0%, transparent 60%)",
         }}
       />
 
@@ -37,7 +37,7 @@ export default function AuthLayout({
         <div className="w-full max-w-md">{children}</div>
       </main>
 
-      <footer className="relative z-10 safe-bottom px-6 text-center text-xs text-solomon-cream-muted/70">
+      <footer className="relative z-10 safe-bottom px-6 text-center text-xs text-ink-muted/70">
         <p className="font-mono tracking-widest uppercase">
           Acesso por convite · AUR.IOs
         </p>

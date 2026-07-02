@@ -23,35 +23,36 @@
   }
 
   .bg-background,
-  .bg-solomon-black,
-  .bg-solomon-graphite,
-  .bg-solomon-graphite\/60,
-  .bg-solomon-graphite\/80,
-  .bg-solomon-graphite\/30,
-  .bg-solomon-graphite\/40,
-  .bg-solomon-charcoal,
-  .bg-solomon-charcoal\/60,
-  .bg-solomon-charcoal\/40,
-  .bg-solomon-charcoal\/30 {
+  .bg-canvas,
+  .bg-surface,
+  .bg-surface\/60,
+  .bg-surface\/80,
+  .bg-surface\/30,
+  .bg-surface\/40,
+  .bg-surface-2,
+  .bg-surface-2\/60,
+  .bg-surface-2\/40,
+  .bg-surface-2\/30 {
     background: #ffffff !important;
   }
 
-  .text-solomon-cream,
-  .text-solomon-cream-muted,
+  .text-ink,
+  .text-ink-muted,
   .text-foreground {
     color: #111111 !important;
   }
 
-  .text-solomon-gold,
-  .text-solomon-gold-light {
+  .text-brand,
+  .text-brand-strong {
     color: #8b6914 !important;
   }
 
-  .border-solomon-gold\/15,
-  .border-solomon-gold\/20,
-  .border-solomon-gold\/30,
-  .border-solomon-gold\/40,
-  .border-solomon-gold\/50 {
+  .border-edge,
+  .border-brand\/15,
+  .border-brand\/20,
+  .border-brand\/30,
+  .border-brand\/40,
+  .border-brand\/50 {
     border-color: #d4b563 !important;
   }
 }

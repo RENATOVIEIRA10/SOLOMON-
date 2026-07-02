@@ -29,11 +29,11 @@ export default function SignupPage() {
             Enviar solicitação
           </Button>
 
-          <p className="text-center text-sm text-solomon-cream-muted mt-4">
+          <p className="text-center text-sm text-ink-muted mt-4">
             Já tem conta?{" "}
             <Link
               href="/login"
-              className="text-solomon-gold-light hover:text-solomon-gold transition-colors underline-offset-4 hover:underline"
+              className="text-brand-strong hover:text-brand transition-colors underline-offset-4 hover:underline"
             >
               Entrar
             </Link>
@@ -61,16 +61,16 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-2">
-      <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
+      <span className="text-xs uppercase tracking-widest text-ink-muted">
         {label}
         {optional && (
-          <span className="ml-2 text-[10px] text-solomon-cream-muted/60 normal-case tracking-normal">
+          <span className="ml-2 text-[10px] text-ink-muted/60 normal-case tracking-normal">
             (opcional)
           </span>
         )}
       </span>
       <div className="relative">
-        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-solomon-cream-muted/60">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-muted/60">
           {icon}
         </span>
         <input
@@ -78,7 +78,7 @@ function Field({
           name={name}
           required={!optional}
           placeholder={placeholder}
-          className="w-full h-11 pl-10 pr-4 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20"
+          className="w-full h-11 pl-10 pr-4 rounded-md border border-edge bg-surface-2/60 text-sm text-ink placeholder:text-ink-muted/40 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
         />
       </div>
     </label>

@@ -85,11 +85,11 @@ function LoginForm() {
       <CardContent>
         <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
           <label className="flex flex-col gap-2">
-            <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
+            <span className="text-xs uppercase tracking-widest text-ink-muted">
               E-mail
             </span>
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-solomon-cream-muted/60" />
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted/60" />
               <input
                 type="email"
                 autoComplete="email"
@@ -97,17 +97,17 @@ function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="corretor@exemplo.com.br"
-                className="w-full h-11 pl-10 pr-4 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20"
+                className="w-full h-11 pl-10 pr-4 rounded-md border border-edge bg-surface-2/60 text-sm text-ink placeholder:text-ink-muted/40 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
             </div>
           </label>
 
           <label className="flex flex-col gap-2">
-            <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
+            <span className="text-xs uppercase tracking-widest text-ink-muted">
               Senha
             </span>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-solomon-cream-muted/60" />
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-ink-muted/60" />
               <input
                 type="password"
                 autoComplete="current-password"
@@ -115,13 +115,13 @@ function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full h-11 pl-10 pr-4 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20"
+                className="w-full h-11 pl-10 pr-4 rounded-md border border-edge bg-surface-2/60 text-sm text-ink placeholder:text-ink-muted/40 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
             </div>
           </label>
 
           {error && (
-            <p className="text-sm text-red-400" role="alert">
+            <p className="text-sm text-danger" role="alert">
               {error}
             </p>
           )}
@@ -130,11 +130,11 @@ function LoginForm() {
             {loading ? "Entrando..." : "Entrar"}
           </Button>
 
-          <p className="text-center text-sm text-solomon-cream-muted mt-4">
+          <p className="text-center text-sm text-ink-muted mt-4">
             Ainda não tem convite?{" "}
             <Link
               href="/signup"
-              className="text-solomon-gold-light hover:text-solomon-gold transition-colors underline-offset-4 hover:underline"
+              className="text-brand-strong hover:text-brand transition-colors underline-offset-4 hover:underline"
             >
               Solicitar acesso
             </Link>
