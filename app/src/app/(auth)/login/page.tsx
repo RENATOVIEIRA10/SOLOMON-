@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 
 export default function LoginPage() {
@@ -29,7 +30,7 @@ function LoginCardSkeleton() {
     <Card>
       <CardHeader className="text-center">
         <CardTitle className="font-display text-3xl">Entrar</CardTitle>
-        <CardDescription>Carregando...</CardDescription>
+        <Skeleton className="h-4 w-48 mx-auto" />
       </CardHeader>
     </Card>
   );
