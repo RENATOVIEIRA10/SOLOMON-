@@ -929,3 +929,22 @@ body {
   .sl-terminal-body { padding: 20px; }
   .sl-pillar-card { padding: 36px 28px; }
 }
+
+/* Skeleton shimmer — varredura sutil, respeita reduced-motion */
+@keyframes ui-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+.ui-skeleton {
+  background: linear-gradient(
+    100deg,
+    var(--ui-surface-2) 40%,
+    color-mix(in srgb, var(--ui-text) 6%, var(--ui-surface-2)) 50%,
+    var(--ui-surface-2) 60%
+  );
+  background-size: 200% 100%;
+  animation: ui-shimmer 1.6s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ui-skeleton { animation: none; }
+}
