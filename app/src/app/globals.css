@@ -7,7 +7,61 @@
    ============================================================ */
 
 :root {
-  /* Brand core — paleta viva (alto contraste, ouro eletrico) */
+  /* Brand core — CLARO (papel creme + ouro escuro legível) */
+  --solomon-black: #f7f6f3;      /* fundo de página (era preto) */
+  --solomon-graphite: #ffffff;   /* superfície (era grafite) */
+  --solomon-charcoal: #f1efe9;   /* superfície 2 (era charcoal) */
+  --solomon-gold: #9a7b1c;
+  --solomon-gold-light: #7c6212; /* no claro, "light" = mais escuro p/ contraste em hover */
+  --solomon-gold-dark: #b8942e;
+  --solomon-cream: #1c1b18;      /* texto (era branco) */
+  --solomon-cream-muted: #6f6b60;
+
+  /* Tokens semânticos novos (alvo da migração F4) — CLARO */
+  --ui-bg: #f7f6f3;
+  --ui-surface: #ffffff;
+  --ui-surface-2: #f1efe9;
+  --ui-border: #e6e3db;
+  --ui-border-accent: #cdb96a;
+  --ui-text: #1c1b18;
+  --ui-text-muted: #6f6b60;
+  --ui-accent: #9a7b1c;
+  --ui-accent-strong: #7c6212;
+  --ui-success: #168548;
+  --ui-warning: #8f6104;
+  --ui-danger: #b83232;
+  --ui-info: #2563cd;
+
+  /* Intensidade dos glows ambientes (AmbientBackground) */
+  --ambient-a: 6%;
+  --ambient-b: 3%;
+
+  /* Semantic tokens legados (shadcn-style) — seguem as brand vars */
+  --background: var(--solomon-black);
+  --foreground: var(--solomon-cream);
+  --card: var(--solomon-graphite);
+  --card-foreground: var(--solomon-cream);
+  --popover: var(--solomon-graphite);
+  --popover-foreground: var(--solomon-cream);
+  --primary: var(--solomon-gold);
+  --primary-foreground: #fffdf5;
+  --secondary: var(--solomon-charcoal);
+  --secondary-foreground: var(--solomon-cream);
+  --muted: var(--solomon-graphite);
+  --muted-foreground: var(--solomon-cream-muted);
+  --accent: var(--solomon-gold-light);
+  --accent-foreground: #fffdf5;
+  --destructive: #C94F4F;
+  --destructive-foreground: #fffdf5;
+  --border: color-mix(in srgb, var(--solomon-gold) 25%, transparent);
+  --input: rgba(0, 0, 0, 0.06);
+  --ring: var(--solomon-gold);
+
+  --radius: 0.5rem;
+}
+
+.dark {
+  /* Brand core — ESCURO (valores originais do luxury dark) */
   --solomon-black: #040404;
   --solomon-graphite: #141210;
   --solomon-charcoal: #242018;
@@ -17,31 +71,53 @@
   --solomon-cream: #FFFFFF;
   --solomon-cream-muted: #F0DFA8;
 
-  /* Semantic tokens (dark por padrão — luxury) */
-  --background: var(--solomon-black);
-  --foreground: var(--solomon-cream);
-  --card: var(--solomon-graphite);
-  --card-foreground: var(--solomon-cream);
-  --popover: var(--solomon-graphite);
-  --popover-foreground: var(--solomon-cream);
-  --primary: var(--solomon-gold);
-  --primary-foreground: var(--solomon-black);
-  --secondary: var(--solomon-charcoal);
-  --secondary-foreground: var(--solomon-cream);
-  --muted: var(--solomon-graphite);
-  --muted-foreground: var(--solomon-cream-muted);
-  --accent: var(--solomon-gold-light);
-  --accent-foreground: var(--solomon-black);
-  --destructive: #C94F4F;
-  --destructive-foreground: var(--solomon-cream);
-  --border: color-mix(in srgb, var(--solomon-gold) 25%, transparent);
-  --input: rgba(255, 255, 255, 0.10);
-  --ring: var(--solomon-gold);
+  /* Tokens semânticos — ESCURO (refinado: menos saturação que o brand) */
+  --ui-bg: #0e0f11;
+  --ui-surface: #16171a;
+  --ui-surface-2: #1d1e22;
+  --ui-border: #26272c;
+  --ui-border-accent: color-mix(in srgb, var(--solomon-gold) 25%, transparent);
+  --ui-text: #f2ecdd;
+  --ui-text-muted: #98937f;
+  --ui-accent: #d4af37;
+  --ui-accent-strong: #e6c34a;
+  --ui-success: #4ade80;
+  --ui-warning: #fbbf24;
+  --ui-danger: #f87171;
+  --ui-info: #60a5fa;
 
-  --radius: 0.5rem;
+  --ambient-a: 16%;
+  --ambient-b: 8%;
+
+  /* Legados voltam aos pares originais no escuro */
+  --primary-foreground: var(--solomon-black);
+  --accent-foreground: var(--solomon-black);
+  --destructive-foreground: var(--solomon-cream);
+  --input: rgba(255, 255, 255, 0.10);
 }
 
+/* Acentos alternativos — valores para modo CLARO */
 .theme-midnight {
+  --solomon-gold: #0369a1;
+  --solomon-gold-light: #075985;
+  --solomon-gold-dark: #0284c7;
+  --solomon-cream-muted: #526b80;
+  --ui-accent: #0369a1;
+  --ui-accent-strong: #075985;
+  --ui-border-accent: #7ab8d9;
+}
+.theme-emerald {
+  --solomon-gold: #047857;
+  --solomon-gold-light: #065f46;
+  --solomon-gold-dark: #059669;
+  --solomon-cream-muted: #5c6f66;
+  --ui-accent: #047857;
+  --ui-accent-strong: #065f46;
+  --ui-border-accent: #6ec9ae;
+}
+
+/* Acentos alternativos — valores para modo ESCURO (originais) */
+.dark.theme-midnight {
   --solomon-black: #060a16;
   --solomon-graphite: #0f1626;
   --solomon-charcoal: #1e293b;
@@ -50,9 +126,11 @@
   --solomon-gold-dark: #0284c7;
   --solomon-cream: #f8fafc;
   --solomon-cream-muted: #93c5fd;
+  --ui-accent: #38bdf8;
+  --ui-accent-strong: #7dd3fc;
+  --ui-border-accent: color-mix(in srgb, #38bdf8 25%, transparent);
 }
-
-.theme-emerald {
+.dark.theme-emerald {
   --solomon-black: #030806;
   --solomon-graphite: #0a1410;
   --solomon-charcoal: #142e24;
@@ -61,6 +139,9 @@
   --solomon-gold-dark: #047857;
   --solomon-cream: #f0fdf4;
   --solomon-cream-muted: #6ee7b7;
+  --ui-accent: #10b981;
+  --ui-accent-strong: #34d399;
+  --ui-border-accent: color-mix(in srgb, #10b981 25%, transparent);
 }
 
 @theme inline {
@@ -73,6 +154,21 @@
   --color-solomon-gold-dark: var(--solomon-gold-dark);
   --color-solomon-cream: var(--solomon-cream);
   --color-solomon-cream-muted: var(--solomon-cream-muted);
+
+  /* Tokens semânticos novos (F4 migra as telas para estes) */
+  --color-canvas: var(--ui-bg);
+  --color-surface: var(--ui-surface);
+  --color-surface-2: var(--ui-surface-2);
+  --color-edge: var(--ui-border);
+  --color-edge-accent: var(--ui-border-accent);
+  --color-ink: var(--ui-text);
+  --color-ink-muted: var(--ui-text-muted);
+  --color-brand: var(--ui-accent);
+  --color-brand-strong: var(--ui-accent-strong);
+  --color-success: var(--ui-success);
+  --color-warning: var(--ui-warning);
+  --color-danger: var(--ui-danger);
+  --color-info: var(--ui-info);
 
   /* Semantic */
   --color-background: var(--background);
@@ -118,8 +214,8 @@ html {
 
 body {
   background:
-    radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, var(--solomon-gold) 14%, transparent), transparent 60%),
-    radial-gradient(900px 500px at 0% 100%, color-mix(in srgb, var(--solomon-gold) 9%, transparent), transparent 55%),
+    radial-gradient(1200px 600px at 80% -10%, color-mix(in srgb, var(--solomon-gold) var(--ambient-a), transparent), transparent 60%),
+    radial-gradient(900px 500px at 0% 100%, color-mix(in srgb, var(--solomon-gold) var(--ambient-b), transparent), transparent 55%),
     var(--background);
   background-attachment: fixed;
   color: var(--foreground);
@@ -144,11 +240,11 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(184, 147, 58, 0.3);
+  background: color-mix(in srgb, var(--solomon-gold) 30%, transparent);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(184, 147, 58, 0.5);
+  background: color-mix(in srgb, var(--solomon-gold) 50%, transparent);
 }
 
 /* Safe-area helper
@@ -186,7 +282,7 @@ body {
     transparent
   );
   opacity: 1;
-  box-shadow: 0 0 12px rgba(255, 208, 0, 0.7);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--solomon-gold) 70%, transparent);
 }
 
 /* Marquee */
@@ -207,10 +303,10 @@ body {
   /* Surface de luxo: vidro escuro + borda sutil + sombra premium */
   .luxury-surface {
     background:
-      linear-gradient(180deg, rgba(20, 18, 16, 0.78) 0%, rgba(4, 4, 4, 0.62) 100%);
-    border: 1px solid rgba(255, 208, 0, 0.18);
+      linear-gradient(180deg, color-mix(in srgb, var(--solomon-graphite) 78%, transparent) 0%, color-mix(in srgb, var(--solomon-black) 62%, transparent) 100%);
+    border: 1px solid color-mix(in srgb, var(--solomon-gold) 18%, transparent);
     box-shadow:
-      0 1px 0 0 rgba(255, 208, 0, 0.04) inset,
+      0 1px 0 0 color-mix(in srgb, var(--solomon-gold) 4%, transparent) inset,
       0 8px 24px -8px rgba(0, 0, 0, 0.6),
       0 2px 6px -2px rgba(0, 0, 0, 0.4);
     backdrop-filter: blur(10px) saturate(120%);
@@ -220,10 +316,10 @@ body {
   /* Surface premium mais densa para herói/cards principais */
   .luxury-surface-strong {
     background:
-      linear-gradient(180deg, rgba(36, 32, 24, 0.72) 0%, rgba(8, 8, 8, 0.72) 100%);
-    border: 1px solid rgba(255, 208, 0, 0.28);
+      linear-gradient(180deg, color-mix(in srgb, var(--solomon-charcoal) 72%, transparent) 0%, color-mix(in srgb, var(--solomon-black) 72%, transparent) 100%);
+    border: 1px solid color-mix(in srgb, var(--solomon-gold) 28%, transparent);
     box-shadow:
-      0 1px 0 0 rgba(255, 208, 0, 0.08) inset,
+      0 1px 0 0 color-mix(in srgb, var(--solomon-gold) 8%, transparent) inset,
       0 18px 48px -16px rgba(0, 0, 0, 0.75),
       0 4px 14px -4px rgba(0, 0, 0, 0.5);
     backdrop-filter: blur(14px) saturate(130%);
@@ -233,13 +329,13 @@ body {
   /* Glow dourado suave — usado em hover e destaques */
   .gold-glow {
     box-shadow:
-      0 0 0 1px rgba(255, 208, 0, 0.20),
-      0 0 24px -4px rgba(255, 208, 0, 0.35),
-      0 0 60px -12px rgba(255, 208, 0, 0.20);
+      0 0 0 1px color-mix(in srgb, var(--solomon-gold) 20%, transparent),
+      0 0 24px -4px color-mix(in srgb, var(--solomon-gold) 35%, transparent),
+      0 0 60px -12px color-mix(in srgb, var(--solomon-gold) 20%, transparent);
   }
 
   .gold-glow-soft {
-    box-shadow: 0 0 32px -8px rgba(255, 208, 0, 0.22);
+    box-shadow: 0 0 32px -8px color-mix(in srgb, var(--solomon-gold) 22%, transparent);
   }
 
   /* Borda premium — usada em conjunto com surfaces */
@@ -254,10 +350,10 @@ body {
     padding: 1px;
     background: linear-gradient(
       135deg,
-      rgba(255, 208, 0, 0.45) 0%,
-      rgba(255, 208, 0, 0.08) 35%,
-      rgba(255, 208, 0, 0.02) 65%,
-      rgba(255, 208, 0, 0.30) 100%
+      color-mix(in srgb, var(--solomon-gold) 45%, transparent) 0%,
+      color-mix(in srgb, var(--solomon-gold) 8%, transparent) 35%,
+      color-mix(in srgb, var(--solomon-gold) 2%, transparent) 65%,
+      color-mix(in srgb, var(--solomon-gold) 30%, transparent) 100%
     );
     -webkit-mask:
       linear-gradient(#000 0 0) content-box,
@@ -279,8 +375,8 @@ body {
     z-index: -1;
     pointer-events: none;
     background-image:
-      linear-gradient(to right, rgba(255, 208, 0, 0.04) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(255, 208, 0, 0.04) 1px, transparent 1px);
+      linear-gradient(to right, color-mix(in srgb, var(--solomon-gold) 4%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in srgb, var(--solomon-gold) 4%, transparent) 1px, transparent 1px);
     background-size: 64px 64px;
     mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%);
     -webkit-mask-image: radial-gradient(ellipse 80% 60% at 50% 30%, #000 30%, transparent 80%);
@@ -301,7 +397,7 @@ body {
     background: radial-gradient(
       ellipse 100% 80% at 50% 0%,
       transparent 40%,
-      rgba(0, 0, 0, 0.45) 100%
+      color-mix(in srgb, var(--solomon-black) 45%, transparent) 100%
     );
   }
 
@@ -318,8 +414,8 @@ body {
     pointer-events: none;
     background: radial-gradient(
       circle at 50% 50%,
-      rgba(255, 208, 0, 0.14) 0%,
-      rgba(255, 208, 0, 0.05) 35%,
+      color-mix(in srgb, var(--solomon-gold) 14%, transparent) 0%,
+      color-mix(in srgb, var(--solomon-gold) 5%, transparent) 35%,
       transparent 70%
     );
     filter: blur(12px);
@@ -331,7 +427,7 @@ body {
     background: linear-gradient(
       to right,
       transparent,
-      rgba(255, 208, 0, 0.6) 50%,
+      color-mix(in srgb, var(--solomon-gold) 60%, transparent) 50%,
       transparent
     );
   }
@@ -342,7 +438,7 @@ body {
     font-size: 10px;
     letter-spacing: 0.18em;
     text-transform: uppercase;
-    color: rgba(255, 208, 0, 0.75);
+    color: color-mix(in srgb, var(--solomon-gold) 75%, transparent);
   }
 
   /* Transição premium padrão para interativos */
