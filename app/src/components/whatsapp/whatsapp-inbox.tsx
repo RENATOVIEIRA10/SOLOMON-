@@ -13,6 +13,7 @@ import {
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 type Conversation = {
   id: string;
@@ -159,9 +160,7 @@ export function WhatsAppInbox() {
                               {formatDate(c.created_at)}
                             </time>
                             {c.low_confidence && (
-                              <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-400/25">
-                                Baixa confiança
-                              </span>
+                              <Badge variant="warning">Baixa confiança</Badge>
                             )}
                             {typeof c.confidence_score === "number" &&
                               !c.low_confidence && (

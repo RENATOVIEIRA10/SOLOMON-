@@ -5,6 +5,7 @@ import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "motion/react";
 import { History, X, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 type HistoryItem = {
   id: string;
@@ -162,9 +163,7 @@ export function HistoryDrawer({
                     <span className="mt-1 flex items-center gap-2">
                       <ChannelBadge channel={item.channel} />
                       {item.low_confidence && (
-                        <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-400/25">
-                          Baixa confiança
-                        </span>
+                        <Badge variant="warning">Baixa confiança</Badge>
                       )}
                       <time className="font-mono text-[10px] text-solomon-cream-muted/60 uppercase tabular-nums">
                         {formatDate(item.created_at)}
@@ -182,20 +181,8 @@ export function HistoryDrawer({
 }
 
 function ChannelBadge({ channel }: { channel?: string | null }) {
-  if (channel === "whatsapp") {
-    return (
-      <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-green-500/15 text-green-300 border border-green-400/25">
-        WhatsApp
-      </span>
-    );
-  }
-  if (channel === "dashboard") {
-    return (
-      <span className="font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-solomon-gold/15 text-solomon-gold border border-solomon-gold/25">
-        Dashboard
-      </span>
-    );
-  }
+  if (channel === "whatsapp") return <Badge variant="success">WhatsApp</Badge>;
+  if (channel === "dashboard") return <Badge variant="accent">Dashboard</Badge>;
   return null;
 }
 

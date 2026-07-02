@@ -18,6 +18,7 @@ import {
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { FocusActionCard } from "@/components/dashboard/focus-action-card";
+import { Badge } from "@/components/ui/badge";
 
 type Stats = { consultationsToday: number; plan: string; limit: number };
 type Alert = {
@@ -314,9 +315,7 @@ export function DashboardHome() {
                           </p>
                         </div>
                         {c.low_confidence && (
-                          <span className="shrink-0 font-mono text-[9px] uppercase tracking-widest px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-300 border border-amber-400/25">
-                            Baixa confiança
-                          </span>
+                          <Badge variant="warning">Baixa confiança</Badge>
                         )}
                         <ArrowRight className="h-3.5 w-3.5 text-solomon-cream-muted/30 group-hover:text-solomon-gold transition-premium shrink-0" />
                       </Link>
@@ -497,25 +496,21 @@ function StatCard({
   );
 }
 
-const TYPE_LABELS: Record<string, { label: string; color: string }> = {
-  regulatory: { label: "Reg", color: "bg-blue-500/20 text-blue-300 border border-blue-400/20" },
-  product_change: { label: "Mud", color: "bg-solomon-gold/20 text-solomon-gold border border-solomon-gold/25" },
-  new_product: { label: "Novo", color: "bg-green-500/20 text-green-300 border border-green-400/20" },
-  expiring_policy: { label: "Apol", color: "bg-red-500/20 text-red-300 border border-red-400/20" },
+const TYPE_VARIANTS: Record<
+  string,
+  { label: string; variant: "info" | "accent" | "success" | "danger" }
+> = {
+  regulatory: { label: "Reg", variant: "info" },
+  product_change: { label: "Mud", variant: "accent" },
+  new_product: { label: "Novo", variant: "success" },
+  expiring_policy: { label: "Apol", variant: "danger" },
 };
 
 function AlertTypeBadge({ type }: { type: string }) {
-  const meta = TYPE_LABELS[type] ?? {
-    label: type.slice(0, 3).toUpperCase(),
-    color: "bg-solomon-charcoal text-solomon-cream-muted border border-solomon-gold/15",
-  };
-  return (
-    <span
-      className={`shrink-0 mt-0.5 font-mono text-[10px] px-1.5 py-0.5 rounded tracking-widest ${meta.color}`}
-    >
-      {meta.label}
-    </span>
-  );
+  const meta = TYPE_VARIANTS[type];
+  if (!meta)
+    return <Badge variant="neutral">{type.slice(0, 3).toUpperCase()}</Badge>;
+  return <Badge variant={meta.variant}>{meta.label}</Badge>;
 }
 
 function planLabel(plan: string) {
