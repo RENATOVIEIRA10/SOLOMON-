@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import {
   ArrowLeft,
@@ -14,105 +14,65 @@ import {
   ShieldCheck,
   User,
 } from "lucide-react";
+import { useClient, type ClaimAnalysisSummary, type ClientDetail } from "@/hooks/use-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-
-type Client = {
-  id: string;
-  name: string;
-  cpf: string | null;
-  phone: string | null;
-  email: string | null;
-  birth_date: string | null;
-  notes: string | null;
-  created_at: string;
-  updated_at: string;
-};
-
-type ClaimAnalysis = {
-  id: string;
-  event_type: string;
-  event_description: string | null;
-  verdict: string;
-  verdict_reason: string | null;
-  risk_flags: unknown;
-  created_at: string;
-};
-
-type ClientOverview = {
-  client: Client;
-  claimAnalyses: ClaimAnalysis[];
-  stats: {
-    claimAnalysesCount: number;
-    openRiskCount: number;
-  };
-};
+import { Badge } from "@/components/ui/badge";
+import { SkeletonCard } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 export function ClientDetailView({ clientId }: { clientId: string }) {
-  const [data, setData] = useState<ClientOverview | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { client, claimAnalyses, stats, isLoading, error, mutate } = useClient(clientId);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch(`/api/clients/${clientId}`)
-      .then(async (res) => {
-        const body = await res.json();
-        if (!res.ok) throw new Error(body.error ?? `HTTP ${res.status}`);
-        if (!cancelled) setData(body);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Erro ao carregar cliente.");
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-
-    return () => {
-      cancelled = true;
-    };
-  }, [clientId]);
-
-  if (loading) {
+  if (isLoading) {
     return (
-      <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top">
-        <p className="text-sm text-solomon-cream-muted">Carregando cliente...</p>
+      <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top max-w-6xl mx-auto w-full">
+        <div className="mb-8 flex flex-col gap-4">
+          <div className="h-4 w-24 rounded bg-surface-2 animate-pulse" />
+          <SkeletonCard />
+        </div>
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+          <SkeletonCard />
+          <SkeletonCard />
+          <SkeletonCard />
+        </div>
       </div>
     );
   }
 
-  if (error || !data) {
+  if (error || !client || !stats) {
     return (
       <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top max-w-4xl mx-auto w-full">
-        <Link href="/clientes" className="inline-flex items-center gap-2 text-sm text-solomon-gold hover:text-solomon-gold-light">
+        <Link href="/clientes" className="inline-flex items-center gap-2 text-sm text-brand hover:text-brand-strong">
           <ArrowLeft className="h-4 w-4" />
           Voltar para clientes
         </Link>
-        <Card className="mt-6 border-destructive/40 bg-destructive/5">
-          <CardContent className="flex items-start gap-3 py-4">
-            <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-destructive" />
-            <p className="text-sm text-solomon-cream">{error ?? "Cliente nao encontrado."}</p>
+        <Card className="mt-6 border-danger/40 bg-danger/5">
+          <CardContent className="py-4">
+            <EmptyState
+              icon={AlertTriangle}
+              title="Não foi possível carregar este cliente."
+              action={{ label: "Tentar de novo", onClick: () => mutate() }}
+            />
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  const { client, claimAnalyses, stats } = data;
-
   return (
     <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top max-w-6xl mx-auto w-full">
       <header className="mb-8">
-        <Link href="/clientes" className="inline-flex items-center gap-2 text-sm text-solomon-gold hover:text-solomon-gold-light">
+        <Link href="/clientes" className="inline-flex items-center gap-2 text-sm text-brand hover:text-brand-strong">
           <ArrowLeft className="h-4 w-4" />
           Clientes
         </Link>
         <div className="mt-5 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
-            <p className="font-mono text-xs uppercase tracking-widest text-solomon-gold/80">
+            <p className="font-mono text-xs uppercase tracking-widest text-brand/80">
               Cliente 360
             </p>
-            <h1 className="mt-2 font-display text-4xl text-solomon-cream md:text-5xl">
+            <h1 className="mt-2 font-display text-4xl text-ink md:text-5xl">
               {client.name}
             </h1>
             <ClientContactRow client={client} />
@@ -151,23 +111,23 @@ export function ClientDetailView({ clientId }: { clientId: string }) {
   );
 }
 
-function ClientContactRow({ client }: { client: Client }) {
+function ClientContactRow({ client }: { client: ClientDetail }) {
   return (
-    <div className="mt-4 flex flex-wrap gap-3 text-sm text-solomon-cream-muted">
+    <div className="mt-4 flex flex-wrap gap-3 text-sm text-ink-muted">
       {client.email && (
         <span className="inline-flex items-center gap-1.5">
-          <Mail className="h-3.5 w-3.5 text-solomon-gold/70" />
+          <Mail className="h-3.5 w-3.5 text-brand/70" />
           {client.email}
         </span>
       )}
       {client.phone && (
         <span className="inline-flex items-center gap-1.5">
-          <Phone className="h-3.5 w-3.5 text-solomon-gold/70" />
+          <Phone className="h-3.5 w-3.5 text-brand/70" />
           {client.phone}
         </span>
       )}
       {client.cpf && (
-        <span className="font-mono text-xs text-solomon-cream-muted/70">
+        <span className="font-mono text-xs text-ink-muted/70">
           CPF {client.cpf}
         </span>
       )}
@@ -187,13 +147,13 @@ function MetricCard({
   tone?: "default" | "warning";
 }) {
   return (
-    <Card className={tone === "warning" ? "border-solomon-gold/40 bg-solomon-gold/5" : undefined}>
+    <Card className={tone === "warning" ? "border-brand/40 bg-brand/5" : undefined}>
       <CardHeader className="pb-3">
-        <p className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/70">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-ink-muted/70">
           {label}
         </p>
-        <p className="font-display text-4xl text-solomon-cream">{value}</p>
-        <p className="text-xs text-solomon-cream-muted">{hint}</p>
+        <p className="font-display text-4xl text-ink">{value}</p>
+        <p className="text-xs text-ink-muted">{hint}</p>
       </CardHeader>
     </Card>
   );
@@ -240,17 +200,17 @@ function ActionPanel({ clientId }: { clientId: string }) {
             <Link
               key={action.title}
               href={action.href}
-              className="group rounded-md border border-solomon-gold/15 bg-solomon-charcoal/40 p-4 transition-colors hover:border-solomon-gold/40 hover:bg-solomon-charcoal"
+              className="group rounded-md border border-edge bg-surface-2/40 p-4 transition-colors hover:border-brand/40 hover:bg-surface-2"
             >
               <div className="flex items-start gap-3">
-                <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-solomon-gold/10 text-solomon-gold group-hover:bg-solomon-gold/20">
+                <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand/10 text-brand group-hover:bg-brand/20">
                   <Icon className="h-4 w-4" />
                 </span>
                 <div className="min-w-0">
-                  <p className="text-sm font-semibold text-solomon-cream group-hover:text-solomon-gold-light">
+                  <p className="text-sm font-semibold text-ink group-hover:text-brand-strong">
                     {action.title}
                   </p>
-                  <p className="mt-1 text-xs leading-relaxed text-solomon-cream-muted">
+                  <p className="mt-1 text-xs leading-relaxed text-ink-muted">
                     {action.description}
                   </p>
                 </div>
@@ -263,7 +223,7 @@ function ActionPanel({ clientId }: { clientId: string }) {
   );
 }
 
-function ClaimTimeline({ analyses }: { analyses: ClaimAnalysis[] }) {
+function ClaimTimeline({ analyses }: { analyses: ClaimAnalysisSummary[] }) {
   return (
     <Card>
       <CardHeader>
@@ -278,12 +238,12 @@ function ClaimTimeline({ analyses }: { analyses: ClaimAnalysis[] }) {
               initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
-              className="rounded-md border border-solomon-gold/10 bg-solomon-charcoal/30 px-4 py-6 text-center"
             >
-              <ShieldCheck className="mx-auto mb-3 h-7 w-7 text-solomon-cream-muted/40" />
-              <p className="text-sm text-solomon-cream-muted">
-                Nenhuma analise ligada a este cliente ainda.
-              </p>
+              <EmptyState
+                icon={ShieldCheck}
+                title="Nenhuma analise ligada a este cliente ainda."
+                className="rounded-md border border-edge bg-surface-2/30 py-6"
+              />
             </motion.div>
           ) : (
             <motion.ul
@@ -294,27 +254,27 @@ function ClaimTimeline({ analyses }: { analyses: ClaimAnalysis[] }) {
               className="flex flex-col gap-3"
             >
               {analyses.map((analysis) => (
-                <li key={analysis.id} className="rounded-md border border-solomon-gold/10 bg-solomon-charcoal/30 p-4">
+                <li key={analysis.id} className="rounded-md border border-edge bg-surface-2/30 p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
                         <VerdictBadge verdict={analysis.verdict} />
-                        <span className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted">
+                        <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted">
                           {analysis.event_type}
                         </span>
                       </div>
                       {analysis.event_description && (
-                        <p className="mt-2 line-clamp-2 text-sm text-solomon-cream">
+                        <p className="mt-2 line-clamp-2 text-sm text-ink">
                           {analysis.event_description}
                         </p>
                       )}
                     </div>
-                    <time className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/70">
+                    <time className="shrink-0 font-mono text-[10px] uppercase tracking-widest text-ink-muted/70">
                       {formatDate(analysis.created_at)}
                     </time>
                   </div>
                   {analysis.verdict_reason && (
-                    <p className="mt-3 border-t border-solomon-gold/10 pt-3 text-xs leading-relaxed text-solomon-cream-muted line-clamp-3">
+                    <p className="mt-3 border-t border-edge pt-3 text-xs leading-relaxed text-ink-muted line-clamp-3">
                       {analysis.verdict_reason}
                     </p>
                   )}
@@ -328,14 +288,14 @@ function ClaimTimeline({ analyses }: { analyses: ClaimAnalysis[] }) {
   );
 }
 
-function ClientProfileCard({ client }: { client: Client }) {
+function ClientProfileCard({ client }: { client: ClientDetail }) {
   const age = useMemo(() => getAge(client.birth_date), [client.birth_date]);
 
   return (
     <Card className="h-fit">
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-xl">
-          <User className="h-4 w-4 text-solomon-gold" />
+          <User className="h-4 w-4 text-brand" />
           Dados do cliente
         </CardTitle>
         <CardDescription>Informacoes usadas nos fluxos do SOLOMON.</CardDescription>
@@ -348,11 +308,11 @@ function ClientProfileCard({ client }: { client: Client }) {
         <InfoRow label="Nascimento" value={client.birth_date ? `${formatDate(client.birth_date)}${age ? ` (${age} anos)` : ""}` : null} />
         <InfoRow label="Atualizado" value={formatDate(client.updated_at)} />
         {client.notes && (
-          <div className="rounded-md border border-solomon-gold/10 bg-solomon-charcoal/30 p-3">
-            <p className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/70">
+          <div className="rounded-md border border-edge bg-surface-2/30 p-3">
+            <p className="font-mono text-[10px] uppercase tracking-widest text-ink-muted/70">
               Observacoes
             </p>
-            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-solomon-cream">
+            <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-ink">
               {client.notes}
             </p>
           </div>
@@ -364,11 +324,11 @@ function ClientProfileCard({ client }: { client: Client }) {
 
 function InfoRow({ label, value }: { label: string; value: string | null }) {
   return (
-    <div className="flex items-start justify-between gap-4 border-b border-solomon-gold/10 pb-3 last:border-b-0 last:pb-0">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/70">
+    <div className="flex items-start justify-between gap-4 border-b border-edge pb-3 last:border-b-0 last:pb-0">
+      <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted/70">
         {label}
       </span>
-      <span className="max-w-[220px] text-right text-sm text-solomon-cream">
+      <span className="max-w-[220px] text-right text-sm text-ink">
         {value || "Nao informado"}
       </span>
     </div>
@@ -376,18 +336,10 @@ function InfoRow({ label, value }: { label: string; value: string | null }) {
 }
 
 function VerdictBadge({ verdict }: { verdict: string }) {
-  const className =
-    verdict === "COBERTO"
-      ? "border-green-500/30 bg-green-500/10 text-green-300"
-      : verdict === "NAO_COBERTO"
-        ? "border-red-500/30 bg-red-500/10 text-red-300"
-        : "border-solomon-gold/30 bg-solomon-gold/10 text-solomon-gold";
+  const variant =
+    verdict === "COBERTO" ? "success" : verdict === "NAO_COBERTO" ? "danger" : "accent";
 
-  return (
-    <span className={`rounded-md border px-2 py-1 font-mono text-[10px] uppercase tracking-widest ${className}`}>
-      {verdict.replace("_", " ")}
-    </span>
-  );
+  return <Badge variant={variant}>{verdict.replace("_", " ")}</Badge>;
 }
 
 function formatDate(iso: string) {

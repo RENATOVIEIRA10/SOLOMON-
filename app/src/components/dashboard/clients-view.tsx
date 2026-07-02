@@ -1,51 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import * as AlertDialog from "@radix-ui/react-alert-dialog";
 import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "motion/react";
+import { toast } from "sonner";
 import { Plus, Search, User, Mail, Phone, Trash2, X } from "lucide-react";
-import { useBrokerId } from "@/hooks/use-broker-id";
+import { useClients } from "@/hooks/use-data";
+import { apiFetch, ApiError } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-
-type Client = {
-  id: string;
-  name: string;
-  cpf: string | null;
-  phone: string | null;
-  email: string | null;
-  birth_date: string | null;
-  notes: string | null;
-  created_at: string;
-};
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { SkeletonList } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
+import type { ClientSummary } from "@/types/api";
 
 export function ClientsView() {
-  const brokerId = useBrokerId();
-  const [clients, setClients] = useState<Client[]>([]);
+  const { clients, isLoading, error, mutate } = useClients();
   const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [deleteTarget, setDeleteTarget] = useState<Client | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ClientSummary | null>(null);
   const [deleting, setDeleting] = useState(false);
-
-  async function refresh() {
-    if (!brokerId) return;
-    setLoading(true);
-    const r = await fetch("/api/clients");
-    const d = await r.json();
-    setClients(d.clients ?? []);
-    setLoading(false);
-  }
-
-  useEffect(() => {
-    if (!brokerId) return;
-    // ensure broker exists
-    fetch("/api/profile").then(refresh);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [brokerId]);
 
   const filtered = clients.filter((c) => {
     if (!query.trim()) return true;
@@ -60,18 +38,26 @@ export function ClientsView() {
 
   async function handleDelete() {
     if (!deleteTarget || deleting) return;
+    const target = deleteTarget;
     setDeleting(true);
-    setDeleteError(null);
-    const res = await fetch(`/api/clients/${deleteTarget.id}`, { method: "DELETE" });
-    setDeleting(false);
 
-    if (!res.ok) {
-      setDeleteError("Nao foi possivel remover este cliente.");
-      return;
-    }
-
+    // Optimistic: remove da lista na hora, sem esperar o servidor.
+    mutate((current) => ({ clients: (current?.clients ?? []).filter((c) => c.id !== target.id) }), {
+      revalidate: false,
+    });
     setDeleteTarget(null);
-    refresh();
+
+    try {
+      await apiFetch(`/api/clients/${target.id}`, { method: "DELETE" });
+      toast.success("Cliente removido");
+      mutate();
+    } catch (err) {
+      // Rollback: revalida a partir do servidor.
+      mutate();
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível remover este cliente.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   return (
@@ -82,10 +68,10 @@ export function ClientsView() {
             <span className="mono-tag">Carteira</span>
             <span className="gold-rule flex-1 max-w-[60px]" />
           </div>
-          <h1 className="font-display text-4xl text-solomon-cream tracking-tight text-balance">
+          <h1 className="font-display text-4xl text-ink tracking-tight text-balance">
             Meus Clientes
           </h1>
-          <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed text-pretty">
+          <p className="mt-2 text-sm text-ink-muted max-w-2xl leading-relaxed text-pretty">
             Gerencie seus clientes segurados e acesse históricos e análises de cobertura de forma centralizada.
           </p>
         </div>
@@ -97,29 +83,44 @@ export function ClientsView() {
 
       {/* Search */}
       <div className="relative mb-6 max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-solomon-cream-muted/60" />
-        <input
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-ink-muted/60" />
+        <Input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Buscar por nome, e-mail, telefone..."
-          className="w-full h-10 pl-10 pr-4 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20"
+          className="pl-10"
         />
       </div>
 
       {/* List */}
       <AnimatePresence mode="wait">
-        {loading ? (
-          <motion.p
+        {isLoading ? (
+          <motion.div
             key="loading"
             initial={{ opacity: 0, y: 6 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="text-sm text-solomon-cream-muted"
           >
-            Carregando...
-          </motion.p>
+            <SkeletonList rows={4} />
+          </motion.div>
+        ) : error && clients.length === 0 ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -4 }}
+            transition={{ duration: 0.2, ease: "easeOut" }}
+          >
+            <Card>
+              <EmptyState
+                icon={User}
+                title="Não foi possível carregar seus clientes."
+                action={{ label: "Tentar de novo", onClick: () => mutate() }}
+              />
+            </Card>
+          </motion.div>
         ) : filtered.length === 0 ? (
           <motion.div
             key="empty"
@@ -130,8 +131,8 @@ export function ClientsView() {
           >
             <Card>
               <CardContent className="py-12 text-center">
-                <User className="size-8 text-solomon-cream-muted/40 mx-auto mb-3" />
-                <p className="text-solomon-cream-muted mb-4 text-pretty">
+                <User className="size-8 text-ink-muted/40 mx-auto mb-3" />
+                <p className="text-ink-muted mb-4 text-pretty">
                   {query ? "Nenhum cliente encontrado." : "Você ainda não cadastrou clientes."}
                 </p>
                 {!query && (
@@ -152,21 +153,21 @@ export function ClientsView() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
             >
-              <Card className="h-full hover:border-solomon-gold/40 transition-colors group">
+              <Card className="h-full hover:border-brand/40 transition-colors group">
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-3 min-w-0">
-                      <div className="size-10 rounded-full bg-solomon-gold/10 text-solomon-gold flex items-center justify-center font-semibold shrink-0">
+                      <div className="size-10 rounded-full bg-brand/10 text-brand flex items-center justify-center font-semibold shrink-0">
                         {initials(c.name)}
                       </div>
                       <div className="min-w-0">
                         <Link href={`/clientes/${c.id}`} className="block">
-                          <CardTitle className="text-lg truncate transition-colors hover:text-solomon-gold-light">
+                          <CardTitle className="text-lg truncate transition-colors hover:text-brand-strong">
                             {c.name}
                           </CardTitle>
                         </Link>
                         {c.cpf && (
-                          <p className="font-mono text-[10px] text-solomon-cream-muted/60 mt-0.5">
+                          <p className="font-mono text-[10px] text-ink-muted/60 mt-0.5">
                             CPF {c.cpf}
                           </p>
                         )}
@@ -174,12 +175,9 @@ export function ClientsView() {
                     </div>
                     <button
                       type="button"
-                      onClick={() => {
-                        setDeleteTarget(c);
-                        setDeleteError(null);
-                      }}
+                      onClick={() => setDeleteTarget(c)}
                       aria-label={`Remover cliente ${c.name}`}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-solomon-cream-muted hover:text-destructive hover:bg-destructive/10 transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-ink-muted hover:text-destructive hover:bg-destructive/10 transition-all"
                       title="Remover"
                     >
                       <Trash2 className="size-3.5" />
@@ -188,25 +186,25 @@ export function ClientsView() {
                 </CardHeader>
                 <CardContent className="space-y-1.5 pt-0">
                   {c.email && (
-                    <p className="flex items-center gap-2 text-xs text-solomon-cream-muted">
-                      <Mail className="size-3 text-solomon-gold/60" />
+                    <p className="flex items-center gap-2 text-xs text-ink-muted">
+                      <Mail className="size-3 text-brand/60" />
                       <span className="truncate">{c.email}</span>
                     </p>
                   )}
                   {c.phone && (
-                    <p className="flex items-center gap-2 text-xs text-solomon-cream-muted">
-                      <Phone className="size-3 text-solomon-gold/60" />
+                    <p className="flex items-center gap-2 text-xs text-ink-muted">
+                      <Phone className="size-3 text-brand/60" />
                       <span>{c.phone}</span>
                     </p>
                   )}
                   {c.notes && (
-                    <p className="text-xs text-solomon-cream-muted line-clamp-2 pt-1 border-t border-solomon-gold/10 mt-2">
+                    <p className="text-xs text-ink-muted line-clamp-2 pt-1 border-t border-edge mt-2">
                       {c.notes}
                     </p>
                   )}
                   <Link
                     href={`/clientes/${c.id}`}
-                    className="inline-flex pt-2 text-xs text-solomon-gold transition-colors hover:text-solomon-gold-light"
+                    className="inline-flex pt-2 text-xs text-brand transition-colors hover:text-brand-strong"
                   >
                     Abrir Cliente 360
                   </Link>
@@ -218,12 +216,7 @@ export function ClientsView() {
         )}
       </AnimatePresence>
 
-      <ClientFormDialog
-        open={dialogOpen}
-        onOpenChange={setDialogOpen}
-        brokerId={brokerId}
-        onSaved={refresh}
-      />
+      <ClientFormDialog open={dialogOpen} onOpenChange={setDialogOpen} mutate={mutate} />
 
       <AlertDialog.Root
         open={deleteTarget != null}
@@ -232,19 +225,14 @@ export function ClientsView() {
         }}
       >
         <AlertDialog.Portal>
-          <AlertDialog.Overlay className="fixed inset-0 z-40 bg-solomon-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
-          <AlertDialog.Content className="fixed z-50 left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-solomon-gold/20 bg-solomon-graphite p-6 shadow-2xl shadow-solomon-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 duration-200 ease-out">
-            <AlertDialog.Title className="font-display text-2xl text-solomon-cream text-balance">
+          <AlertDialog.Overlay className="fixed inset-0 z-40 bg-canvas/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
+          <AlertDialog.Content className="fixed z-50 left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-edge bg-surface p-6 shadow-2xl shadow-black/50 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 duration-200 ease-out">
+            <AlertDialog.Title className="font-display text-2xl text-ink text-balance">
               Remover cliente
             </AlertDialog.Title>
-            <AlertDialog.Description className="mt-2 text-sm leading-relaxed text-solomon-cream-muted text-pretty">
+            <AlertDialog.Description className="mt-2 text-sm leading-relaxed text-ink-muted text-pretty">
               Esta acao remove {deleteTarget?.name ?? "este cliente"} da carteira. O historico de analises vinculado pode deixar de aparecer na visao 360 do cliente.
             </AlertDialog.Description>
-            {deleteError && (
-              <p className="mt-4 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {deleteError}
-              </p>
-            )}
             <div className="mt-6 flex justify-end gap-2">
               <AlertDialog.Cancel asChild>
                 <Button type="button" variant="outline" disabled={deleting}>
@@ -275,13 +263,11 @@ export function ClientsView() {
 function ClientFormDialog({
   open,
   onOpenChange,
-  brokerId,
-  onSaved,
+  mutate,
 }: {
   open: boolean;
   onOpenChange: (v: boolean) => void;
-  brokerId: string | null;
-  onSaved: () => void;
+  mutate: () => void;
 }) {
   const [form, setForm] = useState({
     name: "",
@@ -292,47 +278,47 @@ function ClientFormDialog({
     notes: "",
   });
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!brokerId || form.name.trim().length < 2 || saving) return;
+    if (form.name.trim().length < 2 || saving) return;
     setSaving(true);
-    setError(null);
-    const res = await fetch("/api/clients", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name.trim(),
-        cpf: form.cpf || null,
-        phone: form.phone || null,
-        email: form.email || null,
-        birth_date: form.birth_date || null,
-        notes: form.notes || null,
-      }),
-    });
-    setSaving(false);
-    if (res.ok) {
+    try {
+      await apiFetch("/api/clients", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name.trim(),
+          cpf: form.cpf || null,
+          phone: form.phone || null,
+          email: form.email || null,
+          birth_date: form.birth_date || null,
+          notes: form.notes || null,
+        }),
+      });
       setForm({ name: "", cpf: "", phone: "", email: "", birth_date: "", notes: "" });
       onOpenChange(false);
-      onSaved();
-    } else {
-      setError("Erro ao salvar cliente.");
+      toast.success("Cliente cadastrado");
+      mutate();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Erro ao salvar cliente.");
+    } finally {
+      setSaving(false);
     }
   }
 
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-40 bg-solomon-black/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
-        <Dialog.Content className="fixed z-50 left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 bg-solomon-graphite border border-solomon-gold/20 rounded-xl shadow-2xl shadow-solomon-black/50 p-6 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 duration-200 ease-out">
+        <Dialog.Overlay className="fixed inset-0 z-40 bg-canvas/70 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0" />
+        <Dialog.Content className="fixed z-50 left-1/2 top-1/2 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 bg-surface border border-edge rounded-xl shadow-2xl shadow-black/50 p-6 data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 duration-200 ease-out">
           <div className="flex items-center justify-between mb-5">
-            <Dialog.Title className="font-display text-2xl text-solomon-cream text-balance">
+            <Dialog.Title className="font-display text-2xl text-ink text-balance">
               Novo cliente
             </Dialog.Title>
             <Dialog.Close
               aria-label="Fechar cadastro de cliente"
-              className="rounded-md p-1.5 text-solomon-cream-muted hover:text-solomon-gold transition-colors"
+              className="rounded-md p-1.5 text-ink-muted hover:text-brand transition-colors"
             >
               <X className="size-4" />
             </Dialog.Close>
@@ -347,21 +333,14 @@ function ClientFormDialog({
             <Field label="Telefone" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} placeholder="(11) 9 0000-0000" />
             <Field label="E-mail" value={form.email} onChange={(v) => setForm({ ...form, email: v })} type="email" placeholder="cliente@exemplo.com" />
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs uppercase text-solomon-cream-muted">Observações</span>
-              <textarea
+              <Label>Observações</Label>
+              <Textarea
                 rows={3}
                 value={form.notes}
                 onChange={(e) => setForm({ ...form, notes: e.target.value })}
                 placeholder="Apólices, preferências, notas..."
-                className="rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 px-3 py-2 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20 resize-none"
               />
             </label>
-
-            {error && (
-              <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                {error}
-              </p>
-            )}
 
             <div className="flex gap-2 pt-2">
               <Button type="button" variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>
@@ -395,16 +374,13 @@ function Field({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs uppercase text-solomon-cream-muted">
-        {label}
-      </span>
-      <input
+      <Label>{label}</Label>
+      <Input
         type={type}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         required={required}
-        className="h-10 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 px-3 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20"
       />
     </label>
   );

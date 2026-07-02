@@ -24,16 +24,35 @@ export function useClients() {
   return { clients: data?.clients ?? [], isLoading, error, mutate };
 }
 
+export type ClaimAnalysisSummary = {
+  id: string;
+  event_type: string;
+  event_description: string | null;
+  verdict: string;
+  verdict_reason: string | null;
+  risk_flags: unknown;
+  created_at: string;
+};
+
+export type ClientDetail = ClientSummary & { updated_at: string };
+
 export function useClient(id: string | null) {
   // GET /api/clients/[id] retorna { client, claimAnalyses, stats } — não apenas
   // { client }. Tipamos o payload real (sancionado pela verificação da Task 11)
-  // mas mantemos a assinatura de retorno do hook conforme especificado.
+  // e expomos claimAnalyses/stats no retorno (Onda B — client-detail-view consome).
   const { data, error, isLoading, mutate } = useSWR<{
-    client: ClientSummary;
-    claimAnalyses: unknown[];
+    client: ClientDetail;
+    claimAnalyses: ClaimAnalysisSummary[];
     stats: { claimAnalysesCount: number; openRiskCount: number };
   }>(id ? `/api/clients/${id}` : null);
-  return { client: data?.client ?? null, isLoading, error, mutate };
+  return {
+    client: data?.client ?? null,
+    claimAnalyses: data?.claimAnalyses ?? [],
+    stats: data?.stats ?? null,
+    isLoading,
+    error,
+    mutate,
+  };
 }
 
 export function useAlerts(limit = 3) {
