@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "motion/react";
 import { History, X, MessageSquare } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
+import { SkeletonList } from "@/components/ui/skeleton";
+import { useConversations } from "@/hooks/use-data";
 
 type HistoryItem = {
   id: string;
@@ -33,27 +35,16 @@ export function HistoryDrawer({
   onSelect: (item: HistoryItem) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<HistoryItem[]>([]);
-  const [loading, setLoading] = useState(false);
   const [filter, setFilter] = useState<ChannelFilter>("all");
 
-  function handleOpenChange(nextOpen: boolean) {
-    setOpen(nextOpen);
-    if (nextOpen && brokerId) setLoading(true);
-  }
-
-  useEffect(() => {
-    if (!open || !brokerId) return;
-    const channelQuery = filter === "all" ? "" : `&channel=${filter}`;
-    fetch(`/api/conversations?limit=30${channelQuery}`)
-      .then((r) => r.json())
-      .then((data) => setItems(data.conversations ?? []))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }, [open, brokerId, filter]);
+  const { conversations, isLoading } = useConversations(
+    filter === "all" ? undefined : filter,
+    30
+  );
+  const items = open && brokerId ? conversations : [];
 
   return (
-    <Dialog.Root open={open} onOpenChange={handleOpenChange}>
+    <Dialog.Root open={open} onOpenChange={setOpen}>
       <Dialog.Trigger asChild>
         <button
           type="button"
@@ -99,7 +90,6 @@ export function HistoryDrawer({
                 aria-selected={filter === f.value}
                 onClick={() => {
                   if (f.value !== filter) {
-                    setLoading(true);
                     setFilter(f.value);
                   }
                 }}
@@ -117,19 +107,18 @@ export function HistoryDrawer({
 
           <div className="overflow-y-auto h-[calc(100dvh-128px)] px-3 py-3">
             <AnimatePresence mode="wait">
-              {loading && (
-                <motion.p
+              {isLoading && (
+                <motion.div
                   key="loading"
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
                   transition={{ duration: 0.2, ease: "easeOut" }}
-                  className="text-center text-xs text-solomon-cream-muted py-8"
                 >
-                  Carregando...
-                </motion.p>
+                  <SkeletonList rows={4} />
+                </motion.div>
               )}
-              {!loading && items.length === 0 && (
+              {!isLoading && items.length === 0 && (
                 <motion.div
                   key="empty"
                   initial={{ opacity: 0, y: 6 }}

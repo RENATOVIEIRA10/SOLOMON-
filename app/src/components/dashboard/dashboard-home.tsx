@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import {
   MessageSquare,
@@ -16,33 +15,10 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useBrokerId } from "@/hooks/use-broker-id";
+import { useAlerts, useClients, useConversations, useProfile, useStatsToday } from "@/hooks/use-data";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { FocusActionCard } from "@/components/dashboard/focus-action-card";
 import { Badge } from "@/components/ui/badge";
-
-type Stats = { consultationsToday: number; plan: string; limit: number };
-type Alert = {
-  id: string;
-  type: string;
-  title: string;
-  message: string;
-  source_url: string | null;
-  read: boolean;
-  created_at: string;
-};
-type Client = {
-  id: string;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  created_at: string;
-};
-type Conversation = {
-  id: string;
-  message: string;
-  low_confidence: boolean | null;
-  created_at: string;
-};
 
 type SecondaryAction = {
   href: string;
@@ -79,33 +55,14 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 export function DashboardHome() {
   const brokerId = useBrokerId();
-  const [stats, setStats] = useState<Stats | null>(null);
-  const [alerts, setAlerts] = useState<Alert[]>([]);
-  const [clients, setClients] = useState<Client[]>([]);
-  const [whatsappConvs, setWhatsappConvs] = useState<Conversation[]>([]);
-
-  useEffect(() => {
-    if (!brokerId) return;
-    // Bootstrap profile first (creates broker row if needed)
-    fetch("/api/profile").catch(() => {});
-    // Then load stats, alerts, clients in parallel
-    fetch("/api/stats/today")
-      .then((r) => r.json())
-      .then((d) => setStats(d))
-      .catch(() => {});
-    fetch("/api/alerts?limit=3")
-      .then((r) => r.json())
-      .then((d) => setAlerts(d.alerts ?? []))
-      .catch(() => {});
-    fetch("/api/clients")
-      .then((r) => r.json())
-      .then((d) => setClients((d.clients ?? []).slice(0, 4)))
-      .catch(() => {});
-    fetch("/api/conversations?limit=4&channel=whatsapp")
-      .then((r) => r.json())
-      .then((d) => setWhatsappConvs(d.conversations ?? []))
-      .catch(() => {});
-  }, [brokerId]);
+  const { profile } = useProfile(); // bootstrap: garante broker row (era o fetch("/api/profile"))
+  const { stats } = useStatsToday();
+  const { alerts } = useAlerts(3);
+  const { clients: allClients } = useClients();
+  const { conversations: whatsappConvs } = useConversations("whatsapp", 4);
+  const clients = allClients.slice(0, 4);
+  void brokerId;
+  void profile;
 
   return (
     <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top max-w-7xl w-full mx-auto ambient-grid">
@@ -191,7 +148,7 @@ export function DashboardHome() {
               ? `${stats.consultationsToday}${stats.limit < 9999 ? ` / ${stats.limit}` : ""}`
               : "—"
           }
-          hint={stats ? `Plano ${planLabel(stats.plan)}` : "Carregando..."}
+          hint={stats ? `Plano ${planLabel(stats.plan)}` : "—"}
           index={2}
         />
         <StatCard

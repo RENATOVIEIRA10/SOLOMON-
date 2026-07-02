@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion } from "motion/react";
 import {
   MessageCircle,
@@ -11,22 +11,12 @@ import {
   AlertTriangle,
 } from "lucide-react";
 import { useBrokerId } from "@/hooks/use-broker-id";
+import { useConversations } from "@/hooks/use-data";
 import { cn } from "@/lib/utils";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-
-type Conversation = {
-  id: string;
-  message: string;
-  response: string;
-  sources: unknown[] | null;
-  model: string | null;
-  channel: string | null;
-  confidence_score: number | null;
-  low_confidence: boolean | null;
-  latency_ms: number | null;
-  created_at: string;
-};
+import { SkeletonList } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 
 const fadeUp = {
   initial: { opacity: 0, y: 14 },
@@ -37,19 +27,10 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 export function WhatsAppInbox() {
   const brokerId = useBrokerId();
-  const [items, setItems] = useState<Conversation[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { conversations: items, isLoading: loading } = useConversations("whatsapp", 50);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [onlyLowConfidence, setOnlyLowConfidence] = useState(false);
-
-  useEffect(() => {
-    if (!brokerId) return;
-    fetch("/api/conversations?limit=50&channel=whatsapp")
-      .then((r) => r.json())
-      .then((d) => setItems(d.conversations ?? []))
-      .catch(() => setItems([]))
-      .finally(() => setLoading(false));
-  }, [brokerId]);
+  void brokerId;
 
   const lowConfidenceCount = items.filter((c) => c.low_confidence).length;
   const visible = onlyLowConfidence
@@ -86,7 +67,7 @@ export function WhatsAppInbox() {
         className="mb-6 flex flex-wrap items-center gap-3"
       >
         <span className="font-mono text-[11px] uppercase tracking-widest text-solomon-cream-muted">
-          {loading ? "Carregando..." : `${items.length} conversas recentes`}
+          {loading ? " " : `${items.length} conversas recentes`}
         </span>
         {lowConfidenceCount > 0 && (
           <button
@@ -109,23 +90,13 @@ export function WhatsAppInbox() {
       {/* Lista */}
       <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.14, ease }}>
         {loading ? (
-          <p className="text-center text-sm text-solomon-cream-muted py-16">
-            Carregando conversas...
-          </p>
+          <SkeletonList rows={5} />
         ) : visible.length === 0 ? (
-          <Card className="p-10 text-center">
-            <MessageSquare className="size-8 mx-auto opacity-40 text-solomon-cream-muted" />
-            <p className="mt-4 text-sm text-solomon-cream">
-              {onlyLowConfidence
-                ? "Nenhuma conversa com baixa confiança. Bom sinal."
-                : "Nenhuma conversa pelo WhatsApp ainda."}
-            </p>
-            {!onlyLowConfidence && (
-              <p className="mt-1.5 text-xs text-solomon-cream-muted">
-                Mande uma pergunta ao SOLOMON no WhatsApp e ela aparece aqui.
-              </p>
-            )}
-          </Card>
+          <EmptyState
+            icon={MessageSquare}
+            title={onlyLowConfidence ? "Nenhuma conversa com baixa confiança. Bom sinal." : "Nenhuma conversa pelo WhatsApp ainda."}
+            description={onlyLowConfidence ? undefined : "Mande uma pergunta ao SOLOMON no WhatsApp e ela aparece aqui."}
+          />
         ) : (
           <ul className="flex flex-col gap-3">
             {visible.map((c) => {
