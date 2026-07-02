@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { toast } from "sonner";
 import {
   ShieldCheck,
   ShieldAlert,
@@ -17,6 +18,12 @@ import { useBrokerId } from "@/hooks/use-broker-id";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InsurerFilter } from "@/components/chat/insurer-filter";
+import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { apiFetch, ApiError } from "@/lib/api";
 
 type Verdict = "COBERTO" | "NAO_COBERTO" | "RISCO";
 
@@ -78,7 +85,7 @@ export function PreSinistroView() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/pre-sinistro", {
+      const data = await apiFetch<PreSinistroResult>("/api/pre-sinistro", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -89,14 +96,11 @@ export function PreSinistroView() {
           description: description.trim(),
         }),
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error ?? `HTTP ${res.status}`);
-      } else {
-        setResult(data);
-      }
+      setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro inesperado.");
+      const message = err instanceof ApiError ? err.message : "Erro inesperado.";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -109,14 +113,14 @@ export function PreSinistroView() {
           <span className="mono-tag">Oráculo do Sinistro</span>
           <span className="gold-rule flex-1 max-w-[60px]" />
         </div>
-        <h1 className="font-display text-4xl text-solomon-cream tracking-tight text-balance">
+        <h1 className="font-display text-4xl text-ink tracking-tight text-balance">
           Pré-Sinistro
         </h1>
-        <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed text-pretty">
+        <p className="mt-2 text-sm text-ink-muted max-w-2xl leading-relaxed text-pretty">
           Cruze o evento com as condições gerais indexadas <em>antes</em> de abrir a notificação de sinistro. Obtenha veredicto preliminar de cobertura, checklists e riscos.
         </p>
         {brokerClientId && (
-          <p className="mt-3 inline-flex rounded-md border border-solomon-gold/20 bg-solomon-gold/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-solomon-gold">
+          <p className="mt-3 inline-flex rounded-md border border-edge bg-brand/10 px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest text-brand">
             Análise vinculada ao Cliente 360
           </p>
         )}
@@ -131,49 +135,41 @@ export function PreSinistroView() {
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="flex flex-col gap-4">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
-                Seguradora
-              </span>
+            <div className="flex flex-col gap-1.5">
+              <Label>Seguradora</Label>
               <InsurerFilter value={insurer} onChange={setInsurer} />
-            </label>
+            </div>
 
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
-                Tipo de evento
-              </span>
-              <select
+            <div className="flex flex-col gap-1.5">
+              <Label>Tipo de evento</Label>
+              <Select
                 value={claimType}
                 onChange={(e) => setClaimType(e.target.value)}
-                className="h-10 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 px-3 text-sm text-solomon-cream focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20"
               >
                 {CLAIM_TYPES.map((t) => (
-                  <option key={t.value} value={t.value} className="bg-solomon-graphite">
+                  <option key={t.value} value={t.value}>
                     {t.label}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </div>
 
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
-                Descrição do evento
-              </span>
-              <input
+            <div className="flex flex-col gap-1.5">
+              <Label>Descrição do evento</Label>
+              <Input
                 type="text"
                 value={productHint}
                 onChange={(e) => setProductHint(e.target.value)}
                 placeholder="Produto ou apolice (opcional): ex. Seguro Doencas Graves Plus"
-                className="mb-3 h-10 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 px-3 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20"
+                className="mb-3"
               />
-              <textarea
+              <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 rows={4}
                 placeholder="Ex: Segurado de 52 anos faleceu de infarto agudo do miocárdio em 15/03/2026. Apólice contratada em julho/2025, sem histórico cardíaco declarado na DPS. Tinha hipertensão diagnosticada em 2024 (não declarada)."
-                className="rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 px-3 py-2 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20 resize-none"
               />
-            </label>
+            </div>
 
             <Button
               type="submit"
@@ -198,12 +194,20 @@ export function PreSinistroView() {
             <Card className="border-destructive/40 bg-destructive/5 mb-6">
               <CardContent className="py-4 flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                <p className="text-sm text-solomon-cream">{error}</p>
+                <p className="text-sm text-ink">{error}</p>
               </CardContent>
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {loading && (
+        <div className="flex flex-col gap-4">
+          <Skeleton className="h-32 w-full" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-24 w-full" />
+        </div>
+      )}
 
       {result && <ResultPanel result={result} />}
     </div>
@@ -222,7 +226,7 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
       id="pre-sinistro-result"
     >
       <div className="flex items-center justify-between mb-4 print:hidden">
-        <h2 className="font-display text-2xl text-solomon-cream">Resultado</h2>
+        <h2 className="font-display text-2xl text-ink">Resultado</h2>
         <Button variant="outline" size="sm" onClick={() => window.print()}>
           <Printer className="h-4 w-4" />
           Exportar PDF
@@ -247,26 +251,26 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
                 >
                   {meta.label}
                 </p>
-                <span className="font-mono text-[10px] uppercase tracking-widest bg-solomon-charcoal/60 text-solomon-cream-muted px-2 py-1 rounded">
+                <span className="font-mono text-[10px] uppercase tracking-widest bg-surface-2/60 text-ink-muted px-2 py-1 rounded">
                   Confiança {Math.round(result.confidence * 100)}%
                 </span>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-solomon-cream">
+              <p className="mt-3 text-sm leading-relaxed text-ink">
                 {result.rationale}
               </p>
               {result.humanReviewRequired && (
-                <p className="mt-3 inline-flex rounded bg-solomon-gold/15 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-solomon-gold">
+                <p className="mt-3 inline-flex rounded bg-brand/15 px-2 py-1 font-mono text-[10px] uppercase tracking-widest text-brand">
                   Revisao humana necessaria
                 </p>
               )}
-              <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-mono uppercase tracking-widest text-solomon-cream-muted">
+              <div className="mt-4 flex flex-wrap gap-2 text-[10px] font-mono uppercase tracking-widest text-ink-muted">
                 <span>{result.evidenceSummary.chunkCount} chunks</span>
                 <span>similaridade {Math.round(result.evidenceSummary.avgSimilarity * 100)}%</span>
                 <span>
                   citacao {result.evidenceSummary.hasValidatedCitation ? "validada" : "nao validada"}
                 </span>
               </div>
-              <p className="mt-4 border-t border-solomon-gold/10 pt-3 text-xs leading-relaxed text-solomon-cream-muted">
+              <p className="mt-4 border-t border-edge pt-3 text-xs leading-relaxed text-ink-muted">
                 {result.legalDisclaimer}
               </p>
             </div>
@@ -286,13 +290,13 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
             <Card className="mb-4">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-solomon-gold" />
+                  <FileText className="h-4 w-4 text-brand" />
                   Fundamento
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
-                <div className="flex items-center gap-2 text-xs text-solomon-cream-muted mb-2">
-                  <span className="font-medium text-solomon-cream">
+                <div className="flex items-center gap-2 text-xs text-ink-muted mb-2">
+                  <span className="font-medium text-ink">
                     {result.citation.insurer}
                   </span>
                   {result.citation.clause && (
@@ -302,7 +306,7 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
                     </>
                   )}
                 </div>
-                <p className="text-sm leading-relaxed text-solomon-cream-muted border-l-2 border-solomon-gold/40 pl-4 italic">
+                <p className="text-sm leading-relaxed text-ink-muted border-l-2 border-brand/40 pl-4 italic">
                   &ldquo;{result.citation.excerpt}&rdquo;
                 </p>
                 {result.citation.source_url && (
@@ -310,7 +314,7 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
                     href={result.citation.source_url}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-3 inline-flex items-center gap-1.5 text-xs text-solomon-gold hover:text-solomon-gold-light transition-colors"
+                    className="mt-3 inline-flex items-center gap-1.5 text-xs text-brand hover:text-brand-strong transition-colors"
                   >
                     Ver documento original <ExternalLink className="h-3 w-3" />
                   </a>
@@ -333,7 +337,7 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
             <Card className="mb-4">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <ClipboardList className="h-4 w-4 text-solomon-gold" />
+                  <ClipboardList className="h-4 w-4 text-brand" />
                   Documentos necessários
                 </CardTitle>
               </CardHeader>
@@ -341,10 +345,10 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
                 <ul className="flex flex-col gap-2">
                   {result.documentsChecklist.map((doc, i) => (
                     <li key={i} className="flex items-start gap-3 text-sm">
-                      <span className="shrink-0 h-5 w-5 rounded-full border border-solomon-gold/40 text-[10px] flex items-center justify-center text-solomon-gold font-mono mt-0.5">
+                      <span className="shrink-0 h-5 w-5 rounded-full border border-brand/40 text-[10px] flex items-center justify-center text-brand font-mono mt-0.5">
                         {i + 1}
                       </span>
-                      <span className="text-solomon-cream">{doc}</span>
+                      <span className="text-ink">{doc}</span>
                     </li>
                   ))}
                 </ul>
@@ -366,7 +370,7 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
             <Card className="mb-4">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="h-4 w-4 text-solomon-gold" />
+                  <FileText className="h-4 w-4 text-brand" />
                   Termos exatos no laudo
                 </CardTitle>
                 <CardDescription>
@@ -376,8 +380,8 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
               <CardContent className="pt-0">
                 <ul className="flex flex-col gap-2">
                   {result.laudoTerms.map((term, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-solomon-cream">
-                      <span className="text-solomon-gold mt-0.5">▸</span>
+                    <li key={i} className="flex items-start gap-2 text-sm text-ink">
+                      <span className="text-brand mt-0.5">▸</span>
                       <span>{term}</span>
                     </li>
                   ))}
@@ -397,18 +401,18 @@ function ResultPanel({ result }: { result: PreSinistroResult }) {
             exit={{ opacity: 0, y: -4 }}
             transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
           >
-            <Card className="border-solomon-gold/30 bg-solomon-gold/5">
+            <Card className="border-warning/30 bg-warning/5">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <AlertTriangle className="h-4 w-4 text-solomon-gold" />
+                  <AlertTriangle className="h-4 w-4 text-warning" />
                   Alertas de risco
                 </CardTitle>
               </CardHeader>
               <CardContent className="pt-0">
                 <ul className="flex flex-col gap-2">
                   {result.riskFlags.map((flag, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-solomon-cream">
-                      <AlertTriangle className="h-3.5 w-3.5 text-solomon-gold shrink-0 mt-0.5" />
+                    <li key={i} className="flex items-start gap-2 text-sm text-ink">
+                      <AlertTriangle className="h-3.5 w-3.5 text-warning shrink-0 mt-0.5" />
                       <span>{flag}</span>
                     </li>
                   ))}
@@ -426,28 +430,28 @@ const VERDICT_META = {
   COBERTO: {
     label: "COBERTO",
     Icon: ShieldCheck,
-    borderClass: "border-green-500/40",
-    bgClass: "bg-green-500/5",
-    iconBg: "bg-green-500/20",
-    iconColor: "text-green-300",
-    textColor: "text-green-300",
+    borderClass: "border-success/40",
+    bgClass: "bg-success/5",
+    iconBg: "bg-success/20",
+    iconColor: "text-success",
+    textColor: "text-success",
   },
   NAO_COBERTO: {
     label: "NÃO COBERTO",
     Icon: ShieldX,
-    borderClass: "border-red-500/40",
-    bgClass: "bg-red-500/5",
-    iconBg: "bg-red-500/20",
-    iconColor: "text-red-300",
-    textColor: "text-red-300",
+    borderClass: "border-danger/40",
+    bgClass: "bg-danger/5",
+    iconBg: "bg-danger/20",
+    iconColor: "text-danger",
+    textColor: "text-danger",
   },
   RISCO: {
     label: "RISCO",
     Icon: ShieldAlert,
-    borderClass: "border-solomon-gold/50",
-    bgClass: "bg-solomon-gold/5",
-    iconBg: "bg-solomon-gold/20",
-    iconColor: "text-solomon-gold",
-    textColor: "text-solomon-gold",
+    borderClass: "border-warning/50",
+    bgClass: "bg-warning/5",
+    iconBg: "bg-warning/20",
+    iconColor: "text-warning",
+    textColor: "text-warning",
   },
 } as const;

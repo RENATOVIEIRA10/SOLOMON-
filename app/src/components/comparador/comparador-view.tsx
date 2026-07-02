@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { toast } from "sonner";
 import {
   TrendingUp,
   TrendingDown,
@@ -9,10 +10,13 @@ import {
   Printer,
   AlertTriangle,
   Scale,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select } from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { apiFetch, ApiError } from "@/lib/api";
 
 type Insurer = { id: string; name: string };
 
@@ -68,16 +72,16 @@ export function ComparadorView() {
     setLoading(true);
 
     try {
-      const res = await fetch("/api/compare", {
+      const data = await apiFetch<CompareResult>("/api/compare", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ insurerNames: selected, productType }),
       });
-      const data = await res.json();
-      if (!res.ok) setError(data.error ?? `HTTP ${res.status}`);
-      else setResult(data);
+      setResult(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro inesperado.");
+      const message = err instanceof ApiError ? err.message : "Erro inesperado.";
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
@@ -90,10 +94,10 @@ export function ComparadorView() {
           <span className="mono-tag">Análise lado a lado</span>
           <span className="gold-rule flex-1 max-w-[60px]" />
         </div>
-        <h1 className="font-display text-4xl text-solomon-cream tracking-tight text-balance">
+        <h1 className="font-display text-4xl text-ink tracking-tight text-balance">
           Comparador
         </h1>
-        <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed text-pretty">
+        <p className="mt-2 text-sm text-ink-muted max-w-2xl leading-relaxed text-pretty">
           Selecione de 2 a 3 seguradoras e analise coberturas, exclusões e carências em paralelo. Destaques visuais revelam vantagens e desvantagens de cada proposta.
         </p>
       </header>
@@ -107,27 +111,24 @@ export function ComparadorView() {
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="flex flex-col gap-4">
-            <label className="flex flex-col gap-1.5">
-              <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
-                Tipo de produto
-              </span>
-              <select
+            <div className="flex flex-col gap-1.5">
+              <Label>Tipo de produto</Label>
+              <Select
                 value={productType}
                 onChange={(e) => setProductType(e.target.value)}
-                className="h-10 rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 px-3 text-sm text-solomon-cream focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20"
               >
                 {PRODUCT_TYPES.map((p) => (
-                  <option key={p.value} value={p.value} className="bg-solomon-graphite">
+                  <option key={p.value} value={p.value}>
                     {p.label}
                   </option>
                 ))}
-              </select>
-            </label>
+              </Select>
+            </div>
 
             <div>
-              <p className="text-xs uppercase tracking-widest text-solomon-cream-muted mb-2">
+              <Label className="mb-2 block">
                 Seguradoras ({selected.length}/3)
-              </p>
+              </Label>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
                 {insurers.map((i) => {
                   const active = selected.includes(i.name);
@@ -140,10 +141,10 @@ export function ComparadorView() {
                       disabled={disabled}
                       className={`px-3 py-2 rounded-md border text-xs text-left transition-colors ${
                         active
-                          ? "border-solomon-gold bg-solomon-gold/10 text-solomon-gold"
+                          ? "border-brand bg-brand/10 text-brand"
                           : disabled
-                          ? "border-solomon-gold/10 bg-solomon-charcoal/30 text-solomon-cream-muted/40 cursor-not-allowed"
-                          : "border-solomon-gold/20 bg-solomon-charcoal/60 text-solomon-cream hover:border-solomon-gold/50"
+                          ? "border-edge bg-surface-2/30 text-ink-muted/40 cursor-not-allowed"
+                          : "border-edge bg-surface-2/60 text-ink hover:border-brand/50"
                       }`}
                     >
                       {i.name}
@@ -176,12 +177,22 @@ export function ComparadorView() {
             <Card className="border-destructive/40 bg-destructive/5 mb-6">
               <CardContent className="py-4 flex items-start gap-3">
                 <AlertTriangle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
-                <p className="text-sm text-solomon-cream">{error}</p>
+                <p className="text-sm text-ink">{error}</p>
               </CardContent>
             </Card>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {loading && (
+        <div className="flex flex-col gap-4">
+          <Skeleton className="h-8 w-48" />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Skeleton className="h-40 w-full" />
+            <Skeleton className="h-40 w-full" />
+          </div>
+        </div>
+      )}
 
       {result && <CompareTable result={result} />}
     </div>
@@ -197,8 +208,8 @@ function CompareTable({ result }: { result: CompareResult }) {
       id="compare-result"
     >
       <div className="flex items-center justify-between mb-4 print:hidden">
-        <h2 className="font-display text-2xl text-solomon-cream flex items-center gap-2">
-          <Scale className="h-6 w-6 text-solomon-gold" />
+        <h2 className="font-display text-2xl text-ink flex items-center gap-2">
+          <Scale className="h-6 w-6 text-brand" />
           Comparativo
         </h2>
         <Button variant="outline" size="sm" onClick={() => window.print()}>
@@ -208,9 +219,9 @@ function CompareTable({ result }: { result: CompareResult }) {
       </div>
 
       {result.summary && (
-        <Card className="mb-4 border-solomon-gold/30 bg-solomon-gold/5">
+        <Card className="mb-4 border-brand/30 bg-brand/5">
           <CardContent className="py-4">
-            <p className="text-sm leading-relaxed text-solomon-cream">
+            <p className="text-sm leading-relaxed text-ink">
               {result.summary}
             </p>
           </CardContent>
@@ -220,9 +231,9 @@ function CompareTable({ result }: { result: CompareResult }) {
       {/* Mobile-friendly comparison cards */}
       <div className="block md:hidden space-y-4">
         {result.dimensions.map((dim, i) => (
-          <Card key={i} className="border border-solomon-gold/15 bg-solomon-graphite/40">
-            <CardHeader className="py-3 px-4 border-b border-solomon-gold/10 bg-solomon-gold/[0.02]">
-              <CardTitle className="text-sm font-display text-solomon-gold tracking-wide">
+          <Card key={i} className="border border-edge bg-surface/40">
+            <CardHeader className="py-3 px-4 border-b border-edge bg-brand/2">
+              <CardTitle className="text-sm font-display text-brand tracking-wide">
                 {dim.dimension}
               </CardTitle>
             </CardHeader>
@@ -230,19 +241,19 @@ function CompareTable({ result }: { result: CompareResult }) {
               {result.insurerNames.map((name) => {
                 const row = dim.rows.find((r) => r.insurerName === name);
                 return (
-                  <div key={name} className="flex flex-col gap-1.5 border-b border-solomon-gold/5 pb-3 last:border-b-0 last:pb-0">
-                    <span className="text-[10px] font-mono uppercase tracking-widest text-solomon-cream-muted/70">
+                  <div key={name} className="flex flex-col gap-1.5 border-b border-edge pb-3 last:border-b-0 last:pb-0">
+                    <span className="text-[10px] font-mono uppercase tracking-widest text-ink-muted/70">
                       {name}
                     </span>
                     {row ? (
                       <div className="flex items-start gap-2">
                         <AdvantageBadge advantage={row.advantage} />
-                        <p className="text-sm text-solomon-cream leading-relaxed">
+                        <p className="text-sm text-ink leading-relaxed">
                           {row.value}
                         </p>
                       </div>
                     ) : (
-                      <span className="text-xs text-solomon-cream-muted/40">
+                      <span className="text-xs text-ink-muted/40">
                         — Sem dados —
                       </span>
                     )}
@@ -260,14 +271,14 @@ function CompareTable({ result }: { result: CompareResult }) {
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
-                <tr className="border-b border-solomon-gold/20">
-                  <th className="text-left px-5 py-3 text-xs uppercase tracking-widest text-solomon-cream-muted font-medium w-1/4">
+                <tr className="border-b border-edge">
+                  <th className="text-left px-5 py-3 text-xs uppercase tracking-widest text-ink-muted font-medium w-1/4">
                     Dimensão
                   </th>
                   {result.insurerNames.map((name) => (
                     <th
                       key={name}
-                      className="text-left px-5 py-3 text-xs uppercase tracking-widest text-solomon-gold font-medium font-display"
+                      className="text-left px-5 py-3 text-xs uppercase tracking-widest text-brand font-medium font-display"
                     >
                       {name}
                     </th>
@@ -278,9 +289,9 @@ function CompareTable({ result }: { result: CompareResult }) {
                 {result.dimensions.map((dim, i) => (
                   <tr
                     key={i}
-                    className="border-b border-solomon-gold/10 hover:bg-solomon-charcoal/30"
+                    className="border-b border-edge hover:bg-surface-2/30"
                   >
-                    <td className="align-top px-5 py-4 text-sm text-solomon-cream font-medium">
+                    <td className="align-top px-5 py-4 text-sm text-ink font-medium">
                       {dim.dimension}
                     </td>
                     {result.insurerNames.map((name) => {
@@ -290,12 +301,12 @@ function CompareTable({ result }: { result: CompareResult }) {
                           {row ? (
                             <div className="flex items-start gap-2">
                               <AdvantageBadge advantage={row.advantage} />
-                              <p className="text-sm text-solomon-cream leading-relaxed">
+                              <p className="text-sm text-ink leading-relaxed">
                                 {row.value}
                               </p>
                             </div>
                           ) : (
-                            <span className="text-xs text-solomon-cream-muted/50">
+                            <span className="text-xs text-ink-muted/50">
                               —
                             </span>
                           )}
@@ -320,11 +331,11 @@ function AdvantageBadge({
 }) {
   if (advantage === "win")
     return (
-      <TrendingUp className="h-4 w-4 text-green-400 shrink-0 mt-0.5" />
+      <TrendingUp className="h-4 w-4 text-success shrink-0 mt-0.5" />
     );
   if (advantage === "lose")
-    return <TrendingDown className="h-4 w-4 text-red-400 shrink-0 mt-0.5" />;
+    return <TrendingDown className="h-4 w-4 text-danger shrink-0 mt-0.5" />;
   if (advantage === "neutral")
-    return <Minus className="h-4 w-4 text-solomon-cream-muted/60 shrink-0 mt-0.5" />;
-  return <X className="hidden" />;
+    return <Minus className="h-4 w-4 text-ink-muted/60 shrink-0 mt-0.5" />;
+  return null;
 }
