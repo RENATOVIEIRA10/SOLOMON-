@@ -394,7 +394,7 @@ function MobileBottomNav() {
                       }}
                       className={cn(
                         "flex items-center gap-3 p-3.5 rounded-lg border text-left",
-                        "transition-all duration-200 active:scale-95",
+                        "transition-premium active:scale-95",
                         active
                           ? "bg-brand/10 border-brand/40 text-brand"
                           : "bg-surface-2/40 border-brand/5 text-ink-muted hover:text-brand hover:border-brand/20"
@@ -422,7 +422,7 @@ function MobileBottomNav() {
                   }}
                   className={cn(
                     "flex items-center gap-3 p-3.5 rounded-lg border text-left border-danger/20 bg-danger/5 text-danger",
-                    "transition-all duration-200 active:scale-95"
+                    "transition-premium active:scale-95"
                   )}
                 >
                   <LogOut className="size-5 shrink-0" />
