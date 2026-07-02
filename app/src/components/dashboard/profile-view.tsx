@@ -2,13 +2,17 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { toast } from "sonner";
 import { Check, User, Phone, Mail, FileText, IdCard, Monitor, Sun, Moon } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import { tapHaptic } from "@/lib/haptics";
+import { apiFetch, ApiError } from "@/lib/api";
 
 type Profile = {
   id: string;
@@ -77,24 +81,26 @@ export function ProfileView() {
     e.preventDefault();
     if (!brokerId || saving) return;
     setSaving(true);
-    const res = await fetch("/api/profile", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: form.name,
-        phone: form.phone,
-        email: form.email,
-        cpf: form.cpf,
-        creci: form.creci,
-        susep_number: form.susep_number,
-      }),
-    });
-    setSaving(false);
-    if (res.ok) {
-      const d = await res.json();
+    try {
+      const d = await apiFetch<{ profile: Profile }>("/api/profile", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          email: form.email,
+          cpf: form.cpf,
+          creci: form.creci,
+          susep_number: form.susep_number,
+        }),
+      });
       setProfile(d.profile);
       setSaved(true);
       setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Não foi possível salvar. Tente novamente.");
+    } finally {
+      setSaving(false);
     }
   }
 
@@ -308,22 +314,20 @@ function InputField({
 }) {
   return (
     <label className="flex flex-col gap-1.5">
-      <span className="text-xs uppercase tracking-widest text-solomon-cream-muted">
-        {label}
-      </span>
+      <Label>{label}</Label>
       <div className="relative">
         {icon && (
           <span className="absolute left-3 top-1/2 -translate-y-1/2 text-solomon-cream-muted/60">
             {icon}
           </span>
         )}
-        <input
+        <Input
           type={type}
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
           required={required}
-          className={`h-11 w-full rounded-md border border-solomon-gold/20 bg-solomon-charcoal/60 text-sm text-solomon-cream placeholder:text-solomon-cream-muted/40 focus:outline-none focus:border-solomon-gold focus:ring-2 focus:ring-solomon-gold/20 ${icon ? "pl-10 pr-3" : "px-3"}`}
+          className={cn("h-11", icon ? "pl-10 pr-3" : "px-3")}
         />
       </div>
     </label>

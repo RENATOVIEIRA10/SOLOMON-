@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Cormorant_Garamond } from "next/font/google";
 import { SwRegister } from "@/components/sw-register";
 import { ThemeProvider } from "@/components/theme-provider";
+import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
 const inter = Inter({
@@ -148,6 +149,7 @@ export default function RootLayout({
         <ThemeProvider>
           <SwRegister />
           {children}
+          <Toaster />
         </ThemeProvider>
       </body>
     </html>
