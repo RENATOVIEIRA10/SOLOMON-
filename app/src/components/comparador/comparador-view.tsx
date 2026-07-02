@@ -253,7 +253,7 @@ function CompareTable({ result }: { result: CompareResult }) {
                         </p>
                       </div>
                     ) : (
-                      <span className="text-xs text-ink-muted/40">
+                      <span className="text-xs text-ink-muted/70">
                         — Sem dados —
                       </span>
                     )}
@@ -306,7 +306,7 @@ function CompareTable({ result }: { result: CompareResult }) {
                               </p>
                             </div>
                           ) : (
-                            <span className="text-xs text-ink-muted/50">
+                            <span className="text-xs text-ink-muted/70">
                               —
                             </span>
                           )}

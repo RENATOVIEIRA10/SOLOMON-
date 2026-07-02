@@ -122,7 +122,7 @@ export function MessageBubble({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -4 }}
               transition={{ duration: 0.2, ease: "easeOut" }}
-              className="flex items-center gap-1 text-ink-muted/60 pt-1"
+              className="flex items-center gap-1 text-ink-muted/70 pt-1"
             >
               <button
                 onClick={handleCopy}
@@ -238,7 +238,7 @@ function CitationCard({ citation }: { citation: Citation }) {
         </p>
       )}
       {citation.susepProcess && (
-        <span className="font-mono text-[9px] text-ink-muted/40 pl-7 mt-0.5">
+        <span className="font-mono text-[9px] text-ink-muted/70 pl-7 mt-0.5">
           SUSEP {citation.susepProcess}
         </span>
       )}

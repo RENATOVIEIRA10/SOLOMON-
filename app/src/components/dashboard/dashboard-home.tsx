@@ -81,7 +81,7 @@ export function DashboardHome() {
         <div className="flex items-center gap-3 mb-4">
           <span className="mono-tag">Cockpit · Corretor</span>
           <span className="gold-rule flex-1 max-w-[120px]" />
-          <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted/55">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted/70">
             {new Date().toLocaleDateString("pt-BR", {
               weekday: "long",
               day: "2-digit",
@@ -279,7 +279,7 @@ export function DashboardHome() {
                           <p className="text-sm text-ink line-clamp-1 font-medium">
                             {c.message}
                           </p>
-                          <p className="text-[10px] text-ink-muted/60 font-mono uppercase tabular-nums mt-0.5">
+                          <p className="text-[10px] text-ink-muted/70 font-mono uppercase tabular-nums mt-0.5">
                             {new Date(c.created_at).toLocaleDateString("pt-BR", {
                               day: "2-digit",
                               month: "short",
@@ -413,7 +413,7 @@ export function DashboardHome() {
                             <p className="text-sm text-ink truncate font-medium">
                               {c.name}
                             </p>
-                            <p className="text-[10px] text-ink-muted/60 truncate font-mono">
+                            <p className="text-[10px] text-ink-muted/70 truncate font-mono">
                               {c.email || c.phone || "—"}
                             </p>
                           </div>

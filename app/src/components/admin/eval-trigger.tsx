@@ -228,7 +228,7 @@ export function EvalTrigger() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {/* Suite */}
         <div className="space-y-1">
-          <label className="font-mono text-[10px] tracking-widest text-ink-muted/60 uppercase">
+          <label className="font-mono text-[10px] tracking-widest text-ink-muted/70 uppercase">
             Suite
           </label>
           <div className="relative">
@@ -262,7 +262,7 @@ export function EvalTrigger() {
 
         {/* Limit */}
         <div className="space-y-1">
-          <label className="font-mono text-[10px] tracking-widest text-ink-muted/60 uppercase">
+          <label className="font-mono text-[10px] tracking-widest text-ink-muted/70 uppercase">
             Questões
           </label>
           <div className="relative">
@@ -292,7 +292,7 @@ export function EvalTrigger() {
 
         {/* Judge */}
         <div className="space-y-1">
-          <label className="font-mono text-[10px] tracking-widest text-ink-muted/60 uppercase">
+          <label className="font-mono text-[10px] tracking-widest text-ink-muted/70 uppercase">
             Judge
           </label>
           <div className="relative">
@@ -319,7 +319,7 @@ export function EvalTrigger() {
 
         {/* Multi-judge toggle */}
         <div className="space-y-1">
-          <label className="font-mono text-[10px] tracking-widest text-ink-muted/60 uppercase">
+          <label className="font-mono text-[10px] tracking-widest text-ink-muted/70 uppercase">
             Multi-judge
           </label>
           <button
@@ -330,7 +330,7 @@ export function EvalTrigger() {
               "w-full h-[34px] rounded border text-xs font-mono transition-colors",
               multiJudge
                 ? "border-brand/60 bg-brand/10 text-brand"
-                : "border-edge bg-surface-2 text-ink-muted/60",
+                : "border-edge bg-surface-2 text-ink-muted/70",
               "disabled:opacity-40 disabled:cursor-not-allowed"
             )}
           >
@@ -380,11 +380,11 @@ export function EvalTrigger() {
             <span className="text-xs font-mono text-ink">
               {statusLabel(activeJob.status)}
             </span>
-            <span className="ml-auto text-[10px] font-mono text-ink-muted/50">
+            <span className="ml-auto text-[10px] font-mono text-ink-muted/70">
               {formatRelative(activeJob.created_at)}
             </span>
           </div>
-          <div className="text-[10px] font-mono text-ink-muted/50 space-x-2">
+          <div className="text-[10px] font-mono text-ink-muted/70 space-x-2">
             <span>limit={activeJob.params.limit}</span>
             <span>judge={activeJob.params.judge}</span>
             {activeJob.params.multiJudge && <span>multi</span>}
@@ -398,7 +398,7 @@ export function EvalTrigger() {
       {/* Jobs recentes (exceto o ativo) */}
       {recentJobs.filter((j) => j.status === "done" || j.status === "failed").length > 0 && (
         <div className="space-y-1">
-          <span className="font-mono text-[10px] tracking-widest text-ink-muted/40 uppercase">
+          <span className="font-mono text-[10px] tracking-widest text-ink-muted/70 uppercase">
             Recentes
           </span>
           <div className="space-y-1">
@@ -423,7 +423,7 @@ export function EvalTrigger() {
                       <> · <span className="text-danger/80">{job.error.slice(0, 60)}</span></>
                     )}
                   </span>
-                  <span className="text-[10px] font-mono text-ink-muted/40 shrink-0">
+                  <span className="text-[10px] font-mono text-ink-muted/70 shrink-0">
                     {formatRelative(job.created_at)}
                   </span>
                 </div>

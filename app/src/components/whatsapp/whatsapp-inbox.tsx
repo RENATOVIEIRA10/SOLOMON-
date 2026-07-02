@@ -135,7 +135,7 @@ export function WhatsAppInbox() {
                             {c.message}
                           </p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                            <time className="font-mono text-[10px] uppercase tabular-nums text-ink-muted/60">
+                            <time className="font-mono text-[10px] uppercase tabular-nums text-ink-muted/70">
                               {formatDate(c.created_at)}
                             </time>
                             {c.low_confidence && (
@@ -143,13 +143,13 @@ export function WhatsAppInbox() {
                             )}
                             {typeof c.confidence_score === "number" &&
                               !c.low_confidence && (
-                                <span className="font-mono text-[9px] uppercase tracking-widest text-ink-muted/50">
+                                <span className="font-mono text-[9px] uppercase tracking-widest text-ink-muted/70">
                                   Confiança{" "}
                                   {Math.round(c.confidence_score * 100)}%
                                 </span>
                               )}
                             {sourceCount > 0 && (
-                              <span className="font-mono text-[9px] uppercase tracking-widest text-ink-muted/50">
+                              <span className="font-mono text-[9px] uppercase tracking-widest text-ink-muted/70">
                                 {sourceCount}{" "}
                                 {sourceCount === 1 ? "fonte" : "fontes"}
                               </span>

@@ -221,7 +221,7 @@ function DesktopSidebar() {
           <LogOut className="size-4" />
           <span>Sair</span>
         </a>
-        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink-muted/45 px-3">
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink-muted/70 px-3">
           AUR.IOs · 2026
         </p>
       </div>
@@ -405,7 +405,7 @@ function MobileBottomNav() {
                         <span className="text-sm font-semibold tracking-wide leading-none">
                           {item.label}
                         </span>
-                        <span className="text-[10px] text-ink-muted/50 mt-1 truncate">
+                        <span className="text-[10px] text-ink-muted/70 mt-1 truncate">
                           {item.desc}
                         </span>
                       </div>

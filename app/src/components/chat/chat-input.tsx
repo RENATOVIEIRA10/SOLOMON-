@@ -70,7 +70,7 @@ export function ChatInput({
           )}
         </Button>
       </div>
-      <p className="text-[10px] text-ink-muted/50 px-1">
+      <p className="text-[10px] text-ink-muted/70 px-1">
         Enter para enviar · Shift+Enter para quebrar linha
       </p>
     </div>

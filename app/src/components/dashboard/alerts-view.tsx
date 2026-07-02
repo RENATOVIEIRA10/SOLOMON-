@@ -98,7 +98,7 @@ export function AlertsView() {
                           <h3 className="font-display text-lg text-ink">
                             {alert.title}
                           </h3>
-                          <time className="shrink-0 font-mono text-[10px] text-ink-muted/60 uppercase tracking-widest mt-1">
+                          <time className="shrink-0 font-mono text-[10px] text-ink-muted/70 uppercase tracking-widest mt-1">
                             {formatDate(alert.created_at)}
                           </time>
                         </div>

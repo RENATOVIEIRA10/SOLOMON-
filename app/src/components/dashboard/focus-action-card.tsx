@@ -93,7 +93,7 @@ export function FocusActionCard({
             <span className="mono-tag">{eyebrow}</span>
           </div>
           {meta && (
-            <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted/55 hidden sm:inline">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted/70 hidden sm:inline">
               {meta}
             </span>
           )}
@@ -132,7 +132,7 @@ export function FocusActionCard({
             {cta}
             <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
           </span>
-          <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-ink-muted/55">
+          <span className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-widest text-ink-muted/70">
             <span className="relative flex h-1.5 w-1.5">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-brand/60 opacity-75" />
               <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-brand" />

@@ -171,7 +171,7 @@ export function HistoryDrawer({
                       {item.low_confidence && (
                         <Badge variant="warning">Baixa confiança</Badge>
                       )}
-                      <time className="font-mono text-[10px] text-ink-muted/60 uppercase tabular-nums">
+                      <time className="font-mono text-[10px] text-ink-muted/70 uppercase tabular-nums">
                         {formatDate(item.created_at)}
                       </time>
                     </span>

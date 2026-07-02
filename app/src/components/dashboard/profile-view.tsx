@@ -208,7 +208,7 @@ export function ProfileView() {
                   <span className={cn("size-3 rounded-full shrink-0", t.color)} />
                   <span className="text-xs font-semibold text-ink leading-none">{t.label}</span>
                 </div>
-                <span className="text-[10px] text-ink-muted/50 leading-none pl-5 mt-1">{t.desc}</span>
+                <span className="text-[10px] text-ink-muted/70 leading-none pl-5 mt-1">{t.desc}</span>
               </button>
             );
           })}

@@ -325,7 +325,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
               <TrendingUp className="h-4 w-4 text-brand" />
               Evolução Histórica das Runs
             </h2>
-            <span className="text-[10px] text-ink-muted/50 font-mono tracking-widest uppercase">
+            <span className="text-[10px] text-ink-muted/70 font-mono tracking-widest uppercase">
               {chronoSummaries.length} checkpoints
             </span>
           </div>
@@ -513,7 +513,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
               <h2 className="text-xl font-display font-semibold text-ink mt-0.5 font-serif">
                 {selectedRunId}
               </h2>
-              <p className="text-xs text-ink-muted/60 mt-1 font-mono">
+              <p className="text-xs text-ink-muted/70 mt-1 font-mono">
                 Criada em: {formatRunId(selectedRunId)}
               </p>
             </div>
@@ -632,7 +632,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
           <div className="py-16 text-center border border-dashed border-edge rounded-lg">
             <HelpCircle className="h-8 w-8 mx-auto text-brand/40" />
             <p className="text-sm text-ink-muted/80 mt-3 font-semibold">Nenhuma pergunta encontrada</p>
-            <p className="text-xs text-ink-muted/50 mt-1">Ajuste os filtros ou verifique a busca.</p>
+            <p className="text-xs text-ink-muted/70 mt-1">Ajuste os filtros ou verifique a busca.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -661,7 +661,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                             <AlertTriangle className="h-2.5 w-2.5" /> Divergência
                           </span>
                         )}
-                        <span className="text-[10px] text-ink-muted/50 font-mono">
+                        <span className="text-[10px] text-ink-muted/70 font-mono">
                           ID: {row.question_id}
                         </span>
                       </div>
@@ -677,7 +677,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                         {/* Faithfulness */}
                         {row.faithfulness !== null && (
                           <div className="flex flex-col items-center p-1 px-2 rounded bg-surface-2/50 border border-edge">
-                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/60 font-mono">F</span>
+                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/70 font-mono">F</span>
                             <span className={cn("text-xs font-mono font-semibold", getMetricGrade("faithfulness", row.faithfulness).color)}>
                               {row.faithfulness.toFixed(2)}
                             </span>
@@ -686,7 +686,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                         {/* Correctness */}
                         {row.answer_correctness !== null && (
                           <div className="flex flex-col items-center p-1 px-2 rounded bg-surface-2/50 border border-edge">
-                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/60 font-mono">AC</span>
+                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/70 font-mono">AC</span>
                             <span className={cn("text-xs font-mono font-semibold", getMetricGrade("correctness", row.answer_correctness).color)}>
                               {row.answer_correctness.toFixed(2)}
                             </span>
@@ -695,7 +695,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                         {/* Context Recall */}
                         {row.context_recall !== null && (
                           <div className="flex flex-col items-center p-1 px-2 rounded bg-surface-2/50 border border-edge">
-                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/60 font-mono">CR</span>
+                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/70 font-mono">CR</span>
                             <span className={cn("text-xs font-mono font-semibold", getMetricGrade("recall", row.context_recall).color)}>
                               {row.context_recall.toFixed(2)}
                             </span>
@@ -704,7 +704,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                         {/* Context Precision */}
                         {row.context_precision !== null && (
                           <div className="flex flex-col items-center p-1 px-2 rounded bg-surface-2/50 border border-edge">
-                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/60 font-mono">CP</span>
+                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/70 font-mono">CP</span>
                             <span className={cn("text-xs font-mono font-semibold", getMetricGrade("precision", row.context_precision).color)}>
                               {row.context_precision.toFixed(2)}
                             </span>

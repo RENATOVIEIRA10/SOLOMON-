@@ -169,7 +169,7 @@ export function KnowledgeView() {
                         </>
                       )}
                       {r.susep_process && (
-                        <span className="font-mono text-[10px] text-ink-muted/60 bg-surface-2 px-1.5 py-0.5 rounded">
+                        <span className="font-mono text-[10px] text-ink-muted/70 bg-surface-2 px-1.5 py-0.5 rounded">
                           SUSEP {r.susep_process}
                         </span>
                       )}

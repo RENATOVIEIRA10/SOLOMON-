@@ -167,7 +167,7 @@ export function ClientsView() {
                           </CardTitle>
                         </Link>
                         {c.cpf && (
-                          <p className="font-mono text-[10px] text-ink-muted/60 mt-0.5">
+                          <p className="font-mono text-[10px] text-ink-muted/70 mt-0.5">
                             CPF {c.cpf}
                           </p>
                         )}
