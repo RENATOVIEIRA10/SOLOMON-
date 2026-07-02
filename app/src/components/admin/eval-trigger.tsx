@@ -69,13 +69,13 @@ const JUDGE_OPTIONS: { value: Judge; label: string }[] = [
 function statusIcon(status: JobStatus) {
   switch (status) {
     case "requested":
-      return <RefreshCw className="w-3.5 h-3.5 animate-spin text-solomon-gold/70" />;
+      return <RefreshCw className="w-3.5 h-3.5 animate-spin text-warning" />;
     case "running":
-      return <Loader2 className="w-3.5 h-3.5 animate-spin text-solomon-gold" />;
+      return <Loader2 className="w-3.5 h-3.5 animate-spin text-info" />;
     case "done":
-      return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
+      return <CheckCircle2 className="w-3.5 h-3.5 text-success" />;
     case "failed":
-      return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+      return <XCircle className="w-3.5 h-3.5 text-danger" />;
   }
 }
 
@@ -205,19 +205,19 @@ export function EvalTrigger() {
   const canFire = !firing && !hasActive;
 
   return (
-    <div className="border border-solomon-gold/20 rounded-lg bg-solomon-charcoal/40 p-5 space-y-4">
+    <div className="border border-edge rounded-lg bg-surface-2/40 p-5 space-y-4">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="space-y-0.5">
-          <span className="font-mono text-[10px] tracking-widest text-solomon-gold/50 uppercase">
+          <span className="font-mono text-[10px] tracking-widest text-brand/50 uppercase">
             eval / disparo
           </span>
-          <h2 className="text-sm font-semibold text-solomon-cream">
+          <h2 className="text-sm font-semibold text-ink">
             Disparar avaliação Ragas
           </h2>
         </div>
         {polling && (
-          <span className="flex items-center gap-1 text-[10px] font-mono text-solomon-gold/60">
+          <span className="flex items-center gap-1 text-[10px] font-mono text-brand/60">
             <Loader2 className="w-3 h-3 animate-spin" />
             polling
           </span>
@@ -228,7 +228,7 @@ export function EvalTrigger() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {/* Suite */}
         <div className="space-y-1">
-          <label className="font-mono text-[10px] tracking-widest text-solomon-cream-muted/60 uppercase">
+          <label className="font-mono text-[10px] tracking-widest text-ink-muted/60 uppercase">
             Suite
           </label>
           <div className="relative">
@@ -244,9 +244,9 @@ export function EvalTrigger() {
               }}
               disabled={!canFire}
               className={cn(
-                "w-full appearance-none bg-solomon-charcoal border border-solomon-gold/20 rounded px-3 py-2",
-                "text-xs text-solomon-cream font-mono",
-                "focus:outline-none focus:border-solomon-gold/50",
+                "w-full appearance-none bg-surface-2 border border-edge rounded px-3 py-2",
+                "text-xs text-ink font-mono",
+                "focus:outline-none focus:border-brand/50",
                 "disabled:opacity-40 disabled:cursor-not-allowed"
               )}
             >
@@ -256,13 +256,13 @@ export function EvalTrigger() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 w-3 h-3 text-solomon-gold/40" />
+            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 w-3 h-3 text-brand/40" />
           </div>
         </div>
 
         {/* Limit */}
         <div className="space-y-1">
-          <label className="font-mono text-[10px] tracking-widest text-solomon-cream-muted/60 uppercase">
+          <label className="font-mono text-[10px] tracking-widest text-ink-muted/60 uppercase">
             Questões
           </label>
           <div className="relative">
@@ -271,9 +271,9 @@ export function EvalTrigger() {
               onChange={(e) => setLimit(Number(e.target.value))}
               disabled={!canFire || fixedLimit !== null}
               className={cn(
-                "w-full appearance-none bg-solomon-charcoal border border-solomon-gold/20 rounded px-3 py-2",
-                "text-xs text-solomon-cream font-mono",
-                "focus:outline-none focus:border-solomon-gold/50",
+                "w-full appearance-none bg-surface-2 border border-edge rounded px-3 py-2",
+                "text-xs text-ink font-mono",
+                "focus:outline-none focus:border-brand/50",
                 "disabled:opacity-40 disabled:cursor-not-allowed"
               )}
             >
@@ -286,13 +286,13 @@ export function EvalTrigger() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 w-3 h-3 text-solomon-gold/40" />
+            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 w-3 h-3 text-brand/40" />
           </div>
         </div>
 
         {/* Judge */}
         <div className="space-y-1">
-          <label className="font-mono text-[10px] tracking-widest text-solomon-cream-muted/60 uppercase">
+          <label className="font-mono text-[10px] tracking-widest text-ink-muted/60 uppercase">
             Judge
           </label>
           <div className="relative">
@@ -301,9 +301,9 @@ export function EvalTrigger() {
               onChange={(e) => setJudge(e.target.value as Judge)}
               disabled={!canFire}
               className={cn(
-                "w-full appearance-none bg-solomon-charcoal border border-solomon-gold/20 rounded px-3 py-2",
-                "text-xs text-solomon-cream font-mono",
-                "focus:outline-none focus:border-solomon-gold/50",
+                "w-full appearance-none bg-surface-2 border border-edge rounded px-3 py-2",
+                "text-xs text-ink font-mono",
+                "focus:outline-none focus:border-brand/50",
                 "disabled:opacity-40 disabled:cursor-not-allowed"
               )}
             >
@@ -313,13 +313,13 @@ export function EvalTrigger() {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 w-3 h-3 text-solomon-gold/40" />
+            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 w-3 h-3 text-brand/40" />
           </div>
         </div>
 
         {/* Multi-judge toggle */}
         <div className="space-y-1">
-          <label className="font-mono text-[10px] tracking-widest text-solomon-cream-muted/60 uppercase">
+          <label className="font-mono text-[10px] tracking-widest text-ink-muted/60 uppercase">
             Multi-judge
           </label>
           <button
@@ -329,8 +329,8 @@ export function EvalTrigger() {
             className={cn(
               "w-full h-[34px] rounded border text-xs font-mono transition-colors",
               multiJudge
-                ? "border-solomon-gold/60 bg-solomon-gold/10 text-solomon-gold"
-                : "border-solomon-gold/20 bg-solomon-charcoal text-solomon-cream-muted/60",
+                ? "border-brand/60 bg-brand/10 text-brand"
+                : "border-edge bg-surface-2 text-ink-muted/60",
               "disabled:opacity-40 disabled:cursor-not-allowed"
             )}
           >
@@ -346,9 +346,9 @@ export function EvalTrigger() {
         disabled={!canFire}
         className={cn(
           "w-full flex items-center justify-center gap-2",
-          "rounded border border-solomon-gold/30 bg-solomon-gold/10",
-          "px-4 py-2.5 text-xs font-semibold font-mono text-solomon-gold",
-          "hover:bg-solomon-gold/20 hover:border-solomon-gold/60 transition-colors",
+          "rounded border border-brand/30 bg-brand/10",
+          "px-4 py-2.5 text-xs font-semibold font-mono text-brand",
+          "hover:bg-brand/20 hover:border-brand/60 transition-colors",
           "disabled:opacity-40 disabled:cursor-not-allowed"
         )}
       >
@@ -367,24 +367,24 @@ export function EvalTrigger() {
 
       {/* Erro */}
       {error && (
-        <p className="text-xs font-mono text-red-400 border border-red-400/20 rounded px-3 py-2 bg-red-400/5">
+        <p className="text-xs font-mono text-danger border border-danger/20 rounded px-3 py-2 bg-danger/5">
           {error}
         </p>
       )}
 
       {/* Job ativo */}
       {activeJob && (
-        <div className="border border-solomon-gold/20 rounded px-3 py-2.5 bg-solomon-charcoal/60 space-y-1.5">
+        <div className="border border-edge rounded px-3 py-2.5 bg-surface-2/60 space-y-1.5">
           <div className="flex items-center gap-2">
             {statusIcon(activeJob.status)}
-            <span className="text-xs font-mono text-solomon-cream">
+            <span className="text-xs font-mono text-ink">
               {statusLabel(activeJob.status)}
             </span>
-            <span className="ml-auto text-[10px] font-mono text-solomon-cream-muted/50">
+            <span className="ml-auto text-[10px] font-mono text-ink-muted/50">
               {formatRelative(activeJob.created_at)}
             </span>
           </div>
-          <div className="text-[10px] font-mono text-solomon-cream-muted/50 space-x-2">
+          <div className="text-[10px] font-mono text-ink-muted/50 space-x-2">
             <span>limit={activeJob.params.limit}</span>
             <span>judge={activeJob.params.judge}</span>
             {activeJob.params.multiJudge && <span>multi</span>}
@@ -398,7 +398,7 @@ export function EvalTrigger() {
       {/* Jobs recentes (exceto o ativo) */}
       {recentJobs.filter((j) => j.status === "done" || j.status === "failed").length > 0 && (
         <div className="space-y-1">
-          <span className="font-mono text-[10px] tracking-widest text-solomon-cream-muted/40 uppercase">
+          <span className="font-mono text-[10px] tracking-widest text-ink-muted/40 uppercase">
             Recentes
           </span>
           <div className="space-y-1">
@@ -408,22 +408,22 @@ export function EvalTrigger() {
               .map((job) => (
                 <div
                   key={job.id}
-                  className="flex items-center gap-2 rounded px-2.5 py-1.5 bg-solomon-charcoal/30 border border-solomon-gold/10"
+                  className="flex items-center gap-2 rounded px-2.5 py-1.5 bg-surface-2/30 border border-edge"
                 >
                   {statusIcon(job.status)}
-                  <span className="text-[10px] font-mono text-solomon-cream-muted/70 flex-1">
+                  <span className="text-[10px] font-mono text-ink-muted/70 flex-1">
                     limit={job.params.limit} · {job.params.judge}
                     {job.params.questionSet && job.params.questionSet !== "all" && (
                       <> · suite={job.params.questionSet}</>
                     )}
                     {job.run_id && (
-                      <> · <span className="text-solomon-gold/70">{job.run_id}</span></>
+                      <> · <span className="text-brand/70">{job.run_id}</span></>
                     )}
                     {job.error && (
-                      <> · <span className="text-red-400/80">{job.error.slice(0, 60)}</span></>
+                      <> · <span className="text-danger/80">{job.error.slice(0, 60)}</span></>
                     )}
                   </span>
-                  <span className="text-[10px] font-mono text-solomon-cream-muted/40 shrink-0">
+                  <span className="text-[10px] font-mono text-ink-muted/40 shrink-0">
                     {formatRelative(job.created_at)}
                   </span>
                 </div>

@@ -72,36 +72,36 @@ const METRIC_CONFIGS = [
     label: "Faithfulness",
     description: "Ausência de alucinações (grounded no contexto)",
     color: "#FFD000", // Solomon Gold
-    colorClass: "text-solomon-gold",
-    stroke: "stroke-solomon-gold",
-    bg: "bg-solomon-gold/10",
+    colorClass: "text-brand",
+    stroke: "stroke-brand",
+    bg: "bg-brand/10",
   },
   {
     key: "correctness" as const,
     label: "Correctness",
     description: "Fidelidade factual contra o gabarito",
     color: "#FFE54D", // Light Gold
-    colorClass: "text-solomon-gold-light",
-    stroke: "stroke-solomon-gold-light",
-    bg: "bg-solomon-gold-light/10",
+    colorClass: "text-brand-strong",
+    stroke: "stroke-brand-strong",
+    bg: "bg-brand-strong/10",
   },
   {
     key: "precision" as const,
     label: "Context Precision",
     description: "Relevância das fontes recuperadas",
     color: "#22C55E", // Emerald
-    colorClass: "text-emerald-500",
-    stroke: "stroke-emerald-500",
-    bg: "bg-emerald-500/10",
+    colorClass: "text-success",
+    stroke: "stroke-success",
+    bg: "bg-success/10",
   },
   {
     key: "recall" as const,
     label: "Context Recall",
     description: "Taxa de fontes cruciais encontradas",
     color: "#3B82F6", // Blue
-    colorClass: "text-blue-500",
-    stroke: "stroke-blue-500",
-    bg: "bg-blue-500/10",
+    colorClass: "text-info",
+    stroke: "stroke-info",
+    bg: "bg-info/10",
   },
   {
     key: "noise" as const,
@@ -208,19 +208,19 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
 
   // Score styling helpers
   const getMetricGrade = (key: string, val: number | null) => {
-    if (val === null) return { text: "N/A", color: "text-zinc-500", bg: "bg-zinc-500/10", border: "border-zinc-500/20" };
+    if (val === null) return { text: "N/A", color: "text-ink-muted", bg: "bg-surface-2", border: "border-edge" };
     
     // Faithfulness & Correctness
     if (key === "faithfulness" || key === "correctness") {
-      if (val >= 0.85) return { text: "Excelente", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" };
-      if (val >= 0.70) return { text: "Razoável", color: "text-solomon-gold", bg: "bg-solomon-gold/10", border: "border-solomon-gold/20" };
-      return { text: "Crítico", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20" };
+      if (val >= 0.85) return { text: "Excelente", color: "text-success", bg: "bg-success/10", border: "border-success/20" };
+      if (val >= 0.70) return { text: "Razoável", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" };
+      return { text: "Crítico", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20" };
     }
-    
+
     // Context Precision & Recall
-    if (val >= 0.80) return { text: "Excelente", color: "text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/20" };
-    if (val >= 0.65) return { text: "Razoável", color: "text-solomon-gold", bg: "bg-solomon-gold/10", border: "border-solomon-gold/20" };
-    return { text: "Crítico", color: "text-rose-400", bg: "bg-rose-500/10", border: "border-rose-500/20" };
+    if (val >= 0.80) return { text: "Excelente", color: "text-success", bg: "bg-success/10", border: "border-success/20" };
+    if (val >= 0.65) return { text: "Razoável", color: "text-warning", bg: "bg-warning/10", border: "border-warning/20" };
+    return { text: "Crítico", color: "text-danger", bg: "bg-danger/10", border: "border-danger/20" };
   };
 
   // Generate SVG Line Chart Data
@@ -283,31 +283,31 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
       {isAdmin && <EvalTrigger />}
 
       {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-solomon-gold/15 pb-6">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-edge pb-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="mono-tag">Qualidade Ragas</span>
             <span className="gold-rule flex-1 max-w-[60px]" />
           </div>
-          <h1 className="font-display text-4xl text-solomon-cream tracking-tight text-balance">
+          <h1 className="font-display text-4xl text-ink tracking-tight text-balance">
             Evolução Ragas
           </h1>
-          <p className="mt-2 text-sm text-solomon-cream-muted max-w-2xl leading-relaxed text-pretty">
+          <p className="mt-2 text-sm text-ink-muted max-w-2xl leading-relaxed text-pretty">
             Métricas de assertividade avaliadas automaticamente para monitorar a precisão e confiabilidade das respostas do SOLOMON.
           </p>
         </div>
         
         {/* Run Selector */}
-        <div className="flex items-center gap-2 bg-solomon-charcoal/40 border border-solomon-gold/20 rounded-lg p-1.5 px-3 backdrop-blur-sm">
-          <Database className="h-4 w-4 text-solomon-gold" />
-          <span className="text-xs text-solomon-cream-muted/80 font-semibold font-mono uppercase tracking-wider">Run Selecionada:</span>
+        <div className="flex items-center gap-2 bg-surface-2/40 border border-edge rounded-lg p-1.5 px-3 backdrop-blur-sm">
+          <Database className="h-4 w-4 text-brand" />
+          <span className="text-xs text-ink-muted/80 font-semibold font-mono uppercase tracking-wider">Run Selecionada:</span>
           <select
             value={selectedRunId}
             onChange={(e) => handleRunChange(e.target.value)}
-            className="bg-transparent text-sm text-solomon-gold-light font-mono font-semibold focus:outline-none cursor-pointer pl-1"
+            className="bg-transparent text-sm text-brand-strong font-mono font-semibold focus:outline-none cursor-pointer pl-1"
           >
             {summaries.map((s) => (
-              <option key={s.run_id} value={s.run_id} className="bg-solomon-black text-solomon-cream">
+              <option key={s.run_id} value={s.run_id} className="bg-canvas text-ink">
                 {s.run_id} ({formatRunId(s.run_id).split(" ")[0]})
               </option>
             ))}
@@ -318,13 +318,13 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
       {/* Metric Evolution Graph & Overview Cards */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Evolution Chart */}
-        <div className="lg:col-span-2 card-gold-gradient rounded-xl border border-solomon-gold/15 p-5 bg-solomon-graphite/20 backdrop-blur-sm flex flex-col gap-4">
+        <div className="lg:col-span-2 card-gold-gradient rounded-xl border border-edge p-5 bg-surface/20 backdrop-blur-sm flex flex-col gap-4">
           <div className="flex justify-between items-center">
             <h2 className="text-md font-semibold tracking-wide flex items-center gap-2">
-              <TrendingUp className="h-4 w-4 text-solomon-gold" />
+              <TrendingUp className="h-4 w-4 text-brand" />
               Evolução Histórica das Runs
             </h2>
-            <span className="text-[10px] text-solomon-cream-muted/50 font-mono tracking-widest uppercase">
+            <span className="text-[10px] text-ink-muted/50 font-mono tracking-widest uppercase">
               {chronoSummaries.length} checkpoints
             </span>
           </div>
@@ -470,7 +470,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
           </div>
 
           {/* Legend and Interactive Controls */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 border-t border-solomon-gold/10 pt-4">
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 border-t border-edge pt-4">
             {METRIC_CONFIGS.map((cfg) => {
               const active = activeMetricHover === cfg.key;
               const val = selectedRunSummary ? selectedRunSummary[cfg.key] : 0;
@@ -482,8 +482,8 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                   className={cn(
                     "flex flex-col p-2 rounded-lg border transition-all cursor-pointer",
                     active
-                      ? "border-solomon-gold bg-solomon-gold/5"
-                      : "border-transparent bg-solomon-charcoal/20 hover:border-solomon-gold/30"
+                      ? "border-brand bg-brand/5"
+                      : "border-transparent bg-surface-2/20 hover:border-brand/30"
                   )}
                 >
                   <div className="flex items-center gap-1.5">
@@ -491,7 +491,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                       className="h-2 w-2 rounded-full"
                       style={{ backgroundColor: cfg.color }}
                     />
-                    <span className="text-[10px] font-semibold text-solomon-cream-muted tracking-wide truncate">
+                    <span className="text-[10px] font-semibold text-ink-muted tracking-wide truncate">
                       {cfg.label}
                     </span>
                   </div>
@@ -505,14 +505,14 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
         </div>
 
         {/* Selected Run Overview Card */}
-        <div className="card-gold-gradient rounded-xl border border-solomon-gold/15 p-5 bg-solomon-graphite/20 backdrop-blur-sm flex flex-col justify-between">
+        <div className="card-gold-gradient rounded-xl border border-edge p-5 bg-surface/20 backdrop-blur-sm flex flex-col justify-between">
           <div className="flex flex-col gap-4">
             <div>
-              <span className="text-[10px] text-solomon-gold font-mono tracking-widest uppercase font-bold">Resumo da Run</span>
-              <h2 className="text-xl font-display font-semibold text-solomon-cream mt-0.5 font-serif">
+              <span className="text-[10px] text-brand font-mono tracking-widest uppercase font-bold">Resumo da Run</span>
+              <h2 className="text-xl font-display font-semibold text-ink mt-0.5 font-serif">
                 {selectedRunId}
               </h2>
-              <p className="text-xs text-solomon-cream-muted/60 mt-1 font-mono">
+              <p className="text-xs text-ink-muted/60 mt-1 font-mono">
                 Criada em: {formatRunId(selectedRunId)}
               </p>
             </div>
@@ -522,38 +522,38 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
             {/* Aggregated Stats List */}
             <div className="flex flex-col gap-3">
               <div className="flex justify-between items-center text-xs">
-                <span className="text-solomon-cream-muted/70 flex items-center gap-1.5">
-                  <HelpCircle className="h-3.5 w-3.5 text-solomon-gold" />
+                <span className="text-ink-muted/70 flex items-center gap-1.5">
+                  <HelpCircle className="h-3.5 w-3.5 text-brand" />
                   Perguntas Avaliadas
                 </span>
-                <span className="font-mono font-bold text-solomon-cream text-sm">
+                <span className="font-mono font-bold text-ink text-sm">
                   {selectedRunSummary?.count || 0}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-solomon-cream-muted/70 flex items-center gap-1.5">
-                  <Clock className="h-3.5 w-3.5 text-solomon-gold" />
+                <span className="text-ink-muted/70 flex items-center gap-1.5">
+                  <Clock className="h-3.5 w-3.5 text-brand" />
                   Latência Média
                 </span>
-                <span className="font-mono font-bold text-solomon-cream text-sm">
+                <span className="font-mono font-bold text-ink text-sm">
                   {selectedRunSummary ? (selectedRunSummary.latency / 1000).toFixed(2) : "0.00"}s
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-solomon-cream-muted/70 flex items-center gap-1.5">
-                  <Sparkles className="h-3.5 w-3.5 text-solomon-gold" />
+                <span className="text-ink-muted/70 flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5 text-brand" />
                   Judge Backend
                 </span>
-                <span className="font-mono font-semibold text-solomon-gold-light text-[11px] uppercase tracking-wide">
+                <span className="font-mono font-semibold text-brand-strong text-[11px] uppercase tracking-wide">
                   {currentDetails[0]?.judge_backend || "Gemini"}
                 </span>
               </div>
               <div className="flex justify-between items-center text-xs">
-                <span className="text-solomon-cream-muted/70 flex items-center gap-1.5">
-                  <Layers className="h-3.5 w-3.5 text-solomon-gold" />
+                <span className="text-ink-muted/70 flex items-center gap-1.5">
+                  <Layers className="h-3.5 w-3.5 text-brand" />
                   Judge Model
                 </span>
-                <span className="font-mono text-[11px] text-solomon-cream-muted/90 truncate max-w-[150px]" title={currentDetails[0]?.judge_model || ""}>
+                <span className="font-mono text-[11px] text-ink-muted/90 truncate max-w-[150px]" title={currentDetails[0]?.judge_model || ""}>
                   {currentDetails[0]?.judge_model || "gemini-2.5-flash"}
                 </span>
               </div>
@@ -562,12 +562,12 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
 
           <div className="mt-6 flex flex-col gap-2.5">
             {/* Quick Status Message */}
-            <div className="bg-solomon-charcoal/30 border border-solomon-gold/10 rounded-lg p-3 text-xs flex flex-col gap-1.5">
-              <span className="font-semibold text-solomon-gold-light flex items-center gap-1">
-                <AlertTriangle className="h-3.5 w-3.5 text-solomon-gold" />
+            <div className="bg-surface-2/30 border border-edge rounded-lg p-3 text-xs flex flex-col gap-1.5">
+              <span className="font-semibold text-brand-strong flex items-center gap-1">
+                <AlertTriangle className="h-3.5 w-3.5 text-brand" />
                 Divergências de Judge
               </span>
-              <p className="text-[11px] text-solomon-cream-muted/70 leading-relaxed">
+              <p className="text-[11px] text-ink-muted/70 leading-relaxed">
                 {currentDetails.filter((d) => d.divergence_flag).length} perguntas possuem divergência &gt;0.2 entre judges concorrentes.
               </p>
             </div>
@@ -576,10 +576,10 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
       </div>
 
       {/* Grid of Results / Filters */}
-      <div className="card-gold-gradient rounded-xl border border-solomon-gold/15 p-5 bg-solomon-graphite/20 backdrop-blur-sm flex flex-col gap-5">
+      <div className="card-gold-gradient rounded-xl border border-edge p-5 bg-surface/20 backdrop-blur-sm flex flex-col gap-5">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <h2 className="text-lg font-semibold tracking-wide flex items-center gap-2">
-            <Filter className="h-4 w-4 text-solomon-gold" />
+            <Filter className="h-4 w-4 text-brand" />
             Resultados Detalhados das Questões
           </h2>
 
@@ -587,13 +587,13 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
           <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
             {/* Search Input */}
             <div className="relative flex-1 sm:flex-initial min-w-[200px]">
-              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-solomon-cream-muted/40" />
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-ink-muted/40" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Filtrar por pergunta/resposta..."
-                className="w-full bg-solomon-black/60 border border-solomon-gold/15 rounded-md py-1.5 pl-8 pr-3 text-xs focus:outline-none focus:border-solomon-gold text-solomon-cream"
+                className="w-full bg-canvas/60 border border-edge rounded-md py-1.5 pl-8 pr-3 text-xs focus:outline-none focus:border-brand text-ink"
               />
             </div>
 
@@ -601,7 +601,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
             <select
               value={categoryFilter}
               onChange={(e) => setCategoryFilter(e.target.value)}
-              className="bg-solomon-black border border-solomon-gold/15 text-xs text-solomon-cream rounded-md p-1.5 focus:outline-none cursor-pointer"
+              className="bg-canvas border border-edge text-xs text-ink rounded-md p-1.5 focus:outline-none cursor-pointer"
             >
               <option value="all">Todas Categorias</option>
               {categories.map((c) => (
@@ -612,12 +612,12 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
             </select>
 
             {/* Divergent Flag Filter */}
-            <label className="flex items-center gap-2 bg-solomon-black border border-solomon-gold/15 rounded-md p-1.5 text-xs text-solomon-cream cursor-pointer">
+            <label className="flex items-center gap-2 bg-canvas border border-edge rounded-md p-1.5 text-xs text-ink cursor-pointer">
               <input
                 type="checkbox"
                 checked={onlyDivergent}
                 onChange={(e) => setOnlyDivergent(e.target.checked)}
-                className="accent-solomon-gold cursor-pointer"
+                className="accent-brand cursor-pointer"
               />
               <span>Apenas Divergentes</span>
             </label>
@@ -627,14 +627,14 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
         {/* Detailed List */}
         {loadingDetail ? (
           <div className="py-20 text-center flex flex-col justify-center items-center gap-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-solomon-gold" />
-            <p className="text-xs text-solomon-cream-muted/60">Carregando detalhes do Supabase...</p>
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand" />
+            <p className="text-xs text-ink-muted/60">Carregando detalhes do Supabase...</p>
           </div>
         ) : filteredDetails.length === 0 ? (
-          <div className="py-16 text-center border border-dashed border-solomon-gold/10 rounded-lg">
-            <HelpCircle className="h-8 w-8 mx-auto text-solomon-gold/40" />
-            <p className="text-sm text-solomon-cream-muted/80 mt-3 font-semibold">Nenhuma pergunta encontrada</p>
-            <p className="text-xs text-solomon-cream-muted/50 mt-1">Ajuste os filtros ou verifique a busca.</p>
+          <div className="py-16 text-center border border-dashed border-edge rounded-lg">
+            <HelpCircle className="h-8 w-8 mx-auto text-brand/40" />
+            <p className="text-sm text-ink-muted/80 mt-3 font-semibold">Nenhuma pergunta encontrada</p>
+            <p className="text-xs text-ink-muted/50 mt-1">Ajuste os filtros ou verifique a busca.</p>
           </div>
         ) : (
           <div className="flex flex-col gap-3">
@@ -644,8 +644,8 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                 <div
                   key={row.id}
                   className={cn(
-                    "border rounded-lg bg-solomon-black/35 transition-all overflow-hidden",
-                    row.divergence_flag ? "border-rose-500/25" : "border-solomon-gold/10 hover:border-solomon-gold/25"
+                    "border rounded-lg bg-canvas/35 transition-all overflow-hidden",
+                    row.divergence_flag ? "border-danger/25" : "border-edge hover:border-brand/25"
                   )}
                 >
                   {/* Row Header Bar */}
@@ -655,19 +655,19 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                   >
                     <div className="flex-1 flex flex-col gap-1 pr-4">
                       <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-mono tracking-widest font-bold uppercase bg-solomon-gold/15 text-solomon-gold py-0.5 px-1.5 rounded-sm">
+                        <span className="text-[9px] font-mono tracking-widest font-bold uppercase bg-brand/15 text-brand py-0.5 px-1.5 rounded-sm">
                           {row.category}
                         </span>
                         {row.divergence_flag && (
-                          <span className="text-[9px] font-mono tracking-widest font-bold uppercase bg-rose-500/15 text-rose-400 py-0.5 px-1.5 rounded-sm flex items-center gap-0.5">
+                          <span className="text-[9px] font-mono tracking-widest font-bold uppercase bg-danger/15 text-danger py-0.5 px-1.5 rounded-sm flex items-center gap-0.5">
                             <AlertTriangle className="h-2.5 w-2.5" /> Divergência
                           </span>
                         )}
-                        <span className="text-[10px] text-solomon-cream-muted/50 font-mono">
+                        <span className="text-[10px] text-ink-muted/50 font-mono">
                           ID: {row.question_id}
                         </span>
                       </div>
-                      <p className="text-sm font-semibold text-solomon-cream mt-1 leading-snug">
+                      <p className="text-sm font-semibold text-ink mt-1 leading-snug">
                         {row.question}
                       </p>
                     </div>
@@ -678,8 +678,8 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                       <div className="flex items-center gap-1.5">
                         {/* Faithfulness */}
                         {row.faithfulness !== null && (
-                          <div className="flex flex-col items-center p-1 px-2 rounded bg-solomon-charcoal/50 border border-solomon-gold/10">
-                            <span className="text-[8px] uppercase tracking-wider text-solomon-cream-muted/60 font-mono">F</span>
+                          <div className="flex flex-col items-center p-1 px-2 rounded bg-surface-2/50 border border-edge">
+                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/60 font-mono">F</span>
                             <span className={cn("text-xs font-mono font-semibold", getMetricGrade("faithfulness", row.faithfulness).color)}>
                               {row.faithfulness.toFixed(2)}
                             </span>
@@ -687,8 +687,8 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                         )}
                         {/* Correctness */}
                         {row.answer_correctness !== null && (
-                          <div className="flex flex-col items-center p-1 px-2 rounded bg-solomon-charcoal/50 border border-solomon-gold/10">
-                            <span className="text-[8px] uppercase tracking-wider text-solomon-cream-muted/60 font-mono">AC</span>
+                          <div className="flex flex-col items-center p-1 px-2 rounded bg-surface-2/50 border border-edge">
+                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/60 font-mono">AC</span>
                             <span className={cn("text-xs font-mono font-semibold", getMetricGrade("correctness", row.answer_correctness).color)}>
                               {row.answer_correctness.toFixed(2)}
                             </span>
@@ -696,8 +696,8 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                         )}
                         {/* Context Recall */}
                         {row.context_recall !== null && (
-                          <div className="flex flex-col items-center p-1 px-2 rounded bg-solomon-charcoal/50 border border-solomon-gold/10">
-                            <span className="text-[8px] uppercase tracking-wider text-solomon-cream-muted/60 font-mono">CR</span>
+                          <div className="flex flex-col items-center p-1 px-2 rounded bg-surface-2/50 border border-edge">
+                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/60 font-mono">CR</span>
                             <span className={cn("text-xs font-mono font-semibold", getMetricGrade("recall", row.context_recall).color)}>
                               {row.context_recall.toFixed(2)}
                             </span>
@@ -705,8 +705,8 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                         )}
                         {/* Context Precision */}
                         {row.context_precision !== null && (
-                          <div className="flex flex-col items-center p-1 px-2 rounded bg-solomon-charcoal/50 border border-solomon-gold/10">
-                            <span className="text-[8px] uppercase tracking-wider text-solomon-cream-muted/60 font-mono">CP</span>
+                          <div className="flex flex-col items-center p-1 px-2 rounded bg-surface-2/50 border border-edge">
+                            <span className="text-[8px] uppercase tracking-wider text-ink-muted/60 font-mono">CP</span>
                             <span className={cn("text-xs font-mono font-semibold", getMetricGrade("precision", row.context_precision).color)}>
                               {row.context_precision.toFixed(2)}
                             </span>
@@ -714,7 +714,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                         )}
                       </div>
 
-                      <div className="ml-2 pl-2 border-l border-solomon-gold/10 text-solomon-cream-muted/40 hover:text-solomon-gold transition-colors">
+                      <div className="ml-2 pl-2 border-l border-edge text-ink-muted/40 hover:text-brand transition-colors">
                         {expanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                       </div>
                     </div>
@@ -722,20 +722,20 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
 
                   {/* Expanded Detail Panel */}
                   {expanded && (
-                    <div className="border-t border-solomon-gold/10 bg-solomon-charcoal/15 p-4 md:p-6 flex flex-col gap-4 text-xs">
+                    <div className="border-t border-edge bg-surface-2/15 p-4 md:p-6 flex flex-col gap-4 text-xs">
                       {/* Subtitle info */}
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="bg-solomon-black/45 border border-solomon-gold/5 rounded p-3">
-                          <span className="text-[9px] uppercase tracking-widest text-solomon-gold font-mono block mb-1">RAG Model Utilizado</span>
-                          <span className="font-mono text-solomon-cream text-xs">{row.model || "Desconhecido"}</span>
+                        <div className="bg-canvas/45 border border-edge rounded p-3">
+                          <span className="text-[9px] uppercase tracking-widest text-brand font-mono block mb-1">RAG Model Utilizado</span>
+                          <span className="font-mono text-ink text-xs">{row.model || "Desconhecido"}</span>
                         </div>
-                        <div className="bg-solomon-black/45 border border-solomon-gold/5 rounded p-3">
-                          <span className="text-[9px] uppercase tracking-widest text-solomon-gold font-mono block mb-1">Latência do RAG</span>
-                          <span className="font-mono text-solomon-cream text-xs">{row.latency_ms ? `${(row.latency_ms / 1000).toFixed(2)}s` : "N/A"}</span>
+                        <div className="bg-canvas/45 border border-edge rounded p-3">
+                          <span className="text-[9px] uppercase tracking-widest text-brand font-mono block mb-1">Latência do RAG</span>
+                          <span className="font-mono text-ink text-xs">{row.latency_ms ? `${(row.latency_ms / 1000).toFixed(2)}s` : "N/A"}</span>
                         </div>
-                        <div className="bg-solomon-black/45 border border-solomon-gold/5 rounded p-3 col-span-1">
-                          <span className="text-[9px] uppercase tracking-widest text-solomon-gold font-mono block mb-1">Seguradoras Consultadas</span>
-                          <span className="font-sans text-solomon-cream text-xs truncate block" title={(row.retrieved_insurer_ids || []).map(id => allInsurers[id] || id).join(', ')}>
+                        <div className="bg-canvas/45 border border-edge rounded p-3 col-span-1">
+                          <span className="text-[9px] uppercase tracking-widest text-brand font-mono block mb-1">Seguradoras Consultadas</span>
+                          <span className="font-sans text-ink text-xs truncate block" title={(row.retrieved_insurer_ids || []).map(id => allInsurers[id] || id).join(', ')}>
                             {row.retrieved_insurer_ids && row.retrieved_insurer_ids.length > 0
                               ? row.retrieved_insurer_ids.map((id) => allInsurers[id] || id).join(", ")
                               : "Nenhuma"}
@@ -747,20 +747,20 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
                         {/* Ground Truth */}
                         <div className="flex flex-col gap-1.5">
-                          <span className="text-[10px] text-emerald-400 font-semibold uppercase tracking-wider flex items-center gap-1">
+                          <span className="text-[10px] text-success font-semibold uppercase tracking-wider flex items-center gap-1">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Gabarito (Ground Truth)
                           </span>
-                          <div className="bg-solomon-black/30 border border-emerald-500/10 rounded-lg p-3 text-solomon-cream-muted min-h-[120px] font-sans leading-relaxed whitespace-pre-wrap">
+                          <div className="bg-canvas/30 border border-success/10 rounded-lg p-3 text-ink-muted min-h-[120px] font-sans leading-relaxed whitespace-pre-wrap">
                             {row.ground_truth || "Sem gabarito registrado para esta pergunta."}
                           </div>
                         </div>
 
                         {/* Generated Answer */}
                         <div className="flex flex-col gap-1.5">
-                          <span className="text-[10px] text-solomon-gold font-semibold uppercase tracking-wider flex items-center gap-1">
+                          <span className="text-[10px] text-brand font-semibold uppercase tracking-wider flex items-center gap-1">
                             <Sparkles className="h-3.5 w-3.5" /> Resposta da IA
                           </span>
-                          <div className="bg-solomon-black/30 border border-solomon-gold/10 rounded-lg p-3 text-solomon-cream min-h-[120px] font-sans leading-relaxed whitespace-pre-wrap">
+                          <div className="bg-canvas/30 border border-edge rounded-lg p-3 text-ink min-h-[120px] font-sans leading-relaxed whitespace-pre-wrap">
                             {row.answer || "Sem resposta registrada."}
                           </div>
                         </div>
@@ -768,13 +768,13 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
 
                       {/* Judge Divergences information */}
                       {row.divergence_flag && (
-                        <div className="bg-rose-950/20 border border-rose-500/20 rounded-lg p-4 mt-2 text-xs flex flex-col gap-1">
-                          <span className="font-semibold text-rose-400 flex items-center gap-1.5">
+                        <div className="bg-danger/10 border border-danger/20 rounded-lg p-4 mt-2 text-xs flex flex-col gap-1">
+                          <span className="font-semibold text-danger flex items-center gap-1.5">
                             <AlertTriangle className="h-4 w-4" /> Divergência Detectada entre Judges
                           </span>
-                          <p className="text-solomon-cream-muted/80 leading-relaxed mt-1">
-                            A métrica <strong className="text-rose-300 uppercase font-mono">{row.divergence_metric}</strong> divergiu em{" "}
-                            <strong className="text-rose-300 font-mono">{row.divergence_delta ? row.divergence_delta.toFixed(3) : "0"}</strong>{" "}
+                          <p className="text-ink-muted/80 leading-relaxed mt-1">
+                            A métrica <strong className="text-danger uppercase font-mono">{row.divergence_metric}</strong> divergiu em{" "}
+                            <strong className="text-danger font-mono">{row.divergence_delta ? row.divergence_delta.toFixed(3) : "0"}</strong>{" "}
                             entre o judge primário (Gemini) e o secundário (<span className="capitalize">{row.divergence_judge_b}</span>).
                           </p>
                         </div>
