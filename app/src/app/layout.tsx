@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Cormorant_Garamond } from "next/font/google";
 import { SwRegister } from "@/components/sw-register";
 import { ThemeProvider } from "@/components/theme-provider";
+import { DataProvider } from "@/components/data-provider";
 import { Toaster } from "@/components/ui/toaster";
 import "./globals.css";
 
@@ -147,9 +148,11 @@ export default function RootLayout({
     >
       <body className="min-h-dvh bg-background text-foreground font-sans">
         <ThemeProvider>
-          <SwRegister />
-          {children}
-          <Toaster />
+          <DataProvider>
+            <SwRegister />
+            {children}
+            <Toaster />
+          </DataProvider>
         </ThemeProvider>
       </body>
     </html>
