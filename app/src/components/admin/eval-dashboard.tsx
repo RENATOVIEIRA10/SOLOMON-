@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { EvalTrigger } from "@/components/admin/eval-trigger";
+import { SkeletonList } from "@/components/ui/skeleton";
 
 export interface EvalRunRow {
   id: string;
@@ -626,10 +627,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
 
         {/* Detailed List */}
         {loadingDetail ? (
-          <div className="py-20 text-center flex flex-col justify-center items-center gap-3">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-brand" />
-            <p className="text-xs text-ink-muted/60">Carregando detalhes do Supabase...</p>
-          </div>
+          <SkeletonList rows={4} />
         ) : filteredDetails.length === 0 ? (
           <div className="py-16 text-center border border-dashed border-edge rounded-lg">
             <HelpCircle className="h-8 w-8 mx-auto text-brand/40" />

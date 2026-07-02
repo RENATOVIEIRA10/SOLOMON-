@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
-import { Check, User, Phone, Mail, FileText, IdCard, Monitor, Sun, Moon } from "lucide-react";
+import { Check, User, Phone, Mail, FileText, IdCard, Monitor, Sun, Moon, AlertTriangle } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useProfile } from "@/hooks/use-data";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SkeletonCard } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/utils";
 import { tapHaptic } from "@/lib/haptics";
 import { apiFetch, ApiError } from "@/lib/api";
@@ -24,7 +25,7 @@ const PLAN_LABELS: Record<string, string> = {
 };
 
 export function ProfileView() {
-  const { profile, isLoading, mutate } = useProfile();
+  const { profile, isLoading, error, mutate } = useProfile();
   const [form, setForm] = useState<Partial<BrokerProfile>>({});
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -89,6 +90,19 @@ export function ProfileView() {
     } finally {
       setSaving(false);
     }
+  }
+
+  if (error && !profile) {
+    return (
+      <div className="flex-1 px-6 md:px-10 py-8 md:py-10 safe-top max-w-3xl mx-auto w-full">
+        <EmptyState
+          icon={AlertTriangle}
+          title="Não foi possível carregar seu perfil."
+          description="Verifique sua conexão e tente novamente."
+          action={{ label: "Tentar de novo", onClick: () => mutate() }}
+        />
+      </div>
+    );
   }
 
   if (isLoading || !profile) {
