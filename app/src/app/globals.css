@@ -22,6 +22,15 @@
   --ui-danger: #b83232;
   --ui-info: #2563cd;
 
+  /* Chart tokens (F5 T4) — séries do gráfico admin eval, tema-aware */
+  --chart-1: #7c6212;
+  --chart-2: #168548;
+  --chart-3: #2563cd;
+  --chart-4: #8f6104;
+  --chart-5: #7e3ff2;
+  --chart-grid: var(--ui-border);
+  --chart-label: var(--ui-text-muted);
+
   /* Intensidade dos glows ambientes (AmbientBackground) */
   --ambient-a: 6%;
   --ambient-b: 3%;
@@ -65,6 +74,15 @@
   --ui-warning: #fbbf24;
   --ui-danger: #f87171;
   --ui-info: #60a5fa;
+
+  /* Chart tokens (F5 T4) — séries do gráfico admin eval, tema-aware */
+  --chart-1: #e6c34a;
+  --chart-2: #4ade80;
+  --chart-3: #60a5fa;
+  --chart-4: #fbbf24;
+  --chart-5: #a78bfa;
+  --chart-grid: var(--ui-border);
+  --chart-label: var(--ui-text-muted);
 
   --ambient-a: 16%;
   --ambient-b: 8%;

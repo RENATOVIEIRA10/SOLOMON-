@@ -72,7 +72,7 @@ const METRIC_CONFIGS = [
     key: "faithfulness" as const,
     label: "Faithfulness",
     description: "Ausência de alucinações (grounded no contexto)",
-    color: "#FFD000", // Solomon Gold
+    color: "var(--chart-1)",
     colorClass: "text-brand",
     stroke: "stroke-brand",
     bg: "bg-brand/10",
@@ -81,7 +81,7 @@ const METRIC_CONFIGS = [
     key: "correctness" as const,
     label: "Correctness",
     description: "Fidelidade factual contra o gabarito",
-    color: "#FFE54D", // Light Gold
+    color: "var(--chart-2)",
     colorClass: "text-brand-strong",
     stroke: "stroke-brand-strong",
     bg: "bg-brand-strong/10",
@@ -90,7 +90,7 @@ const METRIC_CONFIGS = [
     key: "precision" as const,
     label: "Context Precision",
     description: "Relevância das fontes recuperadas",
-    color: "#22C55E", // Emerald
+    color: "var(--chart-3)",
     colorClass: "text-success",
     stroke: "stroke-success",
     bg: "bg-success/10",
@@ -99,7 +99,7 @@ const METRIC_CONFIGS = [
     key: "recall" as const,
     label: "Context Recall",
     description: "Taxa de fontes cruciais encontradas",
-    color: "#3B82F6", // Blue
+    color: "var(--chart-4)",
     colorClass: "text-info",
     stroke: "stroke-info",
     bg: "bg-info/10",
@@ -108,10 +108,10 @@ const METRIC_CONFIGS = [
     key: "noise" as const,
     label: "Noise Sensitivity",
     description: "Resistência a chunks irrelevantes",
-    color: "#A855F7", // Purple
-    colorClass: "text-purple-500",
-    stroke: "stroke-purple-500",
-    bg: "bg-purple-500/10",
+    color: "var(--chart-5)",
+    colorClass: "text-[var(--chart-5)]",
+    stroke: "stroke-[var(--chart-5)]",
+    bg: "bg-[var(--chart-5)]/10",
   },
 ];
 
@@ -355,14 +355,14 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                       y1={y}
                       x2={chartWidth - padding.right}
                       y2={y}
-                      stroke="#FFE54D"
+                      stroke="var(--chart-grid)"
                       strokeWidth="0.7"
                       strokeDasharray="4 4"
                     />
                     <text
                       x={padding.left - 8}
                       y={y + 3}
-                      fill="#F0DFA8"
+                      fill="var(--chart-label)"
                       fontSize="9"
                       fontFamily="monospace"
                       textAnchor="end"
@@ -387,7 +387,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                       <text
                         x={p.x}
                         y={chartHeight - 12}
-                        fill="#F0DFA8"
+                        fill="var(--chart-label)"
                         fontSize="9"
                         fontFamily="monospace"
                         textAnchor="middle"
@@ -401,7 +401,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                       y1={padding.top}
                       x2={p.x}
                       y2={chartHeight - padding.bottom}
-                      stroke="#FFE54D"
+                      stroke="var(--chart-grid)"
                       strokeWidth="0.5"
                       className="opacity-5"
                     />
@@ -452,7 +452,7 @@ export function EvalDashboard({ summaries, initialDetail, allInsurers, isAdmin =
                           cx={p.x}
                           cy={y}
                           r={isHovered ? 4.5 : 2.5}
-                          fill="#040404"
+                          fill="var(--ui-bg)"
                           stroke={cfg.color}
                           strokeWidth={isHovered ? 2 : 1.5}
                           opacity={opacity}
