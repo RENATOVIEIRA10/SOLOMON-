@@ -121,11 +121,11 @@ export default async function AdminPage() {
   if (!userIsAdmin) {
     return (
       <div className="w-full min-h-[50vh] flex flex-col justify-center items-center gap-4 text-center p-8 max-w-xl mx-auto mt-20">
-        <div className="h-12 w-12 rounded-full bg-solomon-gold/10 border border-solomon-gold/25 flex items-center justify-center text-solomon-gold text-lg">
+        <div className="h-12 w-12 rounded-full bg-brand/10 border border-brand/25 flex items-center justify-center text-brand text-lg">
           -
         </div>
-        <h1 className="font-display text-2xl font-semibold text-solomon-gold-light">Área restrita</h1>
-        <p className="text-sm text-solomon-cream-muted/70 leading-relaxed">
+        <h1 className="font-display text-2xl font-semibold text-brand-strong">Área restrita</h1>
+        <p className="text-sm text-ink-muted/70 leading-relaxed">
           Esta página é exclusiva para administradores. Os dados de avaliação são confidenciais.
         </p>
       </div>

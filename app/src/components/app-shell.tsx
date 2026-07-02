@@ -117,15 +117,15 @@ function MobileHeader() {
         // acompanhando o notch real do device em vez de assumir 56px fixos.
         "h-[calc(env(safe-area-inset-top,0px)+56px)] pt-[env(safe-area-inset-top,0px)] px-4",
         // Glass idêntico ao bottom-nav
-        "bg-gradient-to-b from-solomon-graphite/85 to-solomon-black/80",
+        "bg-gradient-to-b from-surface/85 to-canvas/80",
         "backdrop-blur-xl backdrop-saturate-150",
-        "border-b border-solomon-gold/15",
+        "border-b border-edge",
         "shadow-[0_12px_30px_-12px_rgba(0,0,0,0.25)]"
       )}
     >
       <div className="flex h-14 items-center justify-between gap-2">
         {/* Wordmark — pequeno, dourado, editorial */}
-        <span className="font-display text-[18px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light">
+        <span className="font-display text-[18px] font-semibold leading-none tracking-[0.22em] text-brand-strong">
           SOLOMON
         </span>
         {/* Título da rota atual — mono-tag à direita */}
@@ -143,9 +143,9 @@ function DesktopSidebar() {
     <aside
       className={cn(
         "hidden md:flex fixed left-0 top-0 bottom-0 w-60 flex-col z-30",
-        "border-r border-solomon-gold/15",
+        "border-r border-edge",
         // Vidro escuro translúcido + glow dourado à esquerda
-        "bg-gradient-to-b from-solomon-graphite/85 via-solomon-black/80 to-solomon-graphite/85",
+        "bg-gradient-to-b from-surface/85 via-canvas/80 to-surface/85",
         "backdrop-blur-xl backdrop-saturate-125",
         "shadow-[18px_0_60px_-20px_rgba(0,0,0,0.25)]"
       )}
@@ -153,17 +153,17 @@ function DesktopSidebar() {
       {/* Linha dourada vertical sutil à direita da borda */}
       <span
         aria-hidden
-        className="pointer-events-none absolute inset-y-6 right-0 w-px bg-gradient-to-b from-transparent via-solomon-gold/25 to-transparent"
+        className="pointer-events-none absolute inset-y-6 right-0 w-px bg-gradient-to-b from-transparent via-brand/25 to-transparent"
       />
 
       {/* Brand */}
       <div className="safe-top px-5 flex flex-col gap-1 pb-6 pt-1">
         <div className="flex items-baseline gap-2">
-          <span className="font-display text-[26px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light">
+          <span className="font-display text-[26px] font-semibold leading-none tracking-[0.22em] text-brand-strong">
             SOLOMON
           </span>
         </div>
-        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-solomon-gold/70 pl-0.5">
+        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-brand/70 pl-0.5">
           v1.0 · AUR.IOs
         </span>
       </div>
@@ -184,21 +184,21 @@ function DesktopSidebar() {
                 "relative group flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-semibold",
                 "transition-premium active:scale-[0.97]",
                 active
-                  ? "text-solomon-black"
-                  : "text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-gold/[0.06]"
+                  ? "text-canvas"
+                  : "text-ink-muted hover:text-brand hover:bg-brand/6"
               )}
             >
               {active && (
                 <motion.span
                   layoutId="sidebar-pill"
-                  className="absolute inset-0 rounded-md bg-gradient-to-r from-solomon-gold via-solomon-gold-light to-solomon-gold shadow-sm"
+                  className="absolute inset-0 rounded-md bg-gradient-to-r from-brand via-brand-strong to-brand shadow-sm"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
               {!active && (
                 <span
                   aria-hidden
-                  className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r-full bg-solomon-gold/0 group-hover:bg-solomon-gold/60 transition-premium"
+                  className="absolute left-0 top-1/2 -translate-y-1/2 h-5 w-[2px] rounded-r-full bg-brand/0 group-hover:bg-brand/60 transition-premium"
                 />
               )}
               <Icon className="relative size-4 shrink-0" />
@@ -209,19 +209,19 @@ function DesktopSidebar() {
       </nav>
 
       {/* Footer da sidebar */}
-      <div className="px-3 py-4 border-t border-solomon-gold/10 flex flex-col gap-3">
+      <div className="px-3 py-4 border-t border-edge flex flex-col gap-3">
         <a
           href="/auth/signout"
           className={cn(
             "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-semibold",
-            "text-solomon-cream-muted hover:text-solomon-gold hover:bg-solomon-gold/[0.06]",
+            "text-ink-muted hover:text-brand hover:bg-brand/6",
             "transition-premium"
           )}
         >
           <LogOut className="size-4" />
           <span>Sair</span>
         </a>
-        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-solomon-cream-muted/45 px-3">
+        <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-ink-muted/45 px-3">
           AUR.IOs · 2026
         </p>
       </div>
@@ -255,9 +255,9 @@ function MobileBottomNav() {
       <nav
         className={cn(
           "md:hidden fixed bottom-0 left-0 right-0 z-40 safe-bottom px-3 pt-2 pb-2",
-          "bg-gradient-to-b from-solomon-graphite/70 to-solomon-black/85",
+          "bg-gradient-to-b from-surface/70 to-canvas/85",
           "backdrop-blur-xl backdrop-saturate-150",
-          "border-t border-solomon-gold/15",
+          "border-t border-edge",
           "shadow-[0_-12px_30px_-12px_rgba(0,0,0,0.3)]"
         )}
       >
@@ -279,21 +279,21 @@ function MobileBottomNav() {
                     "min-h-[48px] px-2 py-1.5 rounded-md",
                     "transition-premium active:scale-[0.97]",
                     active
-                      ? "text-solomon-gold"
-                      : "text-solomon-cream-muted active:text-solomon-gold-light"
+                      ? "text-brand"
+                      : "text-ink-muted active:text-brand-strong"
                   )}
                 >
                   {active && (
                     <motion.span
                       layoutId="mobile-nav-pill"
-                      className="absolute inset-1 rounded-md bg-solomon-gold/10 border border-solomon-gold/25"
+                      className="absolute inset-1 rounded-md bg-brand/10 border border-brand/25"
                       transition={{ type: "spring", stiffness: 380, damping: 32 }}
                     />
                   )}
                   {active && (
                     <motion.span
                       layoutId="mobile-nav-dot"
-                      className="absolute -top-0.5 h-[2px] w-7 rounded-full bg-solomon-gold"
+                      className="absolute -top-0.5 h-[2px] w-7 rounded-full bg-brand"
                       transition={{ type: "spring", stiffness: 380, damping: 32 }}
                     />
                   )}
@@ -318,21 +318,21 @@ function MobileBottomNav() {
                 "min-h-[48px] px-2 py-1.5 rounded-md",
                 "transition-premium active:scale-[0.97] cursor-pointer",
                 isMoreActive || isOpen
-                  ? "text-solomon-gold"
-                  : "text-solomon-cream-muted active:text-solomon-gold-light"
+                  ? "text-brand"
+                  : "text-ink-muted active:text-brand-strong"
               )}
             >
               {(isMoreActive || isOpen) && (
                 <motion.span
                   layoutId="mobile-nav-pill"
-                  className="absolute inset-1 rounded-md bg-solomon-gold/10 border border-solomon-gold/25"
+                  className="absolute inset-1 rounded-md bg-brand/10 border border-brand/25"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
               {(isMoreActive || isOpen) && (
                 <motion.span
                   layoutId="mobile-nav-dot"
-                  className="absolute -top-0.5 h-[2px] w-7 rounded-full bg-solomon-gold"
+                  className="absolute -top-0.5 h-[2px] w-7 rounded-full bg-brand"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
@@ -368,15 +368,15 @@ function MobileBottomNav() {
               transition={{ type: "spring", damping: 25, stiffness: 220 }}
               className={cn(
                 "md:hidden fixed bottom-0 left-0 right-0 z-50",
-                "rounded-t-2xl border-t border-solomon-gold/20",
-                "bg-gradient-to-b from-solomon-graphite/95 to-solomon-black/98",
+                "rounded-t-2xl border-t border-brand/20",
+                "bg-gradient-to-b from-surface/95 to-canvas/98",
                 "p-5 pb-[calc(env(safe-area-inset-bottom,0px)+16px)] shadow-[0_-15px_40px_rgba(0,0,0,0.6)]"
               )}
             >
               {/* Grab handle indicator */}
-              <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-solomon-gold/20" />
+              <div className="mx-auto mb-4 h-1.5 w-12 rounded-full bg-brand/20" />
 
-              <h2 className="text-solomon-cream text-lg font-display tracking-wide mb-4 font-semibold px-1">
+              <h2 className="text-ink text-lg font-display tracking-wide mb-4 font-semibold px-1">
                 Recursos
               </h2>
 
@@ -396,8 +396,8 @@ function MobileBottomNav() {
                         "flex items-center gap-3 p-3.5 rounded-lg border text-left",
                         "transition-all duration-200 active:scale-95",
                         active
-                          ? "bg-solomon-gold/10 border-solomon-gold/40 text-solomon-gold"
-                          : "bg-solomon-charcoal/40 border-solomon-gold/5 text-solomon-cream-muted hover:text-solomon-gold hover:border-solomon-gold/20"
+                          ? "bg-brand/10 border-brand/40 text-brand"
+                          : "bg-surface-2/40 border-brand/5 text-ink-muted hover:text-brand hover:border-brand/20"
                       )}
                     >
                       <Icon className="size-5 shrink-0" />
@@ -405,7 +405,7 @@ function MobileBottomNav() {
                         <span className="text-sm font-semibold tracking-wide leading-none">
                           {item.label}
                         </span>
-                        <span className="text-[10px] text-solomon-cream-muted/50 mt-1 truncate">
+                        <span className="text-[10px] text-ink-muted/50 mt-1 truncate">
                           {item.desc}
                         </span>
                       </div>
@@ -421,7 +421,7 @@ function MobileBottomNav() {
                     tapHaptic();
                   }}
                   className={cn(
-                    "flex items-center gap-3 p-3.5 rounded-lg border text-left border-red-500/20 bg-red-500/5 text-red-400",
+                    "flex items-center gap-3 p-3.5 rounded-lg border text-left border-danger/20 bg-danger/5 text-danger",
                     "transition-all duration-200 active:scale-95"
                   )}
                 >
@@ -430,7 +430,7 @@ function MobileBottomNav() {
                     <span className="text-sm font-semibold tracking-wide leading-none">
                       Sair
                     </span>
-                    <span className="text-[10px] text-red-400/50 mt-1 truncate">
+                    <span className="text-[10px] text-danger/50 mt-1 truncate">
                       Terminar sessão
                     </span>
                   </div>
