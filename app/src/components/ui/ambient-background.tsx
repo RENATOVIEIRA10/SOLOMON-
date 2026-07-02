@@ -24,7 +24,7 @@ export function AmbientBackground({ className }: { className?: string }) {
         className="absolute inset-0 ambient-drift-a"
         style={{
           background:
-            "radial-gradient(900px 520px at 88% -8%, color-mix(in srgb, var(--solomon-gold) 16%, transparent), transparent 62%)",
+            "radial-gradient(900px 520px at 88% -8%, color-mix(in srgb, var(--solomon-gold) var(--ambient-a), transparent), transparent 62%)",
         }}
       />
       {/* Glow secundário inferior esquerdo — equilíbrio (drift oposto) */}
@@ -32,7 +32,7 @@ export function AmbientBackground({ className }: { className?: string }) {
         className="absolute inset-0 ambient-drift-b"
         style={{
           background:
-            "radial-gradient(700px 460px at 0% 100%, color-mix(in srgb, var(--solomon-gold) 8%, transparent), transparent 60%)",
+            "radial-gradient(700px 460px at 0% 100%, color-mix(in srgb, var(--solomon-gold) var(--ambient-b), transparent), transparent 60%)",
         }}
       />
       {/* Vinheta geral para foco no centro */}
@@ -40,7 +40,7 @@ export function AmbientBackground({ className }: { className?: string }) {
         className="absolute inset-0"
         style={{
           background:
-            "radial-gradient(ellipse 100% 80% at 50% 0%, transparent 38%, rgba(0, 0, 0, 0.55) 100%)",
+            "radial-gradient(ellipse 100% 80% at 50% 0%, transparent 38%, color-mix(in srgb, var(--solomon-black) 55%, transparent) 100%)",
         }}
       />
       {/* Grid técnico sutil — apenas estrutura */}

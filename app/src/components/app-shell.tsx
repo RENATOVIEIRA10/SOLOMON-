@@ -120,12 +120,12 @@ function MobileHeader() {
         "bg-gradient-to-b from-solomon-graphite/85 to-solomon-black/80",
         "backdrop-blur-xl backdrop-saturate-150",
         "border-b border-solomon-gold/15",
-        "shadow-[0_12px_30px_-12px_rgba(0,0,0,0.5),0_1px_0_0_rgba(255,208,0,0.06)_inset]"
+        "shadow-[0_12px_30px_-12px_rgba(0,0,0,0.25)]"
       )}
     >
       <div className="flex h-14 items-center justify-between gap-2">
         {/* Wordmark — pequeno, dourado, editorial */}
-        <span className="font-display text-[18px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light [text-shadow:0_0_14px_rgba(255,208,0,0.25)]">
+        <span className="font-display text-[18px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light">
           SOLOMON
         </span>
         {/* Título da rota atual — mono-tag à direita */}
@@ -147,7 +147,7 @@ function DesktopSidebar() {
         // Vidro escuro translúcido + glow dourado à esquerda
         "bg-gradient-to-b from-solomon-graphite/85 via-solomon-black/80 to-solomon-graphite/85",
         "backdrop-blur-xl backdrop-saturate-125",
-        "shadow-[1px_0_0_0_rgba(255,208,0,0.04),18px_0_60px_-20px_rgba(0,0,0,0.7)]"
+        "shadow-[18px_0_60px_-20px_rgba(0,0,0,0.25)]"
       )}
     >
       {/* Linha dourada vertical sutil à direita da borda */}
@@ -159,7 +159,7 @@ function DesktopSidebar() {
       {/* Brand */}
       <div className="safe-top px-5 flex flex-col gap-1 pb-6 pt-1">
         <div className="flex items-baseline gap-2">
-          <span className="font-display text-[26px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light [text-shadow:0_0_18px_rgba(255,208,0,0.25)]">
+          <span className="font-display text-[26px] font-semibold leading-none tracking-[0.22em] text-solomon-gold-light">
             SOLOMON
           </span>
         </div>
@@ -191,7 +191,7 @@ function DesktopSidebar() {
               {active && (
                 <motion.span
                   layoutId="sidebar-pill"
-                  className="absolute inset-0 rounded-md bg-gradient-to-r from-solomon-gold via-solomon-gold-light to-solomon-gold shadow-[0_0_22px_rgba(255,208,0,0.45),inset_0_1px_0_0_rgba(255,255,255,0.35)]"
+                  className="absolute inset-0 rounded-md bg-gradient-to-r from-solomon-gold via-solomon-gold-light to-solomon-gold shadow-sm"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
@@ -258,7 +258,7 @@ function MobileBottomNav() {
           "bg-gradient-to-b from-solomon-graphite/70 to-solomon-black/85",
           "backdrop-blur-xl backdrop-saturate-150",
           "border-t border-solomon-gold/15",
-          "shadow-[0_-12px_30px_-12px_rgba(0,0,0,0.7),0_-1px_0_0_rgba(255,208,0,0.06)_inset]"
+          "shadow-[0_-12px_30px_-12px_rgba(0,0,0,0.3)]"
         )}
       >
         <ul className="flex items-stretch justify-around gap-1">
@@ -293,7 +293,7 @@ function MobileBottomNav() {
                   {active && (
                     <motion.span
                       layoutId="mobile-nav-dot"
-                      className="absolute -top-0.5 h-[2px] w-7 rounded-full bg-solomon-gold shadow-[0_0_10px_rgba(255,208,0,0.7)]"
+                      className="absolute -top-0.5 h-[2px] w-7 rounded-full bg-solomon-gold"
                       transition={{ type: "spring", stiffness: 380, damping: 32 }}
                     />
                   )}
@@ -332,7 +332,7 @@ function MobileBottomNav() {
               {(isMoreActive || isOpen) && (
                 <motion.span
                   layoutId="mobile-nav-dot"
-                  className="absolute -top-0.5 h-[2px] w-7 rounded-full bg-solomon-gold shadow-[0_0_10px_rgba(255,208,0,0.7)]"
+                  className="absolute -top-0.5 h-[2px] w-7 rounded-full bg-solomon-gold"
                   transition={{ type: "spring", stiffness: 380, damping: 32 }}
                 />
               )}
