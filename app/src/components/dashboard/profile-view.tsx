@@ -43,13 +43,11 @@ export function ProfileView() {
   const [currentTheme, setCurrentTheme] = useState("classic");
   const { theme: mode, setTheme: setMode } = useTheme();
   const [mounted, setMounted] = useState(false);
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
       const savedTheme = localStorage.getItem("solomon-theme") || "classic";
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCurrentTheme(savedTheme);
     }
   }, []);
