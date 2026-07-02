@@ -54,10 +54,7 @@ export function FocusActionCard({
         delay: 0.08 * index,
         ease: [0.22, 1, 0.36, 1],
       }}
-      className={cn(
-        "relative h-full",
-        isPrimary ? "gold-halo" : ""
-      )}
+      className="relative h-full"
     >
       <Link
         href={href}
