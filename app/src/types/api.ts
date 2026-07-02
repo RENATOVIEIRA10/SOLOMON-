@@ -42,6 +42,12 @@ export type StatsToday = {
   limit: number;
 };
 
+export type Insurer = {
+  id: string;
+  name: string;
+  logo_url: string | null;
+};
+
 export type BrokerProfile = {
   id: string;
   auth_user_id: string;

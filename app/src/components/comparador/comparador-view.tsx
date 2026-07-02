@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -11,14 +11,13 @@ import {
   AlertTriangle,
   Scale,
 } from "lucide-react";
+import { useInsurers } from "@/hooks/use-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiFetch, ApiError } from "@/lib/api";
-
-type Insurer = { id: string; name: string };
 
 interface CompareResult {
   insurerNames: string[];
@@ -42,19 +41,12 @@ const PRODUCT_TYPES = [
 ];
 
 export function ComparadorView() {
-  const [insurers, setInsurers] = useState<Insurer[]>([]);
+  const { insurers, error: insurersError, mutate: mutateInsurers } = useInsurers();
   const [selected, setSelected] = useState<string[]>([]);
   const [productType, setProductType] = useState("vida_individual");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CompareResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    fetch("/api/insurers")
-      .then((r) => r.json())
-      .then((d) => setInsurers(d.insurers ?? []))
-      .catch(() => {});
-  }, []);
 
   function toggleInsurer(name: string) {
     setSelected((prev) => {
@@ -129,29 +121,42 @@ export function ComparadorView() {
               <Label className="mb-2 block">
                 Seguradoras ({selected.length}/3)
               </Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
-                {insurers.map((i) => {
-                  const active = selected.includes(i.name);
-                  const disabled = !active && selected.length >= 3;
-                  return (
-                    <button
-                      key={i.id}
-                      type="button"
-                      onClick={() => toggleInsurer(i.name)}
-                      disabled={disabled}
-                      className={`px-3 py-2 rounded-md border text-xs text-left transition-colors ${
-                        active
-                          ? "border-brand bg-brand/10 text-brand"
-                          : disabled
-                          ? "border-edge bg-surface-2/30 text-ink-muted/40 cursor-not-allowed"
-                          : "border-edge bg-surface-2/60 text-ink hover:border-brand/50"
-                      }`}
-                    >
-                      {i.name}
-                    </button>
-                  );
-                })}
-              </div>
+              {insurersError && insurers.length === 0 ? (
+                <p className="text-sm text-ink-muted">
+                  Não foi possível carregar as seguradoras.{" "}
+                  <button
+                    type="button"
+                    onClick={() => mutateInsurers()}
+                    className="text-brand hover:text-brand-strong transition-premium cursor-pointer"
+                  >
+                    Tentar de novo
+                  </button>
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2">
+                  {insurers.map((i) => {
+                    const active = selected.includes(i.name);
+                    const disabled = !active && selected.length >= 3;
+                    return (
+                      <button
+                        key={i.id}
+                        type="button"
+                        onClick={() => toggleInsurer(i.name)}
+                        disabled={disabled}
+                        className={`px-3 py-2 rounded-md border text-xs text-left transition-colors ${
+                          active
+                            ? "border-brand bg-brand/10 text-brand"
+                            : disabled
+                            ? "border-edge bg-surface-2/30 text-ink-muted/40 cursor-not-allowed"
+                            : "border-edge bg-surface-2/60 text-ink hover:border-brand/50"
+                        }`}
+                      >
+                        {i.name}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
 
             <Button

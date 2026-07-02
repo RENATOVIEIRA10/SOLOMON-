@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { toast } from "sonner";
 import {
@@ -15,6 +15,7 @@ import {
   Printer,
 } from "lucide-react";
 import { useBrokerId } from "@/hooks/use-broker-id";
+import { useProfile } from "@/hooks/use-data";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { InsurerFilter } from "@/components/chat/insurer-filter";
@@ -64,6 +65,7 @@ const CLAIM_TYPES = [
 export function PreSinistroView() {
   const searchParams = useSearchParams();
   const brokerId = useBrokerId();
+  const { profile } = useProfile(); // bootstrap: garante broker row (era o fetch("/api/profile"))
   const brokerClientId = searchParams.get("clientId");
   const [insurer, setInsurer] = useState<string | null>(null);
   const [claimType, setClaimType] = useState<string>("morte_natural");
@@ -72,10 +74,8 @@ export function PreSinistroView() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PreSinistroResult | null>(null);
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (brokerId) fetch("/api/profile").catch(() => {});
-  }, [brokerId]);
+  void brokerId;
+  void profile;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();

@@ -7,6 +7,7 @@ import type {
   Channel,
   ClientSummary,
   ConversationSummary,
+  Insurer,
   StatsToday,
 } from "@/types/api";
 
@@ -70,4 +71,9 @@ export function useStatsToday() {
 export function useProfile() {
   const { data, error, isLoading, mutate } = useSWR<{ profile: BrokerProfile }>("/api/profile");
   return { profile: data?.profile ?? null, isLoading, error, mutate };
+}
+
+export function useInsurers() {
+  const { data, error, isLoading, mutate } = useSWR<{ insurers: Insurer[] }>("/api/insurers");
+  return { insurers: data?.insurers ?? [], isLoading, error, mutate };
 }

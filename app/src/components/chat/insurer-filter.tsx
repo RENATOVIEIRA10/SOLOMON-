@@ -1,15 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { Check, ChevronDown, Building2 } from "lucide-react";
 import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { useInsurers } from "@/hooks/use-data";
 import { cn } from "@/lib/utils";
-
-export type Insurer = {
-  id: string;
-  name: string;
-  logo_url: string | null;
-};
 
 export function InsurerFilter({
   value,
@@ -18,18 +12,7 @@ export function InsurerFilter({
   value: string | null;
   onChange: (insurerName: string | null) => void;
 }) {
-  const [insurers, setInsurers] = useState<Insurer[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetch("/api/insurers")
-      .then((r) => r.json())
-      .then((data) => {
-        setInsurers(data.insurers ?? []);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
-  }, []);
+  const { insurers, isLoading, error, mutate } = useInsurers();
 
   const selected = value ? insurers.find((i) => i.name === value) : null;
 
@@ -38,7 +21,7 @@ export function InsurerFilter({
       <DropdownMenu.Trigger asChild>
         <button
           type="button"
-          disabled={loading}
+          disabled={isLoading}
           className="inline-flex items-center gap-2 h-9 rounded-md border border-edge bg-surface-2/60 px-3 text-xs text-ink hover:border-brand/50 hover:bg-surface-2 transition-colors disabled:opacity-50"
         >
           <Building2 className="h-3.5 w-3.5 text-brand" />
@@ -61,14 +44,27 @@ export function InsurerFilter({
             onSelect={() => onChange(null)}
           />
           <DropdownMenu.Separator className="my-1 h-px bg-edge" />
-          {insurers.map((insurer) => (
-            <InsurerOption
-              key={insurer.id}
-              label={insurer.name}
-              isSelected={value === insurer.name}
-              onSelect={() => onChange(insurer.name)}
-            />
-          ))}
+          {error && insurers.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-ink-muted">
+              Não foi possível carregar as seguradoras.{" "}
+              <button
+                type="button"
+                onClick={() => mutate()}
+                className="text-brand hover:text-brand-strong transition-premium cursor-pointer"
+              >
+                Tentar de novo
+              </button>
+            </p>
+          ) : (
+            insurers.map((insurer) => (
+              <InsurerOption
+                key={insurer.id}
+                label={insurer.name}
+                isSelected={value === insurer.name}
+                onSelect={() => onChange(insurer.name)}
+              />
+            ))
+          )}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
     </DropdownMenu.Root>
