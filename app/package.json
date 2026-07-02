@@ -31,6 +31,7 @@
     "phase2:context-builder:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/context-builder.test.ts",
     "phase2:query-transforms:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/query-transforms.test.ts",
     "phase2:preview-window-report": "python scripts/phase2/preview-window-report.py",
+    "ui:api-fetch:test": "tsx --tsconfig scripts/tsconfig.json scripts/ui/api-fetch.test.ts",
     "pageindex:qa": "node scripts/pageindex-lite-qa.js",
     "pageindex:build-commercial-toc": "node scripts/build-commercial-toc.js",
     "rag:readiness": "node scripts/rag-readiness-audit.js",
