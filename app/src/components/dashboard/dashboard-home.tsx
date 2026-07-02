@@ -81,7 +81,7 @@ export function DashboardHome() {
         <div className="flex items-center gap-3 mb-4">
           <span className="mono-tag">Cockpit · Corretor</span>
           <span className="gold-rule flex-1 max-w-[120px]" />
-          <span className="font-mono text-[10px] uppercase tracking-widest text-solomon-cream-muted/55">
+          <span className="font-mono text-[10px] uppercase tracking-widest text-ink-muted/55">
             {new Date().toLocaleDateString("pt-BR", {
               weekday: "long",
               day: "2-digit",
@@ -90,13 +90,13 @@ export function DashboardHome() {
           </span>
         </div>
 
-        <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-solomon-cream tracking-tight leading-[1.05] max-w-3xl">
+        <h1 className="font-display text-4xl md:text-5xl lg:text-6xl text-ink tracking-tight leading-[1.05] max-w-3xl">
           Sua sabedoria,{" "}
-          <span className="italic text-solomon-gold-light [text-shadow:0_0_28px_rgba(255,208,0,0.30)]">
+          <span className="italic text-brand-strong">
             instantânea.
           </span>
         </h1>
-        <p className="mt-4 max-w-2xl text-sm md:text-base text-solomon-cream-muted leading-relaxed">
+        <p className="mt-4 max-w-2xl text-sm md:text-base text-ink-muted leading-relaxed">
           Consulte condições, compare seguradoras e antecipe riscos com uma
           camada de inteligência feita para corretores.
         </p>
@@ -187,19 +187,19 @@ export function DashboardHome() {
               transition={{ duration: 0.5, delay: 0.06 * (i + 5), ease }}
             >
               <Link href={item.href} className="group block h-full">
-                <Card className="h-full p-6 relative overflow-hidden group hover:shadow-[0_12px_28px_-10px_rgba(0,0,0,0.6),0_0_20px_-6px_rgba(255,208,0,0.15)]">
+                <Card className="h-full p-6 relative overflow-hidden group hover:shadow-[0_12px_28px_-10px_rgba(0,0,0,0.6)]">
                   {/* Subtle top accent gradient that lights up on card hover */}
-                  <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-solomon-gold/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                  <span className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-brand/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <div className="flex items-center justify-between mb-4">
-                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-solomon-gold/10 text-solomon-gold border border-solomon-gold/20 transition-premium group-hover:bg-solomon-gold/20 group-hover:border-solomon-gold/40">
+                    <div className="inline-flex h-10 w-10 items-center justify-center rounded-md bg-brand/10 text-brand border border-brand/20 transition-premium group-hover:bg-brand/20 group-hover:border-brand/40">
                       <item.icon className="h-5 w-5" />
                     </div>
-                    <ArrowRight className="h-4 w-4 text-solomon-cream-muted/40 transition-premium group-hover:text-solomon-gold group-hover:translate-x-0.5" />
+                    <ArrowRight className="h-4 w-4 text-ink-muted/40 transition-premium group-hover:text-brand group-hover:translate-x-0.5" />
                   </div>
-                  <h3 className="font-display text-xl text-solomon-cream tracking-tight">
+                  <h3 className="font-display text-xl text-ink tracking-tight">
                     {item.title}
                   </h3>
-                  <p className="mt-1.5 text-sm text-solomon-cream-muted leading-relaxed">
+                  <p className="mt-1.5 text-sm text-ink-muted leading-relaxed">
                     {item.description}
                   </p>
                 </Card>
@@ -223,13 +223,13 @@ export function DashboardHome() {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="mono-tag">Canal</span>
-                  <CardTitle className="text-xl text-solomon-cream">
+                  <CardTitle className="text-xl text-ink">
                     WhatsApp recentes
                   </CardTitle>
                 </div>
                 <Link
                   href="/whatsapp"
-                  className="inline-flex items-center gap-1 text-xs text-solomon-gold hover:text-solomon-gold-light transition-premium"
+                  className="inline-flex items-center gap-1 text-xs text-brand hover:text-brand-strong transition-premium"
                 >
                   Ver todas <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -241,12 +241,12 @@ export function DashboardHome() {
             <CardContent className="pt-0">
               {whatsappError && whatsappConvs.length === 0 ? (
                 <div className="py-4">
-                  <p className="text-sm text-solomon-cream-muted">
+                  <p className="text-sm text-ink-muted">
                     Não foi possível carregar as conversas.{" "}
                     <button
                       type="button"
                       onClick={() => mutateWhatsapp()}
-                      className="text-solomon-gold hover:text-solomon-gold-light transition-premium cursor-pointer"
+                      className="text-brand hover:text-brand-strong transition-premium cursor-pointer"
                     >
                       Tentar de novo
                     </button>
@@ -254,7 +254,7 @@ export function DashboardHome() {
                 </div>
               ) : whatsappConvs.length === 0 ? (
                 <div className="py-4">
-                  <p className="text-sm text-solomon-cream-muted">
+                  <p className="text-sm text-ink-muted">
                     Nenhuma conversa pelo WhatsApp ainda. Mande uma pergunta ao
                     SOLOMON e ela aparece aqui.
                   </p>
@@ -265,21 +265,21 @@ export function DashboardHome() {
                     <li
                       key={c.id}
                       className={
-                        i > 0 ? "mt-2 pt-2 border-t border-solomon-gold/10" : ""
+                        i > 0 ? "mt-2 pt-2 border-t border-edge" : ""
                       }
                     >
                       <Link
                         href="/whatsapp"
-                        className="flex items-center gap-3 rounded-md px-2 py-2.5 hover:bg-solomon-gold/[0.04] transition-premium group"
+                        className="flex items-center gap-3 rounded-md px-2 py-2.5 hover:bg-brand/4 transition-premium group"
                       >
-                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-green-500/10 text-green-300 border border-green-400/20">
+                        <span className="inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-success/10 text-success border border-success/20">
                           <MessageCircle className="h-4 w-4" />
                         </span>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-solomon-cream line-clamp-1 font-medium">
+                          <p className="text-sm text-ink line-clamp-1 font-medium">
                             {c.message}
                           </p>
-                          <p className="text-[10px] text-solomon-cream-muted/60 font-mono uppercase tabular-nums mt-0.5">
+                          <p className="text-[10px] text-ink-muted/60 font-mono uppercase tabular-nums mt-0.5">
                             {new Date(c.created_at).toLocaleDateString("pt-BR", {
                               day: "2-digit",
                               month: "short",
@@ -291,7 +291,7 @@ export function DashboardHome() {
                         {c.low_confidence && (
                           <Badge variant="warning">Baixa confiança</Badge>
                         )}
-                        <ArrowRight className="h-3.5 w-3.5 text-solomon-cream-muted/30 group-hover:text-solomon-gold transition-premium shrink-0" />
+                        <ArrowRight className="h-3.5 w-3.5 text-ink-muted/30 group-hover:text-brand transition-premium shrink-0" />
                       </Link>
                     </li>
                   ))}
@@ -310,11 +310,11 @@ export function DashboardHome() {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="mono-tag">Feed</span>
-                  <CardTitle className="text-xl text-solomon-cream">Alertas</CardTitle>
+                  <CardTitle className="text-xl text-ink">Alertas</CardTitle>
                 </div>
                 <Link
                   href="/alertas"
-                  className="inline-flex items-center gap-1 text-xs text-solomon-gold hover:text-solomon-gold-light transition-premium"
+                  className="inline-flex items-center gap-1 text-xs text-brand hover:text-brand-strong transition-premium"
                 >
                   Ver todos <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -324,7 +324,7 @@ export function DashboardHome() {
             <CardContent className="pt-0">
               {alerts.length === 0 ? (
                 <div className="py-6 text-center">
-                  <p className="text-sm text-solomon-cream-muted">Sem alertas novos.</p>
+                  <p className="text-sm text-ink-muted">Sem alertas novos.</p>
                 </div>
               ) : (
                 <ul className="flex flex-col">
@@ -333,17 +333,17 @@ export function DashboardHome() {
                       key={alert.id}
                       className={
                         i > 0
-                          ? "mt-2 pt-2 border-t border-solomon-gold/10"
+                          ? "mt-2 pt-2 border-t border-edge"
                           : ""
                       }
                     >
-                      <div className="flex items-start gap-3 rounded-md px-2 py-2.5 hover:bg-solomon-gold/[0.04] transition-premium">
+                      <div className="flex items-start gap-3 rounded-md px-2 py-2.5 hover:bg-brand/4 transition-premium">
                         <AlertTypeBadge type={alert.type} />
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-solomon-cream line-clamp-1 font-medium">
+                          <p className="text-sm text-ink line-clamp-1 font-medium">
                             {alert.title}
                           </p>
-                          <p className="text-xs text-solomon-cream-muted line-clamp-2 mt-0.5">
+                          <p className="text-xs text-ink-muted line-clamp-2 mt-0.5">
                             {alert.message}
                           </p>
                         </div>
@@ -365,11 +365,11 @@ export function DashboardHome() {
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                   <span className="mono-tag">Carteira</span>
-                  <CardTitle className="text-xl text-solomon-cream">Clientes recentes</CardTitle>
+                  <CardTitle className="text-xl text-ink">Clientes recentes</CardTitle>
                 </div>
                 <Link
                   href="/clientes"
-                  className="inline-flex items-center gap-1 text-xs text-solomon-gold hover:text-solomon-gold-light transition-premium"
+                  className="inline-flex items-center gap-1 text-xs text-brand hover:text-brand-strong transition-premium"
                 >
                   Ver todos <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -379,12 +379,12 @@ export function DashboardHome() {
             <CardContent className="pt-0">
               {clients.length === 0 ? (
                 <div className="py-4">
-                  <p className="text-sm text-solomon-cream-muted mb-3">
+                  <p className="text-sm text-ink-muted mb-3">
                     Você ainda não cadastrou clientes.
                   </p>
                   <Link
                     href="/clientes"
-                    className="inline-flex items-center gap-2 text-xs text-solomon-gold hover:text-solomon-gold-light transition-premium"
+                    className="inline-flex items-center gap-2 text-xs text-brand hover:text-brand-strong transition-premium"
                   >
                     Cadastrar primeiro cliente <ArrowRight className="h-3 w-3" />
                   </Link>
@@ -398,10 +398,10 @@ export function DashboardHome() {
                     >
                       <Link
                         href={`/clientes/${c.id}`}
-                        className="flex items-center justify-between gap-3 rounded-md px-2 py-2.5 hover:bg-solomon-gold/[0.04] transition-premium group"
+                        className="flex items-center justify-between gap-3 rounded-md px-2 py-2.5 hover:bg-brand/4 transition-premium group"
                       >
                         <div className="flex items-center gap-3 min-w-0">
-                          <div className="h-8 w-8 rounded-full bg-solomon-gold/10 text-solomon-gold border border-solomon-gold/20 flex items-center justify-center text-[10px] font-semibold shrink-0">
+                          <div className="h-8 w-8 rounded-full bg-brand/10 text-brand border border-brand/20 flex items-center justify-center text-[10px] font-semibold shrink-0">
                             {c.name
                               .split(" ")
                               .slice(0, 2)
@@ -410,15 +410,15 @@ export function DashboardHome() {
                               .toUpperCase()}
                           </div>
                           <div className="min-w-0">
-                            <p className="text-sm text-solomon-cream truncate font-medium">
+                            <p className="text-sm text-ink truncate font-medium">
                               {c.name}
                             </p>
-                            <p className="text-[10px] text-solomon-cream-muted/60 truncate font-mono">
+                            <p className="text-[10px] text-ink-muted/60 truncate font-mono">
                               {c.email || c.phone || "—"}
                             </p>
                           </div>
                         </div>
-                        <ArrowRight className="h-3.5 w-3.5 text-solomon-cream-muted/30 group-hover:text-solomon-gold transition-premium shrink-0" />
+                        <ArrowRight className="h-3.5 w-3.5 text-ink-muted/30 group-hover:text-brand transition-premium shrink-0" />
                       </Link>
                     </li>
                   ))}
@@ -452,18 +452,18 @@ function StatCard({
       {...fadeUp}
       transition={{ duration: 0.5, delay: 0.06 * index, ease }}
     >
-      <Card className="h-full hover:shadow-[0_12px_24px_-10px_rgba(0,0,0,0.5),0_0_16px_-6px_rgba(255,208,0,0.12)]">
+      <Card className="h-full hover:shadow-[0_12px_24px_-10px_rgba(0,0,0,0.5)]">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between">
             <span className="mono-tag">{label}</span>
-            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-solomon-gold/10 text-solomon-gold border border-solomon-gold/20">
+            <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-brand/10 text-brand border border-brand/20">
               {icon}
             </span>
           </div>
-          <p className="font-display text-4xl text-solomon-cream mt-2 tracking-tight">
+          <p className="font-display text-4xl text-ink mt-2 tracking-tight">
             {value}
           </p>
-          <p className="text-xs text-solomon-cream-muted mt-0.5">{hint}</p>
+          <p className="text-xs text-ink-muted mt-0.5">{hint}</p>
         </CardHeader>
       </Card>
     </motion.div>

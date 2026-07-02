@@ -48,13 +48,13 @@ export function WhatsAppInbox() {
           <span className="mono-tag">Canal · WhatsApp</span>
           <span className="gold-rule flex-1 max-w-[120px]" />
         </div>
-        <h1 className="font-display text-3xl md:text-4xl text-solomon-cream tracking-tight leading-[1.05]">
+        <h1 className="font-display text-3xl md:text-4xl text-ink tracking-tight leading-[1.05]">
           Conversas do{" "}
-          <span className="italic text-solomon-gold-light [text-shadow:0_0_28px_rgba(255,208,0,0.30)]">
+          <span className="italic text-brand-strong">
             WhatsApp
           </span>
         </h1>
-        <p className="mt-3 max-w-2xl text-sm md:text-base text-solomon-cream-muted leading-relaxed">
+        <p className="mt-3 max-w-2xl text-sm md:text-base text-ink-muted leading-relaxed">
           Tudo que você perguntou ao SOLOMON pelo WhatsApp, organizado aqui —
           com fonte, confiança e continuidade no dashboard.
         </p>
@@ -66,8 +66,9 @@ export function WhatsAppInbox() {
         transition={{ duration: 0.5, delay: 0.08, ease }}
         className="mb-6 flex flex-wrap items-center gap-3"
       >
-        <span className="font-mono text-[11px] uppercase tracking-widest text-solomon-cream-muted">
-          {loading ? " " : `${items.length} conversas recentes`}
+        <span className="font-mono text-[11px] uppercase tracking-widest text-ink-muted">
+          {/* placeholder não-quebrável: segura a altura da line-box durante o loading, evita CLS quando o texto real entra */}
+          {loading ? <>&nbsp;</> : `${items.length} conversas recentes`}
         </span>
         {lowConfidenceCount > 0 && (
           <button
@@ -77,8 +78,8 @@ export function WhatsAppInbox() {
             className={cn(
               "inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-medium tracking-wide border transition-colors",
               onlyLowConfidence
-                ? "bg-amber-500/15 border-amber-400/40 text-amber-300"
-                : "border-amber-400/20 text-amber-300/70 hover:border-amber-400/40 hover:text-amber-300"
+                ? "bg-warning/15 border-warning/40 text-warning"
+                : "border-warning/20 text-warning/70 hover:border-warning/40 hover:text-warning"
             )}
           >
             <AlertTriangle className="size-3" />
@@ -116,25 +117,25 @@ export function WhatsAppInbox() {
                   <Card
                     className={cn(
                       "p-0 overflow-hidden transition-premium",
-                      expanded && "border-solomon-gold/30"
+                      expanded && "border-brand/30"
                     )}
                   >
                     <button
                       type="button"
                       onClick={() => setExpandedId(expanded ? null : c.id)}
                       aria-expanded={expanded}
-                      className="w-full text-left px-5 py-4 hover:bg-solomon-gold/[0.04] transition-premium"
+                      className="w-full text-left px-5 py-4 hover:bg-brand/4 transition-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 focus-visible:ring-inset"
                     >
                       <div className="flex items-start gap-3">
-                        <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-green-500/10 text-green-300 border border-green-400/20">
+                        <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-md bg-success/10 text-success border border-success/20">
                           <MessageCircle className="size-4" />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm text-solomon-cream font-medium line-clamp-2">
+                          <p className="text-sm text-ink font-medium line-clamp-2">
                             {c.message}
                           </p>
                           <div className="mt-1.5 flex flex-wrap items-center gap-2">
-                            <time className="font-mono text-[10px] uppercase tabular-nums text-solomon-cream-muted/60">
+                            <time className="font-mono text-[10px] uppercase tabular-nums text-ink-muted/60">
                               {formatDate(c.created_at)}
                             </time>
                             {c.low_confidence && (
@@ -142,13 +143,13 @@ export function WhatsAppInbox() {
                             )}
                             {typeof c.confidence_score === "number" &&
                               !c.low_confidence && (
-                                <span className="font-mono text-[9px] uppercase tracking-widest text-solomon-cream-muted/50">
+                                <span className="font-mono text-[9px] uppercase tracking-widest text-ink-muted/50">
                                   Confiança{" "}
                                   {Math.round(c.confidence_score * 100)}%
                                 </span>
                               )}
                             {sourceCount > 0 && (
-                              <span className="font-mono text-[9px] uppercase tracking-widest text-solomon-cream-muted/50">
+                              <span className="font-mono text-[9px] uppercase tracking-widest text-ink-muted/50">
                                 {sourceCount}{" "}
                                 {sourceCount === 1 ? "fonte" : "fontes"}
                               </span>
@@ -157,20 +158,20 @@ export function WhatsAppInbox() {
                         </div>
                         <ChevronDown
                           className={cn(
-                            "size-4 shrink-0 mt-1 text-solomon-cream-muted/40 transition-transform duration-200",
-                            expanded && "rotate-180 text-solomon-gold"
+                            "size-4 shrink-0 mt-1 text-ink-muted/40 transition-transform duration-200",
+                            expanded && "rotate-180 text-brand"
                           )}
                         />
                       </div>
                     </button>
                     {expanded && (
-                      <div className="px-5 pb-5 pt-1 border-t border-solomon-gold/10">
-                        <p className="mt-3 text-sm text-solomon-cream-muted leading-relaxed whitespace-pre-wrap">
+                      <div className="px-5 pb-5 pt-1 border-t border-edge">
+                        <p className="mt-3 text-sm text-ink-muted leading-relaxed whitespace-pre-wrap">
                           {c.response}
                         </p>
                         <Link
                           href="/chat"
-                          className="mt-4 inline-flex items-center gap-1.5 text-xs text-solomon-gold hover:text-solomon-gold-light transition-premium"
+                          className="mt-4 inline-flex items-center gap-1.5 text-xs text-brand hover:text-brand-strong transition-premium"
                         >
                           Continuar no SOLOMON{" "}
                           <ArrowRight className="size-3" />
