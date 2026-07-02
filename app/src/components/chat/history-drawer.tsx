@@ -3,10 +3,11 @@
 import { useState } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { motion, AnimatePresence } from "motion/react";
-import { History, X, MessageSquare } from "lucide-react";
+import { History, X, MessageSquare, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { SkeletonList } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/ui/empty-state";
 import { useConversations } from "@/hooks/use-data";
 
 type HistoryItem = {
@@ -37,7 +38,7 @@ export function HistoryDrawer({
   const [open, setOpen] = useState(false);
   const [filter, setFilter] = useState<ChannelFilter>("all");
 
-  const { conversations, isLoading } = useConversations(
+  const { conversations, isLoading, error, mutate } = useConversations(
     filter === "all" ? undefined : filter,
     30
   );
@@ -107,7 +108,7 @@ export function HistoryDrawer({
 
           <div className="overflow-y-auto h-[calc(100dvh-128px)] px-3 py-3">
             <AnimatePresence mode="wait">
-              {isLoading && (
+              {isLoading && items.length === 0 && (
                 <motion.div
                   key="loading"
                   initial={{ opacity: 0, y: 6 }}
@@ -118,7 +119,23 @@ export function HistoryDrawer({
                   <SkeletonList rows={4} />
                 </motion.div>
               )}
-              {!isLoading && items.length === 0 && (
+              {!isLoading && error && items.length === 0 && (
+                <motion.div
+                  key="error"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={{ duration: 0.2, ease: "easeOut" }}
+                >
+                  <EmptyState
+                    icon={AlertTriangle}
+                    title="Não foi possível carregar o histórico."
+                    description="Verifique sua conexão e tente novamente."
+                    action={{ label: "Tentar de novo", onClick: () => mutate() }}
+                  />
+                </motion.div>
+              )}
+              {!isLoading && !error && items.length === 0 && (
                 <motion.div
                   key="empty"
                   initial={{ opacity: 0, y: 6 }}

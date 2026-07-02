@@ -59,7 +59,11 @@ export function DashboardHome() {
   const { stats } = useStatsToday();
   const { alerts } = useAlerts(3);
   const { clients: allClients } = useClients();
-  const { conversations: whatsappConvs } = useConversations("whatsapp", 4);
+  const {
+    conversations: whatsappConvs,
+    error: whatsappError,
+    mutate: mutateWhatsapp,
+  } = useConversations("whatsapp", 4);
   const clients = allClients.slice(0, 4);
   void brokerId;
   void profile;
@@ -154,7 +158,7 @@ export function DashboardHome() {
         <StatCard
           icon={<Users className="h-4 w-4" />}
           label="Clientes cadastrados"
-          value={clients.length > 0 ? String(clients.length) : "0"}
+          value={allClients.length > 0 ? String(allClients.length) : "0"}
           hint="Segurados na sua carteira"
           index={3}
         />
@@ -235,7 +239,20 @@ export function DashboardHome() {
               </CardDescription>
             </CardHeader>
             <CardContent className="pt-0">
-              {whatsappConvs.length === 0 ? (
+              {whatsappError && whatsappConvs.length === 0 ? (
+                <div className="py-4">
+                  <p className="text-sm text-solomon-cream-muted">
+                    Não foi possível carregar as conversas.{" "}
+                    <button
+                      type="button"
+                      onClick={() => mutateWhatsapp()}
+                      className="text-solomon-gold hover:text-solomon-gold-light transition-premium cursor-pointer"
+                    >
+                      Tentar de novo
+                    </button>
+                  </p>
+                </div>
+              ) : whatsappConvs.length === 0 ? (
                 <div className="py-4">
                   <p className="text-sm text-solomon-cream-muted">
                     Nenhuma conversa pelo WhatsApp ainda. Mande uma pergunta ao

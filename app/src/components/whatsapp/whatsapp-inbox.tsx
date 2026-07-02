@@ -27,7 +27,7 @@ const ease = [0.22, 1, 0.36, 1] as const;
 
 export function WhatsAppInbox() {
   const brokerId = useBrokerId();
-  const { conversations: items, isLoading: loading } = useConversations("whatsapp", 50);
+  const { conversations: items, isLoading: loading, error, mutate } = useConversations("whatsapp", 50);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [onlyLowConfidence, setOnlyLowConfidence] = useState(false);
   void brokerId;
@@ -91,6 +91,13 @@ export function WhatsAppInbox() {
       <motion.div {...fadeUp} transition={{ duration: 0.5, delay: 0.14, ease }}>
         {loading ? (
           <SkeletonList rows={5} />
+        ) : error && items.length === 0 ? (
+          <EmptyState
+            icon={AlertTriangle}
+            title="Não foi possível carregar as conversas."
+            description="Verifique sua conexão e tente novamente."
+            action={{ label: "Tentar de novo", onClick: () => mutate() }}
+          />
         ) : visible.length === 0 ? (
           <EmptyState
             icon={MessageSquare}
