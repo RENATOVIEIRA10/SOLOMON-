@@ -229,7 +229,7 @@ export function DashboardHome() {
                 </div>
                 <Link
                   href="/whatsapp"
-                  className="inline-flex items-center gap-1 text-xs text-brand hover:text-brand-strong transition-premium"
+                  className="inline-flex items-center gap-1 text-xs text-brand hover:text-brand-strong transition-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-sm"
                 >
                   Ver todas <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -246,7 +246,7 @@ export function DashboardHome() {
                     <button
                       type="button"
                       onClick={() => mutateWhatsapp()}
-                      className="text-brand hover:text-brand-strong transition-premium cursor-pointer"
+                      className="text-brand hover:text-brand-strong transition-premium cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-sm"
                     >
                       Tentar de novo
                     </button>
@@ -314,7 +314,7 @@ export function DashboardHome() {
                 </div>
                 <Link
                   href="/alertas"
-                  className="inline-flex items-center gap-1 text-xs text-brand hover:text-brand-strong transition-premium"
+                  className="inline-flex items-center gap-1 text-xs text-brand hover:text-brand-strong transition-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-sm"
                 >
                   Ver todos <ArrowRight className="h-3 w-3" />
                 </Link>
@@ -369,7 +369,7 @@ export function DashboardHome() {
                 </div>
                 <Link
                   href="/clientes"
-                  className="inline-flex items-center gap-1 text-xs text-brand hover:text-brand-strong transition-premium"
+                  className="inline-flex items-center gap-1 text-xs text-brand hover:text-brand-strong transition-premium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand/40 rounded-sm"
                 >
                   Ver todos <ArrowRight className="h-3 w-3" />
                 </Link>

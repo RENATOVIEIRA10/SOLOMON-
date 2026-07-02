@@ -71,7 +71,10 @@ export function KnowledgeView() {
           <Input
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setError(false);
+            }}
             placeholder="Ex: carência para morte por doença, IPA majorada, contestabilidade..."
             className="h-12 pl-10 pr-28"
           />

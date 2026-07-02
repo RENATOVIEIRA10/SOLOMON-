@@ -143,7 +143,7 @@ export function ComparadorView() {
                         type="button"
                         onClick={() => toggleInsurer(i.name)}
                         disabled={disabled}
-                        className={`px-3 py-2 rounded-md border text-xs text-left transition-colors ${
+                        className={`min-h-11 px-3 py-2 rounded-md border text-xs text-left transition-colors ${
                           active
                             ? "border-brand bg-brand/10 text-brand"
                             : disabled

@@ -80,7 +80,7 @@ export function MessageBubble({
         </div>
 
         {!isUser && !message.loading && message.lowConfidence && (
-          <div className="flex w-full items-start gap-2 rounded-md border border-warning/25 bg-warning/10 px-3 py-2 text-xs leading-relaxed text-ink-muted">
+          <div className="flex w-full items-start gap-2 rounded-md bg-warning/10 px-3 py-2 text-xs leading-relaxed text-ink-muted">
             <AlertTriangle className="mt-0.5 size-3.5 shrink-0 text-warning" />
             <div className="min-w-0">
               <Badge variant="warning">

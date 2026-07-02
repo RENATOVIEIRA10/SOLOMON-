@@ -90,7 +90,7 @@ export function AlertsView() {
                 <Card className="hover:border-brand/30 transition-colors">
                   <CardContent className="p-5">
                     <div className="flex items-start gap-4">
-                      <Badge variant={meta.variant} className="shrink-0 text-[10px] px-2.5 py-1">
+                      <Badge variant={meta.variant} size="md" className="shrink-0">
                         {meta.label}
                       </Badge>
                       <div className="flex-1 min-w-0">

@@ -76,7 +76,7 @@ export function ClientsView() {
           </p>
         </div>
         <Button onClick={() => setDialogOpen(true)} className="shrink-0 self-start md:self-center">
-          <Plus className="size-4 animate-pulse" />
+          <Plus className="size-4" />
           Novo cliente
         </Button>
       </header>
@@ -177,7 +177,7 @@ export function ClientsView() {
                       type="button"
                       onClick={() => setDeleteTarget(c)}
                       aria-label={`Remover cliente ${c.name}`}
-                      className="opacity-0 group-hover:opacity-100 p-1.5 rounded-md text-ink-muted hover:text-destructive hover:bg-destructive/10 transition-all"
+                      className="opacity-0 group-hover:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100 p-1.5 rounded-md text-ink-muted hover:text-destructive hover:bg-destructive/10 transition-all"
                       title="Remover"
                     >
                       <Trash2 className="size-3.5" />
