@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
-import { Check, User, Phone, Mail, FileText, IdCard } from "lucide-react";
+import { Check, User, Phone, Mail, FileText, IdCard, Monitor, Sun, Moon } from "lucide-react";
+import { useTheme } from "next-themes";
 import { useBrokerId } from "@/hooks/use-broker-id";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,10 @@ export function ProfileView() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [currentTheme, setCurrentTheme] = useState("classic");
+  const { theme: mode, setTheme: setMode } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -123,6 +128,47 @@ export function ProfileView() {
             {PLAN_LABELS[profile.plan] ?? profile.plan}
           </CardDescription>
         </CardHeader>
+      </Card>
+
+      <Card className="mb-6">
+        <CardHeader>
+          <CardTitle className="text-xl">Tema</CardTitle>
+          <CardDescription>
+            Claro para o dia, escuro para a noite — ou deixe acompanhar o dispositivo.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col sm:flex-row gap-3">
+          {[
+            { id: "system", label: "Sistema", desc: "Acompanha o dispositivo", icon: Monitor },
+            { id: "light", label: "Claro", desc: "Papel e tinta", icon: Sun },
+            { id: "dark", label: "Escuro", desc: "Cockpit noturno", icon: Moon },
+          ].map((m) => {
+            const active = mounted && mode === m.id;
+            const Icon = m.icon;
+            return (
+              <button
+                key={m.id}
+                type="button"
+                onClick={() => {
+                  setMode(m.id);
+                  tapHaptic();
+                }}
+                className={cn(
+                  "flex-1 flex flex-col items-start gap-1.5 p-3.5 rounded-lg border text-left transition-all active:scale-[0.98] cursor-pointer",
+                  active
+                    ? "border-brand bg-brand/5"
+                    : "border-edge bg-surface-2/40 hover:border-brand/40"
+                )}
+              >
+                <div className="flex items-center gap-2 w-full">
+                  <Icon className="size-3.5 shrink-0 text-brand" />
+                  <span className="text-xs font-semibold text-ink leading-none">{m.label}</span>
+                </div>
+                <span className="text-[10px] text-ink-muted/70 leading-none pl-5 mt-1">{m.desc}</span>
+              </button>
+            );
+          })}
+        </CardContent>
       </Card>
 
       <Card className="mb-6">
