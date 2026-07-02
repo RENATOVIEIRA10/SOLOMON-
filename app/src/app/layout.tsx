@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono, Cormorant_Garamond } from "next/font/google";
 import { SwRegister } from "@/components/sw-register";
+import { ThemeColorSync } from "@/components/theme-color-sync";
 import { ThemeProvider } from "@/components/theme-provider";
 import { DataProvider } from "@/components/data-provider";
 import { Toaster } from "@/components/ui/toaster";
@@ -31,7 +32,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://app-atalaia.vercel.
 export const viewport: Viewport = {
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#f7f6f3" },
-    { media: "(prefers-color-scheme: dark)", color: "#0A0A0A" },
+    { media: "(prefers-color-scheme: dark)", color: "#0e0f11" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -150,6 +151,7 @@ export default function RootLayout({
         <ThemeProvider>
           <DataProvider>
             <SwRegister />
+            <ThemeColorSync />
             {children}
             <Toaster />
           </DataProvider>
