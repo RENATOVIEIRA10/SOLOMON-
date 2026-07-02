@@ -50,7 +50,7 @@ Um conjunto único de nomes, dois valores (claro/escuro), definidos como CSS var
 - Temas existentes (`theme-midnight`, `theme-emerald`) viram **variações de acento** por cima dos dois modos — o CSS atual já usa `color-mix`, a infra é aproveitada.
 - A identidade da marca é **tipografia display serif + dourado**, não "fundo escuro". No claro o dourado escurece para manter contraste AA.
 - O escuro também sai refinado: glow difuso vira sombra sutil de 1 nível; contraste de texto sobe.
-- Mapeamento Tailwind: os tokens viram utilitários semânticos novos (`bg-surface`, `text-body`, `text-muted`, `border-default`, `text-accent`, ...) apontando para as CSS variables. As classes `solomon-*` atuais **permanecem estáticas** (valores escuros atuais) como camada legada — cada tela troca `solomon-*` → utilitários semânticos ao migrar na F4, e a camada legada é removida na F5.
+- Mapeamento Tailwind: os tokens viram utilitários semânticos novos (`bg-canvas`, `bg-surface`, `text-ink`, `text-ink-muted`, `border-edge`, `text-brand`, ...) apontando para as CSS variables. **Emenda (descoberta no planejamento):** como todo o CSS atual já flui pelas vars `--solomon-*`, elas ganham valores claros em `:root` e mantêm os escuros em `.dark` — o app inteiro fica funcional nos dois temas já na F1 (light aproximado). A F4 migra cada tela de `solomon-*` → utilitários semânticos e faz o refinamento editorial; a camada `solomon-*` é removida na F5.
 - PWA: `theme-color` dinâmico por tema; splash/manifest revisados na F5.
 
 ## Seção 2 — Primitivos de UI + feedback
@@ -127,6 +127,6 @@ Ordem é dependência real: telas (F4) consomem primitivos (F2) e hooks (F3), qu
 
 ## Riscos
 
-- **835 linhas de CSS dark-only:** mitigado pela migração incremental. Regra explícita: as classes `solomon-*` atuais mantêm valores estáticos (visual escuro atual) e NÃO viram theme-aware; só os utilitários semânticos novos respondem ao tema. Tela não migrada aparece escura mesmo em modo claro — funcional, nunca quebrada. O toggle existe desde a F1, mas o modo claro só é anunciado ao corretor quando a onda F4 correspondente fechar.
+- **835 linhas de CSS dark-only:** mitigado porque tudo já flui pelas vars `--solomon-*` — elas viram theme-aware na F1 (emenda acima) e o app inteiro ganha um modo claro funcional de uma vez. Telas não migradas ficam com light aproximado (não polido) até sua onda na F4; hardcodes de preto/ouro em `globals.css` são varridos na F1 (grep + color-mix). O toggle existe desde a F1; o modo claro é anunciado ao corretor quando as ondas F4 fecharem.
 - **Convivência tela nova/velha durante F4:** aceito pelo CEO como custo da abordagem incremental.
 - **next-themes substitui o localStorage manual:** migrar a chave `solomon-theme` existente para não resetar preferência de quem já usa midnight/emerald.
