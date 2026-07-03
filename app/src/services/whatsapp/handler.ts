@@ -10,6 +10,7 @@ import { ask } from '@/services/rag/answer'
 import { compareInsurers } from '@/services/rag/compare'
 import { analyzePreSinistro } from '@/services/rag/pre-sinistro'
 import { BRAND, PLANS, type BrokerPlan } from '@/config/constants'
+import { effectivePlanId, needsDowngradeNotice } from '@/services/billing/plan'
 import { getSession, addMessage, setBrokerId } from './session'
 import type { IncomingMessage } from './types'
 
@@ -48,7 +49,7 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
   // 3. Check daily query limit on quota-consuming paths (RAG livre + /comparar + /sinistro).
   // /ajuda, /plano, /feedback nunca batem o limite — sao meta-comandos sem custo de LLM/retrieval.
   if (consumesQuota) {
-    const plan = PLANS[broker.plan as BrokerPlan] ?? PLANS.free
+    const plan = PLANS[effectivePlanId(broker) as BrokerPlan] ?? PLANS.free
     const todayCount = await getQueriesCount(broker)
     if (plan.queriesPerDay !== -1 && todayCount >= plan.queriesPerDay) {
       return [formatLimitReached(plan.name, plan.queriesPerDay)]
@@ -87,6 +88,11 @@ export async function handleMessage(msg: IncomingMessage): Promise<string[]> {
     if (result.answerWarnings.length > 0) {
       formatted += `\n\n*Avisos RAG:*\n${result.answerWarnings.map((warning) => `- ${warning}`).join('\n')}`
     }
+
+    // Downgrade notice (once) — prefixes instead of a separate message to avoid
+    // an extra WhatsApp send. See maybeApplyDowngradeNotice for scope rationale.
+    formatted = await maybeApplyDowngradeNotice(broker, formatted)
+
     await addMessage(msg.from, 'assistant', result.answer)
 
     // 6. Increment query counter
@@ -120,6 +126,8 @@ interface BrokerRow {
   queries_today: number
   queries_reset_at: string | null
   active: boolean
+  billing_status: string | null
+  overdue_since: string | null
 }
 
 /**
@@ -164,7 +172,7 @@ async function findBrokerByPhone(phone: string): Promise<BrokerRow | null> {
 
   const { data, error } = await supabase
     .from('brokers')
-    .select('id, name, phone, plan, queries_today, queries_reset_at, active')
+    .select('id, name, phone, plan, queries_today, queries_reset_at, active, billing_status, overdue_since')
     .in('phone', phoneVariants)
     .eq('active', true)
     .limit(1)
@@ -215,6 +223,48 @@ async function incrementQueries(brokerId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------------------
+// Billing — downgrade notice (once)
+// ---------------------------------------------------------------------------
+
+const DOWNGRADE_NOTICE_TEXT =
+  '*Aviso:* sua assinatura está em atraso e o plano voltou ao gratuito (5 consultas/dia). ' +
+  'Regularize para voltar ao plano completo.\n\n'
+
+/**
+ * Prefixes the outgoing text with a one-time notice when the broker's plan was
+ * just auto-downgraded on-read (see services/billing/plan.ts) due to overdue
+ * billing past the grace period. Idempotent via a deterministic billing_events
+ * id (`downgrade_notice:<broker_id>:<overdue_since>`) — only the first turn
+ * after the downgrade inserts the row and gets the prefix.
+ *
+ * Hooked only into the free-form RAG path (main reply assembly in
+ * handleMessage), not into /comparar or /sinistro, per task scope: it is the
+ * highest-traffic quota-consuming path and keeps the change surgical (one
+ * insertion point) instead of duplicating the check across all three.
+ */
+async function maybeApplyDowngradeNotice(broker: BrokerRow, text: string): Promise<string> {
+  if (!needsDowngradeNotice(broker)) return text
+
+  const supabase = createServiceClient()
+  const eventId = `downgrade_notice:${broker.id}:${broker.overdue_since}`
+
+  const { error } = await supabase
+    .from('billing_events')
+    .insert({ id: eventId, broker_id: broker.id, event_type: 'downgrade_notice' } as never)
+
+  if (error) {
+    // 23505 = unique_violation: this broker/overdue_since was already notified
+    // (this turn or a concurrent one) — expected, not a real failure.
+    if (error.code !== '23505') {
+      console.error('[whatsapp/handler] downgrade_notice insert failed:', error.message)
+    }
+    return text
+  }
+
+  return DOWNGRADE_NOTICE_TEXT + text
+}
+
+// ---------------------------------------------------------------------------
 // Commands
 // ---------------------------------------------------------------------------
 
@@ -252,7 +302,7 @@ async function handleCommand(cmd: ParsedCommand, broker: BrokerRow): Promise<str
       return [await handleFeedbackCommand(cmd.args, broker)]
 
     case '/plano': {
-      const plan = PLANS[broker.plan as BrokerPlan] ?? PLANS.free
+      const plan = PLANS[effectivePlanId(broker) as BrokerPlan] ?? PLANS.free
       const limit = plan.queriesPerDay === -1 ? 'ilimitadas' : `${plan.queriesPerDay}/dia`
       return [
         `*Seu plano: ${plan.name}*\n\n` +

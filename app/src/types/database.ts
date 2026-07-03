@@ -91,6 +91,38 @@ export type Database = {
         }
         Relationships: []
       }
+      billing_events: {
+        Row: {
+          broker_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json | null
+        }
+        Insert: {
+          broker_id?: string | null
+          created_at?: string
+          event_type: string
+          id: string
+          payload?: Json | null
+        }
+        Update: {
+          broker_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "billing_events_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: false
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       broker_clients: {
         Row: {
           birth_date: string | null
@@ -141,13 +173,18 @@ export type Database = {
       brokers: {
         Row: {
           active: boolean
+          asaas_customer_id: string | null
+          asaas_subscription_id: string | null
           auth_user_id: string
+          billing_status: string | null
+          billing_updated_at: string | null
           cpf: string | null
           created_at: string
           creci: string | null
           email: string | null
           id: string
           name: string
+          overdue_since: string | null
           phone: string
           plan: string
           plan_expires_at: string | null
@@ -159,13 +196,18 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
           auth_user_id: string
+          billing_status?: string | null
+          billing_updated_at?: string | null
           cpf?: string | null
           created_at?: string
           creci?: string | null
           email?: string | null
           id?: string
           name: string
+          overdue_since?: string | null
           phone: string
           plan?: string
           plan_expires_at?: string | null
@@ -177,13 +219,18 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          asaas_customer_id?: string | null
+          asaas_subscription_id?: string | null
           auth_user_id?: string
+          billing_status?: string | null
+          billing_updated_at?: string | null
           cpf?: string | null
           created_at?: string
           creci?: string | null
           email?: string | null
           id?: string
           name?: string
+          overdue_since?: string | null
           phone?: string
           plan?: string
           plan_expires_at?: string | null
