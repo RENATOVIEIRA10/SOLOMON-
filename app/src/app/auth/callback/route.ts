@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
   const url = request.nextUrl
   const code = url.searchParams.get('code')
   const next = url.searchParams.get('next') ?? '/app'
-  const dest = next.startsWith('/') ? next : '/app' // nunca redirecionar para fora
+  const dest = next.startsWith('/') && !next.startsWith('//') ? next : '/app' // só caminhos internos; '//' seria protocol-relative (open redirect)
 
   if (code) {
     const supabase = await createServerSupabase()
