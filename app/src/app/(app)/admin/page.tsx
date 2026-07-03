@@ -146,8 +146,10 @@ export default async function AdminPage() {
 
   if (summaries.length === 0) {
     return (
-      <div className="w-full flex flex-col gap-8 p-8">
-        <BrokersPanel />
+      <div className="w-full flex flex-col">
+        <div className="w-full max-w-7xl mx-auto px-4 md:px-8 pt-4 md:pt-8">
+          <BrokersPanel />
+        </div>
         <div className="w-full min-h-[50vh] flex flex-col justify-center items-center gap-4 text-center p-8 max-w-xl mx-auto mt-20">
           {/* Painel de disparo mesmo sem runs — admin pode iniciar o primeiro */}
           <div className="w-full max-w-md mb-4">
@@ -164,8 +166,10 @@ export default async function AdminPage() {
   }
 
   return (
-    <div className="w-full flex flex-col gap-8 p-8">
-      <BrokersPanel />
+    <div className="w-full flex flex-col">
+      <div className="w-full max-w-7xl mx-auto px-4 md:px-8 pt-4 md:pt-8">
+        <BrokersPanel />
+      </div>
       <EvalDashboard
         summaries={summaries}
         initialDetail={initialDetail}

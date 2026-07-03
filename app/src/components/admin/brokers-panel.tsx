@@ -9,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { SkeletonList } from "@/components/ui/skeleton";
 
@@ -68,20 +67,20 @@ export function BrokersPanel() {
       <CardContent className="flex flex-col gap-6">
         <form onSubmit={invite} className="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
           <label className="flex flex-col gap-1.5 md:col-span-2">
-            <Label>Nome</Label>
+            <span className="text-xs uppercase tracking-widest text-ink-muted">Nome</span>
             <Input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
           </label>
           <label className="flex flex-col gap-1.5">
-            <Label>Telefone (DDD+num)</Label>
+            <span className="text-xs uppercase tracking-widest text-ink-muted">Telefone (DDD+num)</span>
             <Input required value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="(11) 98765-4321" />
           </label>
           <label className="flex flex-col gap-1.5">
-            <Label>Email</Label>
+            <span className="text-xs uppercase tracking-widest text-ink-muted">Email</span>
             <Input required type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </label>
           <div className="flex gap-2 items-end">
             <label className="flex flex-col gap-1.5 flex-1">
-              <Label>Plano</Label>
+              <span className="text-xs uppercase tracking-widest text-ink-muted">Plano</span>
               <Select value={form.plan} onChange={(e) => setForm({ ...form, plan: e.target.value })}>
                 <option value="corretor">Corretor</option>
                 <option value="consultor">Consultor</option>
