@@ -34,6 +34,7 @@
     "ui:api-fetch:test": "tsx --tsconfig scripts/tsconfig.json scripts/ui/api-fetch.test.ts",
     "ui:phone:test": "tsx --tsconfig scripts/tsconfig.json scripts/ui/phone.test.ts",
     "ui:billing-plan:test": "tsx --tsconfig scripts/tsconfig.json scripts/ui/billing-plan.test.ts",
+    "ui:asaas-transition:test": "tsx --tsconfig scripts/tsconfig.json scripts/ui/asaas-transition.test.ts",
     "pageindex:qa": "node scripts/pageindex-lite-qa.js",
     "pageindex:build-commercial-toc": "node scripts/build-commercial-toc.js",
     "rag:readiness": "node scripts/rag-readiness-audit.js",

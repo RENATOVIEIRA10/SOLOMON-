@@ -81,11 +81,19 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Valor invalido' }, { status: 400 })
     }
     const { data: broker } = await supabase
-      .from('brokers').select('id, name, email, phone, asaas_customer_id').eq('id', body.brokerId).maybeSingle()
+      .from('brokers')
+      .select('id, name, email, phone, asaas_customer_id, asaas_subscription_id, billing_status')
+      .eq('id', body.brokerId).maybeSingle()
     if (!broker) return NextResponse.json({ error: 'Corretor nao encontrado' }, { status: 404 })
+    if (broker.asaas_subscription_id || broker.billing_status === 'pending' || broker.billing_status === 'active') {
+      return NextResponse.json(
+        { error: `Corretor já tem assinatura (status: ${broker.billing_status})` },
+        { status: 409 }
+      )
+    }
     try {
       const { customerId, subscriptionId, invoiceUrl } = await createAsaasSubscription(broker, valueBRL)
-      await supabase.from('brokers')
+      const { error: updateError } = await supabase.from('brokers')
         .update({
           asaas_customer_id: customerId,
           asaas_subscription_id: subscriptionId,
@@ -93,6 +101,13 @@ export async function POST(request: NextRequest) {
           billing_updated_at: new Date().toISOString(),
         })
         .eq('id', broker.id)
+      if (updateError) {
+        console.error(`[admin/brokers] assinatura criada no Asaas (customer ${customerId}, subscription ${subscriptionId}) mas UPDATE no banco falhou:`, updateError.message)
+        return NextResponse.json(
+          { error: `Assinatura criada no Asaas (customer ${customerId}, subscription ${subscriptionId}) mas o banco falhou ao gravar — NAO gere de novo; corrija manualmente.` },
+          { status: 500 }
+        )
+      }
       return NextResponse.json({ ok: true, invoiceUrl })
     } catch (err) {
       return NextResponse.json({ error: err instanceof Error ? err.message : 'Falha ao gerar assinatura' }, { status: 502 })
