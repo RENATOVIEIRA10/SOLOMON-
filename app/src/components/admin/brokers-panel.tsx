@@ -3,7 +3,7 @@
 import { useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import { UserPlus, Send } from "lucide-react";
+import { UserPlus, Send, CreditCard } from "lucide-react";
 import { apiFetch, ApiError } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,9 @@ export function BrokersPanel() {
   const { data, isLoading, error, mutate } = useSWR<{ brokers: AdminBroker[] }>("/api/admin/brokers");
   const [form, setForm] = useState(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
+  const [subscribing, setSubscribing] = useState<string | null>(null);
+  const [subValue, setSubValue] = useState<Record<string, string>>({});
+  const [subLoading, setSubLoading] = useState<string | null>(null);
   const brokers = data?.brokers ?? [];
 
   async function invite(e: React.FormEvent) {
@@ -52,6 +55,33 @@ export function BrokersPanel() {
       mutate();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Falha ao reenviar.");
+    }
+  }
+
+  async function createSubscription(brokerId: string) {
+    const valueBRL = Number(subValue[brokerId] ?? "149");
+    if (!Number.isFinite(valueBRL) || valueBRL <= 0) {
+      toast.error("Valor invalido.");
+      return;
+    }
+    setSubLoading(brokerId);
+    try {
+      const d = await apiFetch<{ ok: boolean; invoiceUrl: string | null }>("/api/admin/brokers", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ createSubscription: true, brokerId, valueBRL }),
+      });
+      if (d.invoiceUrl) {
+        await navigator.clipboard.writeText(d.invoiceUrl).catch(() => {});
+        toast.success("Link da fatura copiado.");
+      } else {
+        toast.success("Assinatura criada.");
+      }
+      setSubscribing(null);
+      mutate();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : "Falha ao gerar assinatura.");
+    } finally {
+      setSubLoading(null);
     }
   }
 
@@ -108,6 +138,32 @@ export function BrokersPanel() {
                   <button type="button" onClick={() => resend(b.id)} className="inline-flex items-center gap-1 text-xs text-warning hover:opacity-80 cursor-pointer">
                     <Send className="size-3" /> welcome pendente — reenviar
                   </button>
+                )}
+                {!b.billing_status && (
+                  subscribing === b.id ? (
+                    <form
+                      onSubmit={(e) => { e.preventDefault(); createSubscription(b.id); }}
+                      className="flex items-center gap-1.5"
+                    >
+                      <span className="text-xs text-ink-muted">R$</span>
+                      <Input
+                        type="number" min="1" step="0.01" inputMode="decimal"
+                        value={subValue[b.id] ?? "149"}
+                        onChange={(e) => setSubValue({ ...subValue, [b.id]: e.target.value })}
+                        className="h-7 w-20 px-2 text-xs"
+                      />
+                      <Button type="submit" size="sm" disabled={subLoading === b.id}>
+                        {subLoading === b.id ? "Gerando..." : "Confirmar"}
+                      </Button>
+                      <button type="button" onClick={() => setSubscribing(null)} className="text-xs text-ink-muted hover:opacity-80 cursor-pointer">
+                        cancelar
+                      </button>
+                    </form>
+                  ) : (
+                    <button type="button" onClick={() => setSubscribing(b.id)} className="inline-flex items-center gap-1 text-xs text-brand hover:opacity-80 cursor-pointer">
+                      <CreditCard className="size-3" /> gerar assinatura
+                    </button>
+                  )
                 )}
               </li>
             ))}

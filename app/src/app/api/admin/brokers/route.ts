@@ -3,26 +3,52 @@ import { requireAdmin } from '@/lib/auth'
 import { createServiceClient } from '@/lib/supabase'
 import { normalizePhoneBR } from '@/lib/phone'
 import { sendPilotWelcome } from '@/services/pilot/welcome'
+import { createAsaasSubscription } from '@/services/billing/asaas'
 
 const VALID_PLANS = ['free', 'corretor', 'consultor', 'corretora']
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app-atalaia.vercel.app'
+
+type BrokerRow = {
+  id: string; name: string; phone: string; email: string | null; plan: string
+  active: boolean; created_at: string; billing_status: string | null
+}
+
+// Loga só a primeira vez por processo — evita spam de log enquanto a migration
+// da T6 (billing_status) não é aplicada em produção (deploy window do T9).
+let loggedBillingColumnMissing = false
 
 export async function GET() {
   const auth = await requireAdmin()
   if (auth instanceof NextResponse) return auth
 
   const supabase = createServiceClient()
+
+  let brokers: BrokerRow[]
   const { data, error } = await supabase
     .from('brokers')
-    .select('id, name, phone, email, plan, active, created_at')
+    .select('id, name, phone, email, plan, active, billing_status, created_at')
     .order('created_at', { ascending: false })
-  if (error) return NextResponse.json({ error: 'Falha ao listar corretores' }, { status: 500 })
+
+  if (error) {
+    if (!loggedBillingColumnMissing) {
+      console.warn('[admin/brokers] select com billing_status falhou (migration pendente?), usando fallback:', error.message)
+      loggedBillingColumnMissing = true
+    }
+    const { data: fallback, error: fallbackError } = await supabase
+      .from('brokers')
+      .select('id, name, phone, email, plan, active, created_at')
+      .order('created_at', { ascending: false })
+    if (fallbackError) return NextResponse.json({ error: 'Falha ao listar corretores' }, { status: 500 })
+    brokers = (fallback ?? []).map((b) => ({ ...b, billing_status: null }))
+  } else {
+    brokers = data ?? []
+  }
 
   // welcome_sent: registrado em brokers_welcome (criada nesta task) — join manual barato
   const { data: welcomes } = await supabase.from('brokers_welcome').select('broker_id')
   const sent = new Set((welcomes ?? []).map((w: { broker_id: string }) => w.broker_id))
   return NextResponse.json({
-    brokers: (data ?? []).map((b) => ({ ...b, billing_status: null, welcome_sent: sent.has(b.id) })),
+    brokers: brokers.map((b) => ({ ...b, welcome_sent: sent.has(b.id) })),
   })
 }
 
@@ -45,6 +71,31 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ ok: true })
     } catch {
       return NextResponse.json({ error: 'Falha ao enviar WhatsApp' }, { status: 502 })
+    }
+  }
+
+  // Gerar assinatura Asaas
+  if (body.createSubscription && typeof body.brokerId === 'string') {
+    const valueBRL = Number(body.valueBRL)
+    if (!Number.isFinite(valueBRL) || valueBRL <= 0) {
+      return NextResponse.json({ error: 'Valor invalido' }, { status: 400 })
+    }
+    const { data: broker } = await supabase
+      .from('brokers').select('id, name, email, phone, asaas_customer_id').eq('id', body.brokerId).maybeSingle()
+    if (!broker) return NextResponse.json({ error: 'Corretor nao encontrado' }, { status: 404 })
+    try {
+      const { customerId, subscriptionId, invoiceUrl } = await createAsaasSubscription(broker, valueBRL)
+      await supabase.from('brokers')
+        .update({
+          asaas_customer_id: customerId,
+          asaas_subscription_id: subscriptionId,
+          billing_status: 'pending',
+          billing_updated_at: new Date().toISOString(),
+        })
+        .eq('id', broker.id)
+      return NextResponse.json({ ok: true, invoiceUrl })
+    } catch (err) {
+      return NextResponse.json({ error: err instanceof Error ? err.message : 'Falha ao gerar assinatura' }, { status: 502 })
     }
   }
 
