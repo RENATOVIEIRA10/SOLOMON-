@@ -38,7 +38,7 @@ cd app && eslint .       # lint
 - **RAG pipeline:** qualquer mudança em `match_documents()` RPC afeta todos os 3 trilhos
 - **Embeddings:** `nomic-embed-text` local - mudança de modelo invalida base de 16k+ chunks
 - **Schema migrations:** seguir SSoT `supabase migration new` com timestamp - nunca editar baseline
-- **rag_exclude flag:** 65 chunks cod1645 marcados `rag_exclude`, mas RPC ainda não filtra (bug conhecido)
+- **rag_exclude flag:** 65 chunks cod1645 marcados `rag_exclude`; o RPC `match_documents` JÁ filtra `metadata->>'rag_exclude' <> 'true'` (migration 20260423180000 — nota antiga de "bug conhecido" estava desatualizada)
 - **Baseline Ragas:** F=0.717 / AC=0.414 / CP=0.531 - não trocar stack LLM sem re-baseline
 
 ## LLMs em uso
