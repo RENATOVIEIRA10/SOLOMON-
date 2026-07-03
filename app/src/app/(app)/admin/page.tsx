@@ -1,5 +1,6 @@
 import { createHubClient } from "@/lib/supabase-hub";
 import { getAuthUser, isAdmin } from "@/lib/auth";
+import { BrokersPanel } from "@/components/admin/brokers-panel";
 import { EvalDashboard, RunSummary, EvalRunRow } from "@/components/admin/eval-dashboard";
 
 type HubClient = ReturnType<typeof createHubClient>;
@@ -145,26 +146,32 @@ export default async function AdminPage() {
 
   if (summaries.length === 0) {
     return (
-      <div className="w-full min-h-[50vh] flex flex-col justify-center items-center gap-4 text-center p-8 max-w-xl mx-auto mt-20">
-        {/* Painel de disparo mesmo sem runs — admin pode iniciar o primeiro */}
-        <div className="w-full max-w-md mb-4">
-          <EvalDashboard
-            summaries={[]}
-            initialDetail={[]}
-            allInsurers={{}}
-            isAdmin={userIsAdmin}
-          />
+      <div className="w-full flex flex-col gap-8 p-8">
+        <BrokersPanel />
+        <div className="w-full min-h-[50vh] flex flex-col justify-center items-center gap-4 text-center p-8 max-w-xl mx-auto mt-20">
+          {/* Painel de disparo mesmo sem runs — admin pode iniciar o primeiro */}
+          <div className="w-full max-w-md mb-4">
+            <EvalDashboard
+              summaries={[]}
+              initialDetail={[]}
+              allInsurers={{}}
+              isAdmin={userIsAdmin}
+            />
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <EvalDashboard
-      summaries={summaries}
-      initialDetail={initialDetail}
-      allInsurers={allInsurers}
-      isAdmin={userIsAdmin}
-    />
+    <div className="w-full flex flex-col gap-8 p-8">
+      <BrokersPanel />
+      <EvalDashboard
+        summaries={summaries}
+        initialDetail={initialDetail}
+        allInsurers={allInsurers}
+        isAdmin={userIsAdmin}
+      />
+    </div>
   );
 }
