@@ -41,17 +41,25 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const redirectTo = searchParams.get("redirect") || "/app";
   const denied = searchParams.get("denied") === "1";
+  const inviteError = searchParams.get("invite_error") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(
-    denied ? "Sua conta não está liberada para o piloto." : null
+    denied
+      ? "Sua conta não está liberada para o piloto."
+      : inviteError
+        ? "Link inválido ou expirado — peça um novo convite."
+        : null
   );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setResetMessage(null);
     setLoading(true);
     try {
       const supabase = createBrowserSupabase();
@@ -71,6 +79,27 @@ function LoginForm() {
     } catch {
       setError("Não foi possível entrar. Tente novamente.");
       setLoading(false);
+    }
+  }
+
+  async function handleForgotPassword() {
+    setResetMessage(null);
+    if (!email.trim()) {
+      setError("Preencha o email primeiro.");
+      return;
+    }
+    setError(null);
+    setResetLoading(true);
+    try {
+      const supabase = createBrowserSupabase();
+      await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/auth/callback?next=/definir-senha`,
+      });
+    } finally {
+      // Nao revela se o email existe (evita enumeracao de conta) — mesma
+      // mensagem em sucesso ou erro do lado do Supabase.
+      setResetLoading(false);
+      setResetMessage("Se o email existir, enviamos o link.");
     }
   }
 
@@ -127,9 +156,24 @@ function LoginForm() {
             </p>
           )}
 
+          {resetMessage && (
+            <p className="text-sm text-ink-muted" role="status">
+              {resetMessage}
+            </p>
+          )}
+
           <Button type="submit" size="lg" className="mt-2" disabled={loading}>
             {loading ? "Entrando..." : "Entrar"}
           </Button>
+
+          <button
+            type="button"
+            onClick={handleForgotPassword}
+            disabled={resetLoading}
+            className="text-center text-sm text-brand-strong hover:text-brand transition-colors underline-offset-4 hover:underline disabled:opacity-50"
+          >
+            {resetLoading ? "Enviando..." : "Esqueci minha senha"}
+          </button>
 
           <p className="text-center text-sm text-ink-muted mt-4">
             Ainda não tem convite?{" "}

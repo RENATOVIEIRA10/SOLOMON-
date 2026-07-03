@@ -88,6 +88,9 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except API routes, Next internals and static files.
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\.).*)'],
+  // Run on everything except API routes, /auth/* (callback + signout — self
+  // manage the session; the getUser() round trip is unnecessary there and the
+  // callback must not risk a redirect before the code exchange runs), Next
+  // internals and static files.
+  matcher: ['/((?!api|auth|_next/static|_next/image|favicon.ico|.*\\.).*)'],
 }
