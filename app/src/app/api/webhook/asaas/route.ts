@@ -63,7 +63,13 @@ export async function POST(request: NextRequest) {
   })
 
   if (update) {
-    await supabase.from('brokers').update(update).eq('id', brokerId)
+    const { error: updateError } = await supabase.from('brokers').update(update).eq('id', brokerId)
+    if (updateError) {
+      // compensa: remove o evento para o retry do Asaas reprocessar do zero
+      console.error('[webhook/asaas] broker update failed:', updateError.message, 'event:', event.id)
+      await supabase.from('billing_events').delete().eq('id', event.id)
+      return NextResponse.json({ error: 'state update failed' }, { status: 500 })
+    }
   }
 
   if (notify && brokerPhone) {
