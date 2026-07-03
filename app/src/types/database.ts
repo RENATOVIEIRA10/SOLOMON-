@@ -195,6 +195,29 @@ export type Database = {
         }
         Relationships: []
       }
+      brokers_welcome: {
+        Row: {
+          broker_id: string
+          sent_at: string
+        }
+        Insert: {
+          broker_id: string
+          sent_at?: string
+        }
+        Update: {
+          broker_id?: string
+          sent_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "brokers_welcome_broker_id_fkey"
+            columns: ["broker_id"]
+            isOneToOne: true
+            referencedRelation: "brokers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       claim_analyses: {
         Row: {
           broker_client_id: string | null
