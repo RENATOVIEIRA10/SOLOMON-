@@ -26,20 +26,23 @@ export async function POST(request: NextRequest) {
   let brokerId: string | null = null
   let brokerPhone: string | null = null
   let brokerOverdueSince: string | null = null
+  let brokerPendingPlan: string | null = null
   if (subscriptionId) {
-    const { data } = await supabase.from('brokers').select('id, phone, overdue_since').eq('asaas_subscription_id', subscriptionId).maybeSingle()
+    const { data } = await supabase.from('brokers').select('id, phone, overdue_since, pending_plan').eq('asaas_subscription_id', subscriptionId).maybeSingle()
     if (data) {
       brokerId = data.id
       brokerPhone = data.phone
       brokerOverdueSince = data.overdue_since
+      brokerPendingPlan = data.pending_plan
     }
   }
   if (!brokerId && externalRef) {
-    const { data } = await supabase.from('brokers').select('id, phone, overdue_since').eq('id', externalRef).maybeSingle()
+    const { data } = await supabase.from('brokers').select('id, phone, overdue_since, pending_plan').eq('id', externalRef).maybeSingle()
     if (data) {
       brokerId = data.id
       brokerPhone = data.phone
       brokerOverdueSince = data.overdue_since
+      brokerPendingPlan = data.pending_plan
     }
   }
 
@@ -60,6 +63,7 @@ export async function POST(request: NextRequest) {
     eventType: event.event,
     currentOverdueSince: brokerOverdueSince,
     nowISO: now,
+    pendingPlan: brokerPendingPlan,
   })
 
   if (update) {

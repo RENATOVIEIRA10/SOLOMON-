@@ -185,6 +185,7 @@ export type Database = {
           id: string
           name: string
           overdue_since: string | null
+          pending_plan: string | null
           phone: string
           plan: string
           plan_expires_at: string | null
@@ -208,6 +209,7 @@ export type Database = {
           id?: string
           name: string
           overdue_since?: string | null
+          pending_plan?: string | null
           phone: string
           plan?: string
           plan_expires_at?: string | null
@@ -231,6 +233,7 @@ export type Database = {
           id?: string
           name?: string
           overdue_since?: string | null
+          pending_plan?: string | null
           phone?: string
           plan?: string
           plan_expires_at?: string | null

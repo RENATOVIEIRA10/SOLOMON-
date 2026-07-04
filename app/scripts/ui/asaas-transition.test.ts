@@ -47,3 +47,31 @@ test('nomes de evento sao case-exact — lowercase nao casa', () => {
   const result = decideWebhookTransition({ eventType: 'payment_confirmed', currentOverdueSince: null, nowISO: NOW })
   assert.deepEqual(result, { update: null, notify: false })
 })
+
+test('PAYMENT_CONFIRMED com pendingPlan aplica o plano e limpa pending_plan', () => {
+  const result = decideWebhookTransition({
+    eventType: 'PAYMENT_CONFIRMED',
+    currentOverdueSince: null,
+    nowISO: NOW,
+    pendingPlan: 'corretor',
+  })
+  assert.deepEqual(result, {
+    update: { billing_status: 'active', overdue_since: null, billing_updated_at: NOW, plan: 'corretor', pending_plan: null },
+    notify: false,
+  })
+})
+
+test('PAYMENT_CONFIRMED sem pendingPlan nao inclui campos de plano no update', () => {
+  const result = decideWebhookTransition({
+    eventType: 'PAYMENT_CONFIRMED',
+    currentOverdueSince: null,
+    nowISO: NOW,
+    pendingPlan: null,
+  })
+  assert.deepEqual(result, {
+    update: { billing_status: 'active', overdue_since: null, billing_updated_at: NOW },
+    notify: false,
+  })
+  assert.ok(!('plan' in (result.update ?? {})))
+  assert.ok(!('pending_plan' in (result.update ?? {})))
+})

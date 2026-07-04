@@ -23,7 +23,8 @@ async function asaas<T>(path: string, init?: RequestInit): Promise<T> {
 export async function createAsaasSubscription(
   broker: { id: string; name: string; email: string | null; phone: string; asaas_customer_id: string | null },
   valueBRL: number,
-  cpfCnpj: string
+  cpfCnpj: string,
+  opts?: { maxPayments?: number; description?: string }
 ): Promise<{ customerId: string; subscriptionId: string; invoiceUrl: string | null }> {
   let customerId = broker.asaas_customer_id
   if (!customerId) {
@@ -48,8 +49,9 @@ export async function createAsaasSubscription(
       cycle: 'MONTHLY',
       value: valueBRL,
       nextDueDate,
-      description: 'SOLOMON — assinatura do piloto',
+      description: opts?.description ?? 'SOLOMON — assinatura do piloto',
       externalReference: broker.id,
+      ...(opts?.maxPayments ? { maxPayments: opts.maxPayments } : {}),
     }),
   })
   // 1a cobrança da assinatura carrega a invoiceUrl
