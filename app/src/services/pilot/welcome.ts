@@ -27,7 +27,9 @@ export async function sendPilotWelcome(phoneE164: string, name: string): Promise
     return 'sent'
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
-    if (/24-hour window/i.test(message) || /24 hour/i.test(message) || message.includes('(422)')) {
+    // só a janela de 24h vira estado "aguardando"; qualquer outro 422 (telefone
+    // inválido, payload ruim) é falha real e continua lançando
+    if (/24[- ]hour window/i.test(message)) {
       return 'awaiting_first_contact'
     }
     throw err
