@@ -32,13 +32,14 @@ const fadeUp = {
 
 const FREE_BULLETS = ["5 consultas por dia", "Direto no WhatsApp", "Acesso por convite"];
 
+// Copy segue o veredicto oficial do piloto (spec 2026-07-02): vender cotação
+// MAG+Prudential; comparador/pré-sinistro aparecem como acesso beta, não promessa.
 const FULL_BULLETS = [
-  "50 consultas por dia",
-  "WhatsApp + dashboard do corretor",
-  "Cotação com a fonte citada",
-  "Comparador entre seguradoras",
-  "Pré-sinistro — veredicto e checklist",
+  "Cotação Prudential e MAG na hora, com fonte",
+  "Condições gerais de 14 seguradoras — sempre com a fonte citada",
+  "50 consultas por dia, no WhatsApp e no dashboard",
   "Histórico completo de consultas",
+  "Acesso beta: comparador e pré-sinistro orientativo",
 ];
 
 type FormState = {
@@ -194,8 +195,8 @@ export function PlanosView() {
                   <span className="mono-tag">SOLOMON completo</span>
                   <Badge variant="accent">Mais escolhido</Badge>
                 </div>
-                <CardTitle className="text-2xl">Oráculo + dashboard + pré-sinistro</CardTitle>
-                <CardDescription>Tudo que um corretor precisa pra fechar mais rápido.</CardDescription>
+                <CardTitle className="text-2xl">Cotação na hora, com fonte</CardTitle>
+                <CardDescription>O consultor privado do corretor de vida — no WhatsApp e no dashboard.</CardDescription>
               </CardHeader>
 
               <CardContent className="flex-1 space-y-5">
