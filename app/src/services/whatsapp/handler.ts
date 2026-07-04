@@ -16,6 +16,7 @@ import type { IncomingMessage } from './types'
 
 const MAX_WHATSAPP_LENGTH = 4096
 const SIGNATURE = `\n\n_${BRAND.tagline}_`
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app-atalaia.vercel.app'
 
 /**
  * Handle an incoming WhatsApp message.
@@ -629,12 +630,11 @@ async function handleFeedbackCommand(args: string, broker: BrokerRow): Promise<s
 
 function formatHelp(brokerName: string): string {
   return (
-    `Ola, *${brokerName}*! Sou o *SOLOMON*.\n\n` +
-    `Pode me perguntar qualquer coisa sobre seguros de vida:\n\n` +
-    `- Condicoes gerais de produtos\n` +
-    `- Coberturas e exclusoes\n` +
-    `- Carencias e processos SUSEP\n` +
-    `- Comparacoes entre seguradoras\n\n` +
+    `Ola, *${brokerName}*! Sou o *SOLOMON* — ${BRAND.positioning.toLowerCase()}.\n\n` +
+    `O que eu faco de melhor: *cotacao Prudential e MAG na hora, com fonte*. ` +
+    `Exemplo:\n_"cotacao Prudential vida inteira, homem, 35 anos, capital 500 mil"_\n\n` +
+    `Tambem consulto condicoes gerais de 14 seguradoras — coberturas, exclusoes, ` +
+    `carencias, processos SUSEP — sempre citando a fonte. Quando nao tenho certeza, eu digo.\n\n` +
     `*Comandos:*\n` +
     `/ajuda — Este menu\n` +
     `/plano — Ver seu plano atual\n` +
@@ -649,11 +649,9 @@ function formatOnboarding(phone: string): string {
   return (
     `Ola! Sou o *SOLOMON* — ${BRAND.positioning}.\n\n` +
     `Seu numero (${phone}) ainda nao esta cadastrado.\n\n` +
-    `Para comecar a usar:\n` +
-    `1. Acesse nosso site e crie sua conta\n` +
-    `2. Cadastre este numero de WhatsApp\n` +
-    `3. Pronto! Pode me perguntar qualquer coisa sobre seguros de vida.\n\n` +
-    `O plano gratuito inclui ${PLANS.free.queriesPerDay} consultas por dia.` +
+    `O SOLOMON esta em piloto fechado. Para entrar, assine em:\n` +
+    `${SITE_URL}/planos\n\n` +
+    `Assinou? Sua conta chega por convite no email e este numero de WhatsApp ja fica liberado.` +
     SIGNATURE
   )
 }
