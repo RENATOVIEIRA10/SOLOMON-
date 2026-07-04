@@ -804,3 +804,24 @@ alter function public.increment_broker_queries set search_path = public;
 - [ ] **Step 2:** Push final de tudo + smoke do roteiro do launch-gate.md no celular do CEO.
 - [ ] **Step 3 (7 dias):** monitoramento diário leve: Langfuse (erros/latência), painel admin (billing), `sync_context` escalates. Critérios go/no-go no launch-gate.md: zero erro crítico, gate de eval verde, cobrança do Julio processada, OK explícito do Julio sobre a promessa.
 - [ ] **Step 4:** Go → convites dos 3–10; session_summary no hub; atualizar STATUS.md ("Piloto lançado em <data>").
+
+---
+
+## ADENDO (2026-07-04, aprovado pelo CEO): Checkout público /planos
+
+### Task 13: Fundação do checkout — pending_plan + API pública + webhook
+
+**Files:** Create: `app/supabase/migrations/<ts>_pending_plan.sql`, `app/src/app/api/checkout/route.ts`; Modify: `app/src/services/billing/asaas.ts` (param opcional `{ maxPayments?, description? }`), `app/src/services/billing/webhook-transition.ts`+webhook (aplicar pending_plan no primeiro pagamento), `app/src/types/database.ts`.
+
+- Migration: `alter table public.brokers add column if not exists pending_plan text;`
+- `POST /api/checkout` (público): body `{ name, phone, email, cpfCnpj, billing: 'mensal' | 'anual' }`; validações (nome, email, phone via normalizePhoneBR, cpf 11/14); anti-spam honeypot (`company` preenchido → 200 fake); email já existente em brokers → 409 amigável. Fluxo: inviteUserByEmail + broker (plan='free', pending_plan='corretor', cpf) + assinatura Asaas (mensal: MONTHLY 149; anual: MONTHLY 99 + maxPayments 12 + description "SOLOMON — plano anual (12x)") → `{ invoiceUrl }`. Rollback do invite se broker falhar (padrão T2).
+- Webhook: em PAYMENT_CONFIRMED/RECEIVED, se broker tem `pending_plan`, aplicar `plan = pending_plan` e limpar — estender `decideWebhookTransition` (input ganha `pendingPlan`; update ganha `plan?`) + testes novos no `asaas-transition.test.ts`.
+- Preços em `app/src/config/pricing.ts` (SSoT): `{ mensal: 149, anual: 99 }` + labels.
+
+### Task 14: Página /planos (vitrine + checkout, cara do SOLOMON)
+
+**Files:** Create: `app/src/app/planos/page.tsx` (+ componente client `planos-checkout.tsx`).
+
+- Pública (fora do grupo (app); conferir matcher do proxy — `/planos` não é protegida).
+- Design system atual (dual-theme, tokens, tipografia editorial, anti-genérico): hero curto no tom do veredicto; card Gratuito (5/dia, "por convite"); card destaque com toggle Mensal R$149 / Anual 12x R$99 (50 consultas/dia, WhatsApp + dashboard, fontes citadas, pré-sinistro); form (nome, whatsapp, email, cpf + honeypot oculto) → POST /api/checkout → redirect invoiceUrl; estados de erro com toast.
+- Passe ui-ux-pro-max + revisão como nas ondas F4.
