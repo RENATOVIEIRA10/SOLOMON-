@@ -10,7 +10,12 @@ const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app-atalaia.vercel
 
 type BrokerRow = {
   id: string; name: string; phone: string; email: string | null; plan: string
-  active: boolean; created_at: string; billing_status: string | null
+  active: boolean; created_at: string; billing_status: string | null; cpf: string | null
+}
+
+function normalizeCpfCnpj(raw: string | null | undefined): string | null {
+  const digits = (raw ?? '').replace(/\D/g, '')
+  return digits.length === 11 || digits.length === 14 ? digits : null
 }
 
 // Loga só a primeira vez por processo — evita spam de log enquanto a migration
@@ -26,7 +31,7 @@ export async function GET() {
   let brokers: BrokerRow[]
   const { data, error } = await supabase
     .from('brokers')
-    .select('id, name, phone, email, plan, active, billing_status, created_at')
+    .select('id, name, phone, email, plan, active, billing_status, cpf, created_at')
     .order('created_at', { ascending: false })
 
   if (error) {
@@ -36,7 +41,7 @@ export async function GET() {
     }
     const { data: fallback, error: fallbackError } = await supabase
       .from('brokers')
-      .select('id, name, phone, email, plan, active, created_at')
+      .select('id, name, phone, email, plan, active, cpf, created_at')
       .order('created_at', { ascending: false })
     if (fallbackError) return NextResponse.json({ error: 'Falha ao listar corretores' }, { status: 500 })
     brokers = (fallback ?? []).map((b) => ({ ...b, billing_status: null }))
@@ -85,7 +90,7 @@ export async function POST(request: NextRequest) {
     }
     const { data: broker } = await supabase
       .from('brokers')
-      .select('id, name, email, phone, asaas_customer_id, asaas_subscription_id, billing_status')
+      .select('id, name, email, phone, asaas_customer_id, asaas_subscription_id, billing_status, cpf')
       .eq('id', body.brokerId).maybeSingle()
     if (!broker) return NextResponse.json({ error: 'Corretor nao encontrado' }, { status: 404 })
     if (broker.asaas_subscription_id || broker.billing_status === 'pending' || broker.billing_status === 'active') {
@@ -94,14 +99,19 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       )
     }
+    const cpfCnpj = normalizeCpfCnpj(typeof body.cpfCnpj === 'string' ? body.cpfCnpj : null) ?? normalizeCpfCnpj(broker.cpf)
+    if (!cpfCnpj) {
+      return NextResponse.json({ error: 'CPF/CNPJ obrigatório para gerar cobrança (11 ou 14 dígitos)' }, { status: 400 })
+    }
     try {
-      const { customerId, subscriptionId, invoiceUrl } = await createAsaasSubscription(broker, valueBRL)
+      const { customerId, subscriptionId, invoiceUrl } = await createAsaasSubscription(broker, valueBRL, cpfCnpj)
       const { error: updateError } = await supabase.from('brokers')
         .update({
           asaas_customer_id: customerId,
           asaas_subscription_id: subscriptionId,
           billing_status: 'pending',
           billing_updated_at: new Date().toISOString(),
+          cpf: cpfCnpj,
         })
         .eq('id', broker.id)
       if (updateError) {

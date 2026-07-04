@@ -22,7 +22,8 @@ async function asaas<T>(path: string, init?: RequestInit): Promise<T> {
 
 export async function createAsaasSubscription(
   broker: { id: string; name: string; email: string | null; phone: string; asaas_customer_id: string | null },
-  valueBRL: number
+  valueBRL: number,
+  cpfCnpj: string
 ): Promise<{ customerId: string; subscriptionId: string; invoiceUrl: string | null }> {
   let customerId = broker.asaas_customer_id
   if (!customerId) {
@@ -32,6 +33,7 @@ export async function createAsaasSubscription(
         name: broker.name,
         email: broker.email ?? undefined,
         mobilePhone: broker.phone.replace('+55', ''),
+        cpfCnpj,
         externalReference: broker.id,
       }),
     })

@@ -15,7 +15,7 @@ import { SkeletonList } from "@/components/ui/skeleton";
 type AdminBroker = {
   id: string; name: string; phone: string; email: string | null; plan: string;
   active: boolean; billing_status: string | null; welcome_sent: boolean; created_at: string;
-  awaiting_first_contact?: boolean;
+  awaiting_first_contact?: boolean; cpf: string | null;
 };
 
 const EMPTY_FORM = { name: "", phone: "", email: "", plan: "corretor" };
@@ -26,6 +26,7 @@ export function BrokersPanel() {
   const [saving, setSaving] = useState(false);
   const [subscribing, setSubscribing] = useState<string | null>(null);
   const [subValue, setSubValue] = useState<Record<string, string>>({});
+  const [cpfValue, setCpfValue] = useState<Record<string, string>>({});
   const [subLoading, setSubLoading] = useState<string | null>(null);
   const brokers = data?.brokers ?? [];
 
@@ -69,17 +70,22 @@ export function BrokersPanel() {
     }
   }
 
-  async function createSubscription(brokerId: string) {
+  async function createSubscription(brokerId: string, cpfCnpjRaw: string) {
     const valueBRL = Number(subValue[brokerId] ?? "149");
     if (!Number.isFinite(valueBRL) || valueBRL <= 0) {
       toast.error("Valor invalido.");
+      return;
+    }
+    const cpfCnpj = cpfCnpjRaw.replace(/\D/g, "");
+    if (cpfCnpj.length !== 11 && cpfCnpj.length !== 14) {
+      toast.error("CPF/CNPJ invalido (precisa ter 11 ou 14 digitos).");
       return;
     }
     setSubLoading(brokerId);
     try {
       const d = await apiFetch<{ ok: boolean; invoiceUrl: string | null }>("/api/admin/brokers", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ createSubscription: true, brokerId, valueBRL }),
+        body: JSON.stringify({ createSubscription: true, brokerId, valueBRL, cpfCnpj }),
       });
       if (d.invoiceUrl) {
         await navigator.clipboard.writeText(d.invoiceUrl).catch(() => {});
@@ -153,7 +159,7 @@ export function BrokersPanel() {
                 {!b.billing_status && (
                   subscribing === b.id ? (
                     <form
-                      onSubmit={(e) => { e.preventDefault(); createSubscription(b.id); }}
+                      onSubmit={(e) => { e.preventDefault(); createSubscription(b.id, cpfValue[b.id] ?? (b.cpf ?? "")); }}
                       className="flex items-center gap-1.5"
                     >
                       <span className="text-xs text-ink-muted">R$</span>
@@ -162,6 +168,12 @@ export function BrokersPanel() {
                         value={subValue[b.id] ?? "149"}
                         onChange={(e) => setSubValue({ ...subValue, [b.id]: e.target.value })}
                         className="h-7 w-20 px-2 text-xs"
+                      />
+                      <Input
+                        value={cpfValue[b.id] ?? (b.cpf ?? "")}
+                        onChange={(e) => setCpfValue({ ...cpfValue, [b.id]: e.target.value })}
+                        placeholder="CPF/CNPJ (só números)"
+                        className="h-7 w-36 px-2 text-xs"
                       />
                       <Button type="submit" size="sm" disabled={subLoading === b.id}>
                         {subLoading === b.id ? "Gerando..." : "Confirmar"}
