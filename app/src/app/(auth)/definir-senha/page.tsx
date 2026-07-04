@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Lock } from "lucide-react";
+import { Lock, CheckCircle2, MessageCircle } from "lucide-react";
 import { createBrowserSupabase } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,6 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+
 // (auth)/layout.tsx ja centraliza + limita a largura do conteudo (max-w-md),
 // entao esta pagina segue o mesmo padrao do login/signup: retorna o Card
 // direto, sem wrapper proprio de min-h-dvh/centering (evitaria double-frame).
@@ -22,6 +24,7 @@ export default function DefinirSenhaPage() {
   const [confirm, setConfirm] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [done, setDone] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -42,8 +45,48 @@ export default function DefinirSenhaPage() {
       setError("Sessão expirada — abra o link do email de novo.");
       return;
     }
-    router.replace("/app");
     router.refresh();
+    setDone(true);
+  }
+
+  if (done) {
+    return (
+      <Card>
+        <CardHeader className="text-center">
+          <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-full bg-success/10 text-success">
+            <CheckCircle2 className="size-6" />
+          </div>
+          <CardTitle className="font-display text-3xl">Senha criada!</CardTitle>
+          <CardDescription>
+            Último passo: salve o SOLOMON e mande um oi no WhatsApp — é assim que ele começa a te responder.
+          </CardDescription>
+        </CardHeader>
+
+        <CardContent>
+          <div className="flex flex-col gap-3">
+            {WHATSAPP_NUMBER && (
+              <Button asChild size="lg">
+                <a
+                  href={`https://wa.me/${WHATSAPP_NUMBER}?text=oi`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Mandar oi no WhatsApp
+                </a>
+              </Button>
+            )}
+            <Button
+              variant="secondary"
+              size="lg"
+              onClick={() => router.replace("/app")}
+            >
+              Ir para o painel
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    );
   }
 
   return (

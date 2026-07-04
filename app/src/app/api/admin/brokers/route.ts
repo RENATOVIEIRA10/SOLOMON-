@@ -66,7 +66,10 @@ export async function POST(request: NextRequest) {
       .from('brokers').select('id, name, phone').eq('id', body.brokerId).maybeSingle()
     if (!broker) return NextResponse.json({ error: 'Corretor nao encontrado' }, { status: 404 })
     try {
-      await sendPilotWelcome(broker.phone, broker.name)
+      const result = await sendPilotWelcome(broker.phone, broker.name)
+      if (result === 'awaiting_first_contact') {
+        return NextResponse.json({ ok: false, awaiting_first_contact: true })
+      }
       await supabase.from('brokers_welcome').upsert({ broker_id: broker.id })
       return NextResponse.json({ ok: true })
     } catch {
@@ -142,14 +145,22 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: `Broker falhou: ${brokerError?.message}` }, { status: 500 })
   }
 
-  // 3) Welcome no WhatsApp — falha NÃO bloqueia (badge "welcome pendente" no painel)
+  // 3) Welcome no WhatsApp — falha NÃO bloqueia (badge "sem 1º contato" no painel)
   let welcomeSent = true
+  let awaitingFirstContact = false
   try {
-    await sendPilotWelcome(phoneE164, broker.name)
-    await supabase.from('brokers_welcome').upsert({ broker_id: broker.id })
+    const result = await sendPilotWelcome(phoneE164, broker.name)
+    if (result === 'awaiting_first_contact') {
+      welcomeSent = false
+      awaitingFirstContact = true
+    } else {
+      await supabase.from('brokers_welcome').upsert({ broker_id: broker.id })
+    }
   } catch {
     welcomeSent = false
   }
 
-  return NextResponse.json({ broker: { ...broker, billing_status: null, welcome_sent: welcomeSent } })
+  return NextResponse.json({
+    broker: { ...broker, billing_status: null, welcome_sent: welcomeSent, awaiting_first_contact: awaitingFirstContact },
+  })
 }

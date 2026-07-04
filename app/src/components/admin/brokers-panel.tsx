@@ -15,6 +15,7 @@ import { SkeletonList } from "@/components/ui/skeleton";
 type AdminBroker = {
   id: string; name: string; phone: string; email: string | null; plan: string;
   active: boolean; billing_status: string | null; welcome_sent: boolean; created_at: string;
+  awaiting_first_contact?: boolean;
 };
 
 const EMPTY_FORM = { name: "", phone: "", email: "", plan: "corretor" };
@@ -37,7 +38,13 @@ export function BrokersPanel() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form),
       });
       toast.success(`Convite enviado para ${d.broker.email}`);
-      if (!d.broker.welcome_sent) toast.warning("Welcome do WhatsApp falhou — use Reenviar na lista.");
+      if (!d.broker.welcome_sent) {
+        if (d.broker.awaiting_first_contact) {
+          toast.info("Corretor precisa mandar o 1º oi no WhatsApp — o SOLOMON responde na hora.");
+        } else {
+          toast.warning("Welcome do WhatsApp falhou — use Reenviar na lista.");
+        }
+      }
       setForm(EMPTY_FORM);
       mutate();
     } catch (err) {
@@ -47,11 +54,15 @@ export function BrokersPanel() {
 
   async function resend(brokerId: string) {
     try {
-      await apiFetch("/api/admin/brokers", {
+      const d = await apiFetch<{ ok: boolean; awaiting_first_contact?: boolean }>("/api/admin/brokers", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ resendWelcome: true, brokerId }),
       });
-      toast.success("Welcome reenviado.");
+      if (d.awaiting_first_contact) {
+        toast.info("Corretor precisa mandar o 1º oi no WhatsApp — o SOLOMON responde na hora.");
+      } else {
+        toast.success("Welcome reenviado.");
+      }
       mutate();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Falha ao reenviar.");
@@ -136,7 +147,7 @@ export function BrokersPanel() {
                 {b.billing_status === "overdue" && <Badge variant="warning">inadimplente</Badge>}
                 {!b.welcome_sent && (
                   <button type="button" onClick={() => resend(b.id)} className="inline-flex items-center gap-1 text-xs text-warning hover:opacity-80 cursor-pointer">
-                    <Send className="size-3" /> welcome pendente — reenviar
+                    <Send className="size-3" /> sem 1º contato — reenviar
                   </button>
                 )}
                 {!b.billing_status && (

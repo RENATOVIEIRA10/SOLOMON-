@@ -9,6 +9,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
+const WHATSAPP_NUMBER = process.env.NEXT_PUBLIC_WHATSAPP_NUMBER;
+
 // SOLOMON esta em piloto fechado (veredicto PR #57) — sem cadastro publico.
 // Acesso e provisionado por convite (Supabase inviteUserByEmail), entao esta
 // pagina vira uma vitrine "fale com a gente" em vez de um form de signup.
@@ -24,17 +26,18 @@ export default function SignupPage() {
 
       <CardContent>
         <div className="flex flex-col gap-4">
-          <Button asChild size="lg" className="mt-2">
-            {/* TODO checkpoint T5: numero real do CEO */}
-            <a
-              href="https://wa.me/SEU_NUMERO"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <MessageCircle className="h-4 w-4" />
-              Falar no WhatsApp
-            </a>
-          </Button>
+          {WHATSAPP_NUMBER && (
+            <Button asChild size="lg" className="mt-2">
+              <a
+                href={`https://wa.me/${WHATSAPP_NUMBER}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MessageCircle className="h-4 w-4" />
+                Falar no WhatsApp
+              </a>
+            </Button>
+          )}
 
           <p className="text-center text-sm text-ink-muted mt-4">
             Já tenho conta?{" "}
