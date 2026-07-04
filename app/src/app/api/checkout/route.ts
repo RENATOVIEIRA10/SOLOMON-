@@ -60,6 +60,43 @@ export async function POST(request: NextRequest) {
 
   const supabase = createServiceClient()
 
+  // Rate limit durável do checkout público (tabela checkout_attempts) — antes de qualquer
+  // chamada externa (Auth/Asaas). Fail-open: se a tabela ainda não existir (migration
+  // pendente de apply), loga e segue — o guard nunca pode derrubar o checkout.
+  const ip = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ?? 'unknown'
+  try {
+    const insertAttempt = await supabase.from('checkout_attempts').insert({ ip, email })
+    if (insertAttempt.error) throw insertAttempt.error
+
+    const since = new Date(Date.now() - 60 * 60 * 1000).toISOString()
+    const [ipWindow, emailWindow] = await Promise.all([
+      supabase
+        .from('checkout_attempts')
+        .select('id', { count: 'exact', head: true })
+        .eq('ip', ip)
+        .gte('created_at', since),
+      supabase
+        .from('checkout_attempts')
+        .select('id', { count: 'exact', head: true })
+        .eq('email', email)
+        .gte('created_at', since),
+    ])
+    if (ipWindow.error) throw ipWindow.error
+    if (emailWindow.error) throw emailWindow.error
+
+    if ((ipWindow.count ?? 0) > 5 || (emailWindow.count ?? 0) > 3) {
+      return NextResponse.json(
+        { error: 'Muitas tentativas. Aguarde um pouco e tente de novo.' },
+        { status: 429 }
+      )
+    }
+  } catch (err) {
+    console.error(
+      '[checkout] rate-limit check falhou (tabela checkout_attempts ausente?) — seguindo fail-open:',
+      err
+    )
+  }
+
   // Email já cadastrado -> 409 amigável (nunca reconvida nem duplica broker)
   const { data: existing } = await supabase.from('brokers').select('id').eq('email', email).maybeSingle()
   if (existing) {
@@ -93,7 +130,22 @@ export async function POST(request: NextRequest) {
     .single()
   if (brokerError || !broker) {
     // rollback do convite para não deixar auth órfão
-    await supabase.auth.admin.deleteUser(invited.user.id)
+    const { error: rollbackError } = await supabase.auth.admin.deleteUser(invited.user.id)
+    if (rollbackError) {
+      console.error('[checkout] ROLLBACK FALHOU', {
+        step: 'deleteUser-apos-broker-insert-falhar',
+        authUserId: invited.user.id,
+        error: rollbackError,
+      })
+    }
+    // corrida no checkout público: pre-check de email passou mas o insert colidiu com o
+    // índice único uq_brokers_email (defesa em profundidade) -> mesmo 409 amigável
+    if (brokerError?.code === '23505') {
+      return NextResponse.json(
+        { error: 'Este email já tem conta no SOLOMON — fale com a gente no WhatsApp.' },
+        { status: 409 }
+      )
+    }
     return NextResponse.json({ error: `Cadastro falhou: ${brokerError?.message}` }, { status: 500 })
   }
 
@@ -110,8 +162,24 @@ export async function POST(request: NextRequest) {
       }
     )
   } catch (err) {
-    await supabase.from('brokers').delete().eq('id', broker.id)
-    await supabase.auth.admin.deleteUser(invited.user.id)
+    const { error: brokerDeleteError } = await supabase.from('brokers').delete().eq('id', broker.id)
+    if (brokerDeleteError) {
+      console.error('[checkout] ROLLBACK FALHOU', {
+        step: 'brokers.delete-apos-asaas-falhar',
+        brokerId: broker.id,
+        authUserId: invited.user.id,
+        error: brokerDeleteError,
+      })
+    }
+    const { error: authDeleteError } = await supabase.auth.admin.deleteUser(invited.user.id)
+    if (authDeleteError) {
+      console.error('[checkout] ROLLBACK FALHOU', {
+        step: 'deleteUser-apos-asaas-falhar',
+        brokerId: broker.id,
+        authUserId: invited.user.id,
+        error: authDeleteError,
+      })
+    }
     return NextResponse.json(
       { error: err instanceof Error ? err.message : 'Falha ao gerar assinatura no Asaas' },
       { status: 502 }

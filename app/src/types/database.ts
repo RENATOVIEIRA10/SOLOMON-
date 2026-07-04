@@ -268,6 +268,27 @@ export type Database = {
           },
         ]
       }
+      checkout_attempts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: number
+          ip: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: number
+          ip: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: number
+          ip?: string
+        }
+        Relationships: []
+      }
       claim_analyses: {
         Row: {
           broker_client_id: string | null
