@@ -55,7 +55,7 @@ export default function PrivacidadePage() {
           <li><strong>Vercel</strong> — hospedagem da aplicação.</li>
           <li><strong>Asaas</strong> — processamento de pagamentos e assinaturas.</li>
           <li><strong>Kapso / Meta (WhatsApp)</strong> — envio e recebimento das mensagens.</li>
-          <li><strong>Provedores de IA</strong> (Anthropic, OpenRouter, Google) — geração das respostas do assistente. As perguntas enviadas ao assistente são processadas por esses provedores para produzir a resposta.</li>
+          <li><strong>Provedores de IA</strong> (Anthropic, OpenAI, OpenRouter, Google) — geração das respostas e busca semântica do assistente. As perguntas enviadas ao assistente são processadas por esses provedores para produzir a resposta e localizar os trechos das condições gerais.</li>
         </ul>
         <p>
           Parte desses provedores pode processar dados fora do Brasil. Nesses casos, a

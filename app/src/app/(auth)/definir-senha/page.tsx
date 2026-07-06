@@ -149,6 +149,7 @@ export default function DefinirSenhaPage() {
           <label className="flex items-start gap-2.5 cursor-pointer">
             <input
               type="checkbox"
+              required
               checked={accepted}
               onChange={(e) => setAccepted(e.target.checked)}
               className="mt-0.5 size-4 shrink-0 rounded border-edge text-brand focus:ring-2 focus:ring-brand/40"
