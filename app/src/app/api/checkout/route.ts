@@ -4,6 +4,7 @@ import { normalizePhoneBR } from '@/lib/phone'
 import { sendPilotWelcome } from '@/services/pilot/welcome'
 import { createAsaasSubscription } from '@/services/billing/asaas'
 import { PRICING, type BillingOption } from '@/config/pricing'
+import { currentLegalVersions } from '@/config/legal'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app-atalaia.vercel.app'
 
@@ -57,6 +58,15 @@ export async function POST(request: NextRequest) {
   }
   const billing = billingRaw as BillingOption
   const option = PRICING[billing]
+
+  // LGPD: aceite explícito é obrigatório no checkout público — nunca assumir consentimento.
+  if (body.acceptedTerms !== true) {
+    return NextResponse.json(
+      { error: 'É necessário aceitar a Política de Privacidade e os Termos de Uso.' },
+      { status: 400 }
+    )
+  }
+  const { privacyVersion, termsVersion } = currentLegalVersions()
 
   const supabase = createServiceClient()
 
@@ -125,6 +135,10 @@ export async function POST(request: NextRequest) {
       cpf: cpfCnpj,
       plan: 'free',
       pending_plan: 'corretor',
+      consent_privacy_version: privacyVersion,
+      consent_terms_version: termsVersion,
+      consent_accepted_at: new Date().toISOString(),
+      consent_ip: ip,
     })
     .select('id')
     .single()

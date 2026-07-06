@@ -180,6 +180,10 @@ export type Database = {
           billing_updated_at: string | null
           cpf: string | null
           created_at: string
+          consent_accepted_at: string | null
+          consent_ip: string | null
+          consent_privacy_version: string | null
+          consent_terms_version: string | null
           creci: string | null
           email: string | null
           id: string
@@ -202,6 +206,10 @@ export type Database = {
           auth_user_id: string
           billing_status?: string | null
           billing_updated_at?: string | null
+          consent_accepted_at?: string | null
+          consent_ip?: string | null
+          consent_privacy_version?: string | null
+          consent_terms_version?: string | null
           cpf?: string | null
           created_at?: string
           creci?: string | null
@@ -226,6 +234,10 @@ export type Database = {
           auth_user_id?: string
           billing_status?: string | null
           billing_updated_at?: string | null
+          consent_accepted_at?: string | null
+          consent_ip?: string | null
+          consent_privacy_version?: string | null
+          consent_terms_version?: string | null
           cpf?: string | null
           created_at?: string
           creci?: string | null
