@@ -82,6 +82,24 @@ corretor fake provisionado no checkpoint L1:
 
 ---
 
+## 4. Billing & Seguranca (verificado 2026-07-04)
+
+**Status:** `[x] VERDE` (config/infra provada nesta sessao; falta so pagamento REAL)
+
+- [x] Webhook Asaas: URL `solomonn.vercel.app/api/webhook/asaas`, 3 eventos PAYMENT_*, SEQUENTIALLY, token sincronizado com a env — verificado via API do Asaas.
+- [x] Evento sintetico com token → percorreu a rota → linha em `billing_events` (prova E2E do transporte; linha de teste removida).
+- [x] Signups publicos OFF (`disable_signup: true` via Management API); Site URL + redirect allowlist = `solomonn.vercel.app`; HIBP on.
+- [x] Advisors Supabase: **ERROR 0**; WARN restante so `extension_in_public` (aceito). RLS em sales_leads/billing_events/brokers_welcome/checkout_attempts.
+- [x] `evalMode` sem token em producao → 401 (curl comprovado).
+- [x] Envs Vercel completas: LLM + fallbacks, Langfuse (us.cloud), Asaas (prod), Supabase, WhatsApp, SITE_URL, WHATSAPP_NUMBER.
+- [ ] Pagamento REAL confirma plano sozinho (fatura R$5 do corretor fake) — acao CEO pendente.
+- [ ] `PAYMENT_OVERDUE` → aviso + rebaixamento apos 5d (simulacao) — pendente.
+- [ ] `PILOT_BROKER_ALLOWLIST` populada no go-live (hoje vazia de proposito p/ testes).
+
+**Nota eval (secao 1):** judge Anthropic sem credito; judge Gemini rate-limited pesado (~90s/it, 5h+ ETA) — trocar para **OpenRouter** (decisao CEO 2026-07-04).
+
+---
+
 ## Go / No-Go (T12)
 
 Criterios (todos obrigatorios):
