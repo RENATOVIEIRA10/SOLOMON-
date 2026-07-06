@@ -22,6 +22,7 @@ export default function DefinirSenhaPage() {
   const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [accepted, setAccepted] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -37,14 +38,22 @@ export default function DefinirSenhaPage() {
       setError("As senhas não conferem.");
       return;
     }
+    if (!accepted) {
+      setError("Você precisa aceitar a Política de Privacidade e os Termos de Uso.");
+      return;
+    }
     setSaving(true);
     const supabase = createBrowserSupabase();
     const { error: updateError } = await supabase.auth.updateUser({ password });
-    setSaving(false);
     if (updateError) {
+      setSaving(false);
       setError("Sessão expirada — abra o link do email de novo.");
       return;
     }
+    // Registra o consentimento LGPD (identidade vem da sessão recém-criada).
+    // Falha aqui não bloqueia o acesso — o aceite volta a ser pedido depois.
+    await fetch("/api/consent", { method: "POST" }).catch(() => {});
+    setSaving(false);
     router.refresh();
     setDone(true);
   }
@@ -135,6 +144,25 @@ export default function DefinirSenhaPage() {
                 className="w-full h-11 pl-10 pr-4 rounded-md border border-edge bg-surface-2/60 text-sm text-ink placeholder:text-ink-muted/40 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20"
               />
             </div>
+          </label>
+
+          <label className="flex items-start gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)}
+              className="mt-0.5 size-4 shrink-0 rounded border-edge text-brand focus:ring-2 focus:ring-brand/40"
+            />
+            <span className="text-xs text-ink-muted leading-relaxed">
+              Li e aceito a{" "}
+              <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-brand underline hover:text-brand-strong">
+                Política de Privacidade
+              </a>{" "}
+              e os{" "}
+              <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-brand underline hover:text-brand-strong">
+                Termos de Uso
+              </a>.
+            </span>
           </label>
 
           {error && (
