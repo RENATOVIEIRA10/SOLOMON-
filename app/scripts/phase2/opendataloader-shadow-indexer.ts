@@ -1,17 +1,29 @@
 /**
- * OpenDataLoader shadow indexer — DRY-RUN ONLY.
+ * OpenDataLoader shadow indexer.
  *
- * Pipeline (all local, no Azure, no OpenAI):
+ * Pipeline (local parse; no Azure, no OpenAI):
  *
  *   PDF  ->  runOpenDataLoader (java -jar)   ->  OdlDocument
  *        ->  openDataLoaderToLayout          ->  LayoutAnalyzeResult
  *        ->  buildShadowRows                 ->  inert `documents` rows
- *            (assertInsurer = 4-insurer allowlist, parserStamp = opendataloader-v1)
- *        ->  assertRowsAreInert              ->  report
+ *            (assertInsurer = 4-insurer allowlist,
+ *             parserStamp   = opendataloader-v1,
+ *             gateOptions.tablesAreAtomic = true)
+ *        ->  assertRowsAreInert              ->  report / upsert
  *
- * This command CANNOT write. There is no upsert path in this file, and no
- * embedding call: `--write` exits non-zero on purpose. Writing lands in a
- * follow-up commit, once a dry-run has been reviewed.
+ * Modes:
+ *   (default)   dry-run: builds rows, runs the asserts, writes NOTHING.
+ *   --write     upserts the inert rows, then proves nothing leaked.
+ *
+ * Rows are written with `embedding = null`. Embeddings are a separate,
+ * explicit step (the shadow embedder CLI), so a parse bug can never cost
+ * OpenAI money.
+ *
+ * Inertness contract (enforced, not assumed):
+ *   - `valid_until` = sentinel  -> invisible to the read path
+ *   - `metadata.shadow = true`, `content_hash` prefixed `shadow-v4:`
+ *   - before AND after the write, zero rows may be both shadow and visible
+ *   - `match_documents` (the real prod RPC) must return no shadow row
  *
  * Scope: the four commercial life insurers — Prudential, MAG, MetLife, Azos.
  * The Azure DI CLI is untouched and stays Prudential-only.
@@ -19,12 +31,12 @@
  * Env:
  *   OPENDATALOADER_JAR   path to opendataloader-pdf-cli.jar (required)
  *   ODL_PDF_DIR          dir holding the condition PDFs (default: ./pdfs)
- *   NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY  (read-only here)
+ *   NEXT_PUBLIC_SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY
  *
  * Run from app/:
  *   npm run phase2:odl:shadow-indexer -- --all
- *   npm run phase2:odl:shadow-indexer -- --insurer "MAG Seguros" \
- *       --pdf /path/mag.pdf --source-url https://…/2694-e-2695-…pdf
+ *   npm run phase2:odl:shadow-indexer -- --only mag
+ *   npm run phase2:odl:shadow-indexer -- --only mag --write
  */
 
 import { existsSync } from 'node:fs'
@@ -34,23 +46,26 @@ import { config as loadEnv } from 'dotenv'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 import {
+  SHADOW_VALID_UNTIL_SENTINEL,
   assertRowsAreInert,
   buildShadowRows,
   type BuildShadowRowsResult,
 } from '../../src/services/azure-di/shadow-indexer'
 import type { ProductCatalogRow } from '../../src/services/azure-di/product-resolver'
-import type { Database } from '../../src/types/database'
-import { OPENDATALOADER_PARSER, openDataLoaderToLayout } from '../../src/services/opendataloader/adapter'
+import type { Database, TablesInsert } from '../../src/types/database'
+import {
+  OPENDATALOADER_PARSER,
+  openDataLoaderToLayout,
+} from '../../src/services/opendataloader/adapter'
 import { assertInsurerAllowed } from '../../src/services/opendataloader/guard'
 import { runOpenDataLoader } from '../../src/services/opendataloader/runner'
 
 loadEnv({ path: path.resolve(process.cwd(), '.env.local') })
 
 /**
- * The four commercial life insurers, each paired with the condition PDF and
- * the canonical `source_url` already present in `documents`. The URL matters:
- * it is mixed into the shadow `content_hash`, so a wrong one would create
- * duplicate rows on a future write.
+ * Each condition PDF paired with the canonical `source_url` already present in
+ * `documents`. The URL matters: it is mixed into the shadow `content_hash`, so
+ * a wrong one would create duplicate rows instead of updating in place.
  */
 interface ManifestEntry {
   insurer: string
@@ -86,9 +101,8 @@ const MANIFEST: readonly ManifestEntry[] = [
 
 interface CliOptions {
   all: boolean
-  insurer?: string
-  pdf?: string
-  sourceUrl?: string
+  only?: string
+  write: boolean
   pdfDir: string
   maxHeapMb: number
 }
@@ -96,23 +110,16 @@ interface CliOptions {
 function parseArgs(argv: string[]): CliOptions {
   const opts: CliOptions = {
     all: false,
+    write: false,
     pdfDir: process.env.ODL_PDF_DIR ?? './pdfs',
     maxHeapMb: 512,
   }
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i]
     if (arg === '--all') opts.all = true
-    else if (arg === '--dry-run') {
-      /* default; accepted for symmetry with the azure-di CLI */
-    } else if (arg === '--write' || arg === '--live') {
-      console.error(
-        `\nRefusing "${arg}": this command is dry-run only. It has no upsert path and no\n` +
-          `embedding call. Writing lands in a follow-up commit, after a dry-run review.\n`,
-      )
-      process.exit(2)
-    } else if (arg === '--insurer') opts.insurer = argv[++i]
-    else if (arg === '--pdf') opts.pdf = argv[++i]
-    else if (arg === '--source-url') opts.sourceUrl = argv[++i]
+    else if (arg === '--only') opts.only = argv[++i]
+    else if (arg === '--write') opts.write = true
+    else if (arg === '--dry-run') opts.write = false
     else if (arg === '--pdf-dir') opts.pdfDir = argv[++i]
     else if (arg === '--max-heap-mb') opts.maxHeapMb = Number(argv[++i])
     else {
@@ -120,8 +127,8 @@ function parseArgs(argv: string[]): CliOptions {
       process.exit(2)
     }
   }
-  if (!opts.all && !(opts.insurer && opts.pdf && opts.sourceUrl)) {
-    console.error('usage: --all   |   --insurer <name> --pdf <path> --source-url <url>')
+  if (!opts.all && !opts.only) {
+    console.error('usage: --all | --only <insurer-substring>   [--write]')
     process.exit(2)
   }
   return opts
@@ -146,7 +153,7 @@ function makeSupabaseClient(): SupabaseClient<Database> {
   return createClient<Database>(url, key, { auth: { persistSession: false } })
 }
 
-/** Same shape as the azure-di loader, but gated by the OpenDataLoader allowlist. */
+/** Same shape as the azure-di loader, gated by the OpenDataLoader allowlist. */
 async function loadInsurer(
   client: SupabaseClient<Database>,
   match: string,
@@ -171,25 +178,160 @@ async function loadCatalog(
   return (data ?? []) as ProductCatalogRow[]
 }
 
-interface DryRunResult {
+// --- write-path probes: the row must never be visible to production ---
+
+/** Rows that are BOTH shadow AND visible to the read path. MUST be zero. */
+async function probeShadowLeak(
+  client: SupabaseClient<Database>,
+  insurerId: string,
+  sourceUrl: string,
+): Promise<number> {
+  const { count, error } = await client
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('insurer_id', insurerId)
+    .eq('source_url', sourceUrl)
+    .is('valid_until', null)
+    .eq('metadata->>shadow', 'true')
+  if (error) throw error
+  return count ?? 0
+}
+
+/** Everything the read path sees for this (insurer, url) — legacy baseline. */
+async function probeActiveRowsForUrl(
+  client: SupabaseClient<Database>,
+  insurerId: string,
+  sourceUrl: string,
+): Promise<number> {
+  const { count, error } = await client
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('insurer_id', insurerId)
+    .eq('source_url', sourceUrl)
+    .is('valid_until', null)
+  if (error) throw error
+  return count ?? 0
+}
+
+/** Shadow rows actually parked at the sentinel for this (insurer, url). */
+async function countUpsertedShadow(
+  client: SupabaseClient<Database>,
+  insurerId: string,
+  sourceUrl: string,
+): Promise<number> {
+  const { count, error } = await client
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .eq('insurer_id', insurerId)
+    .eq('source_url', sourceUrl)
+    .eq('valid_until', SHADOW_VALID_UNTIL_SENTINEL)
+    .eq('metadata->>hash_scheme', 'url-aware-v1')
+  if (error) throw error
+  return count ?? 0
+}
+
+async function upsertRows(
+  client: SupabaseClient<Database>,
+  rows: ReadonlyArray<TablesInsert<'documents'>>,
+): Promise<void> {
+  if (rows.length === 0) return
+  const BATCH = 100
+  for (let i = 0; i < rows.length; i += BATCH) {
+    const batch = rows.slice(i, i + BATCH)
+    const { error } = await client
+      .from('documents')
+      .upsert(batch as TablesInsert<'documents'>[], {
+        onConflict: 'content_hash,chunk_index',
+        ignoreDuplicates: false,
+      })
+    if (error) {
+      throw new Error(
+        `upsert batch ${Math.floor(i / BATCH) + 1}/${Math.ceil(rows.length / BATCH)} failed: ${error.message}`,
+      )
+    }
+  }
+}
+
+async function pickActiveEmbedding(
+  client: SupabaseClient<Database>,
+  insurerId: string,
+): Promise<string | null> {
+  const { data, error } = await client
+    .from('documents')
+    .select('embedding')
+    .eq('insurer_id', insurerId)
+    .is('valid_until', null)
+    .not('embedding', 'is', null)
+    .limit(1)
+  if (error || !data || data.length === 0) return null
+  return (data[0].embedding as string | null) ?? null
+}
+
+/**
+ * Calls the REAL production RPC and asserts none of the ids it returns is a
+ * shadow row. This is the check that would catch a broken sentinel/filter.
+ */
+async function probeReadPath(
+  client: SupabaseClient<Database>,
+  insurerId: string,
+): Promise<{ returned: number; shadowReturned: number; skipped?: string }> {
+  const queryEmbedding = await pickActiveEmbedding(client, insurerId)
+  if (!queryEmbedding) return { returned: 0, shadowReturned: 0, skipped: 'no active embedding to probe with' }
+
+  type RpcResponse = { data: Array<{ id: string }> | null; error: { message: string } | null }
+  let resp: RpcResponse
+  try {
+    // Call as a method so `this` stays bound to the client.
+    resp = (await (
+      client.rpc as unknown as (
+        this: SupabaseClient<Database>,
+        fn: string,
+        args: Record<string, unknown>,
+      ) => Promise<RpcResponse>
+    ).call(client, 'match_documents', {
+      query_embedding: queryEmbedding,
+      match_threshold: 0.0,
+      match_count: 50,
+    })) as RpcResponse
+  } catch (err) {
+    return { returned: 0, shadowReturned: 0, skipped: `match_documents threw: ${(err as Error).message}` }
+  }
+  if (resp.error) return { returned: 0, shadowReturned: 0, skipped: `match_documents: ${resp.error.message}` }
+
+  const ids = (resp.data ?? []).map((r) => r.id)
+  if (ids.length === 0) return { returned: 0, shadowReturned: 0 }
+
+  const { count, error } = await client
+    .from('documents')
+    .select('id', { count: 'exact', head: true })
+    .in('id', ids)
+    .eq('metadata->>shadow', 'true')
+  if (error) throw error
+  return { returned: ids.length, shadowReturned: count ?? 0 }
+}
+
+// --- orchestration ---
+
+interface RunResult {
   insurer: string
   pdf: string
   build: BuildShadowRowsResult
   tableChunks: number
   biggestTable?: string
+  written?: { upserted: number; leakBefore: number; leakAfter: number; activeBaseline: number }
 }
 
 async function processOne(
   client: SupabaseClient<Database>,
-  entry: { insurer: string; pdf: string; sourceUrl: string },
-  maxHeapMb: number,
-): Promise<DryRunResult> {
+  entry: ManifestEntry & { pdf: string },
+  opts: CliOptions,
+): Promise<RunResult> {
   if (!existsSync(entry.pdf)) throw new Error(`PDF not found: ${entry.pdf}`)
 
   const insurer = await loadInsurer(client, entry.insurer)
   const productCatalog = await loadCatalog(client, insurer.id)
 
-  const odl = await runOpenDataLoader(entry.pdf, { maxHeapMb })
+  const odl = await runOpenDataLoader(entry.pdf, { maxHeapMb: opts.maxHeapMb })
   const layout = openDataLoaderToLayout(odl)
 
   const build = buildShadowRows({
@@ -201,34 +343,63 @@ async function processOne(
     assertInsurer: (name) => assertInsurerAllowed(name),
     parserStamp: OPENDATALOADER_PARSER,
     // Tables are atomic: the prose char-window would quarantine the very
-    // tables this pipeline exists to preserve (carência 234 chars, reajuste
-    // 1733 chars). See scripts/phase2/opendataloader-table-gate.test.ts.
+    // tables this pipeline exists to preserve (carência 234, reajuste 1733).
     gateOptions: { tablesAreAtomic: true },
   })
 
-  // Inertness must hold even though nothing is written — a dry-run that would
-  // have produced a leaking row must fail here, not in production.
+  // Must hold whether or not we write. A dry-run that would have produced a
+  // leaking row fails here, not in production.
   assertRowsAreInert(build.rows)
 
   const tables = build.gateReport.accepted.filter((c) => c.metadata.has_table)
   const biggest = [...tables].sort((a, b) => b.content.length - a.content.length)[0]
 
-  return {
+  const result: RunResult = {
     insurer: insurer.name,
     pdf: path.basename(entry.pdf),
     build,
     tableChunks: tables.length,
     biggestTable: biggest?.content.slice(0, 400),
   }
+
+  if (!opts.write) return result
+
+  const leakBefore = await probeShadowLeak(client, insurer.id, entry.sourceUrl)
+  if (leakBefore !== 0) {
+    throw new Error(`ABORT: ${leakBefore} shadow rows are already visible before writing.`)
+  }
+  const activeBaseline = await probeActiveRowsForUrl(client, insurer.id, entry.sourceUrl)
+
+  await upsertRows(client, build.rows)
+
+  const leakAfter = await probeShadowLeak(client, insurer.id, entry.sourceUrl)
+  if (leakAfter !== 0) {
+    throw new Error(
+      `CONTRACT VIOLATION: ${leakAfter} shadow rows became visible to the read path. Investigate now.`,
+    )
+  }
+  const upserted = await countUpsertedShadow(client, insurer.id, entry.sourceUrl)
+
+  const readPath = await probeReadPath(client, insurer.id)
+  if (readPath.shadowReturned > 0) {
+    throw new Error(
+      `CONTRACT VIOLATION: match_documents returned ${readPath.shadowReturned} shadow rows.`,
+    )
+  }
+  console.log(
+    `    read-path probe: match_documents returned ${readPath.returned} rows, ${readPath.shadowReturned} shadow` +
+      (readPath.skipped ? ` (skipped: ${readPath.skipped})` : ''),
+  )
+
+  result.written = { upserted, leakBefore, leakAfter, activeBaseline }
+  return result
 }
 
-function renderReport(results: DryRunResult[]): void {
+function renderReport(results: RunResult[], wrote: boolean): void {
   console.log('\n' + '='.repeat(78))
-  console.log('DRY-RUN — nothing was written, no embeddings were requested')
+  console.log(wrote ? 'WRITE — inert rows upserted (embedding = null)' : 'DRY-RUN — nothing written, no embeddings')
   console.log('='.repeat(78))
-  console.log(
-    '\n| insurer              | pages | chunks | accepted | quarant. | TABLES | product |',
-  )
+  console.log('\n| insurer              | pages | chunks | accepted | quarant. | TABLES | product |')
   console.log('|---|---|---|---|---|---|---|')
   for (const r of results) {
     const s = r.build.summary
@@ -242,13 +413,27 @@ function renderReport(results: DryRunResult[]): void {
 
   const totalRows = results.reduce((n, r) => n + r.build.rows.length, 0)
   const totalTables = results.reduce((n, r) => n + r.tableChunks, 0)
-  console.log(`\nWOULD UPSERT: ${totalRows} inert rows, of which ${totalTables} are table chunks.`)
-  console.log(`Parser stamp: ${OPENDATALOADER_PARSER} (provenance separates them from azure-di rows).`)
+  console.log(
+    `\n${wrote ? 'UPSERTED' : 'WOULD UPSERT'}: ${totalRows} inert rows, of which ${totalTables} are table chunks.`,
+  )
+  console.log(`Parser stamp: ${OPENDATALOADER_PARSER}`)
 
-  for (const r of results) {
-    if (!r.biggestTable) continue
-    console.log(`\n--- ${r.insurer}: biggest table chunk (preview) ---`)
-    console.log(r.biggestTable)
+  if (wrote) {
+    for (const r of results) {
+      if (!r.written) continue
+      console.log(
+        `\n${r.insurer}: upserted=${r.written.upserted} shadow rows at sentinel · ` +
+          `leak before=${r.written.leakBefore} after=${r.written.leakAfter} (both must be 0) · ` +
+          `legacy active rows for this url=${r.written.activeBaseline} (untouched)`,
+      )
+    }
+    console.log('\nNext: embeddings are a separate step (rows carry embedding = null).')
+  } else {
+    for (const r of results) {
+      if (!r.biggestTable) continue
+      console.log(`\n--- ${r.insurer}: biggest table chunk (preview) ---`)
+      console.log(r.biggestTable)
+    }
   }
 }
 
@@ -256,24 +441,28 @@ async function main(): Promise<void> {
   const opts = parseArgs(process.argv.slice(2))
   const client = makeSupabaseClient()
 
-  const entries = opts.all
-    ? MANIFEST.map((m) => ({
-        insurer: m.insurer,
-        pdf: path.resolve(opts.pdfDir, m.file),
-        sourceUrl: m.sourceUrl,
-      }))
-    : [{ insurer: opts.insurer!, pdf: path.resolve(opts.pdf!), sourceUrl: opts.sourceUrl! }]
+  const selected = opts.all
+    ? MANIFEST
+    : MANIFEST.filter((m) => m.insurer.toLowerCase().includes(opts.only!.toLowerCase()))
+  if (selected.length === 0) {
+    console.error(`--only "${opts.only}" matched no manifest entry`)
+    process.exit(2)
+  }
 
-  const results: DryRunResult[] = []
+  if (opts.write) {
+    console.log(`\n*** WRITE MODE — will upsert inert rows for ${selected.length} document(s) ***`)
+  }
+
+  const results: RunResult[] = []
   let failures = 0
-  for (const entry of entries) {
-    console.log(`\n>>> ${entry.insurer} — ${path.basename(entry.pdf)}`)
+  for (const m of selected) {
+    const entry = { ...m, pdf: path.resolve(opts.pdfDir, m.file) }
+    console.log(`\n>>> ${entry.insurer} — ${m.file}`)
     try {
-      const result = await processOne(client, entry, opts.maxHeapMb)
+      const result = await processOne(client, entry, opts)
       const s = result.build.summary
       console.log(
-        `    parsed ${s.pageCount}p -> ${s.chunkCount} chunks ` +
-          `(${s.acceptedCount} accepted, ${result.tableChunks} tables)`,
+        `    parsed ${s.pageCount}p -> ${s.chunkCount} chunks (${s.acceptedCount} accepted, ${result.tableChunks} tables)`,
       )
       results.push(result)
     } catch (err) {
@@ -282,7 +471,7 @@ async function main(): Promise<void> {
     }
   }
 
-  if (results.length > 0) renderReport(results)
+  if (results.length > 0) renderReport(results, opts.write)
   console.log(`\n${results.length} ok, ${failures} failed`)
   if (failures > 0) process.exit(1)
 }
