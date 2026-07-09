@@ -39,7 +39,8 @@
     "sft:bedrock:start": "bash scripts/start-bedrock-sft.sh",
     "sft:bedrock:status": "bash scripts/status-bedrock-sft.sh",
     "e2e:operational": "playwright test --config=playwright.operational.config.ts",
-    "phase2:odl:adapter:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-adapter.test.ts"
+    "phase2:odl:adapter:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-adapter.test.ts",
+    "phase2:odl:runner:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-runner.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
