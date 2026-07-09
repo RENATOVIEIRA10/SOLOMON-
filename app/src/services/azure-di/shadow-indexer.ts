@@ -123,7 +123,7 @@ export interface BuildShadowRowsInput {
   layout: LayoutAnalyzeResult
   /** Resolved insurer id (uuid) for this PDF. */
   insurerId: string
-  /** Canonical insurer name — checked against the Prudential-only guard. */
+  /** Canonical insurer name — checked against {@link BuildShadowRowsInput.assertInsurer}. */
   insurerName: string
   /** PDF source URL. Forwarded to every row. */
   sourceUrl: string
@@ -148,6 +148,16 @@ export interface BuildShadowRowsInput {
    * the run that produced them. Optional and never affects inertness.
    */
   pageSpan?: string
+  /**
+   * Insurer-scope guard. Defaults to {@link assertPrudentialOnly}, so the
+   * Azure DI path stays Prudential-only exactly as before. The OpenDataLoader
+   * path injects its own allowlist (see `services/opendataloader/guard`).
+   *
+   * This governs SCOPE only — which insurer may be indexed. Inertness is still
+   * enforced by {@link assertRowsAreInert} and the read-path leak probes, which
+   * no caller can opt out of.
+   */
+  assertInsurer?: (insurerName: string) => void
 }
 
 /** Per-PDF summary returned alongside the rows. */
@@ -254,10 +264,12 @@ export function assertRowsAreInert(
 
 /**
  * Main entry point. Pure: no I/O, no side effects, never throws unless
- * `input.insurerName` violates the Prudential-only guard.
+ * `input.insurerName` violates the insurer-scope guard — Prudential-only by
+ * default; see {@link BuildShadowRowsInput.assertInsurer}.
  */
 export function buildShadowRows(input: BuildShadowRowsInput): BuildShadowRowsResult {
-  assertPrudentialOnly(input.insurerName)
+  const assertInsurer = input.assertInsurer ?? assertPrudentialOnly
+  assertInsurer(input.insurerName)
 
   const resolution = resolveProduct(
     {
