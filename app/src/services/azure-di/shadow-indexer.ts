@@ -117,6 +117,17 @@ const NON_PRUDENTIAL_INSURER_KEYWORDS = ['azos', 'mag'] as const
 /** Source-type written on every shadow row. */
 export const SHADOW_SOURCE_TYPE = 'conditions_pdf' as const
 
+/**
+ * Parsers whose chunks may legitimately land in the shadow corpus.
+ *
+ * Provenance is stamped per row so the two corpora can be compared, audited
+ * and rolled back independently. Widening this list is a deliberate act:
+ * anything outside it is still refused by {@link assertRowsAreInert}.
+ */
+export const SHADOW_ALLOWED_PARSERS = [SEMANTIC_CHUNKER_PARSER, 'opendataloader-v1'] as const
+
+export type ShadowParser = (typeof SHADOW_ALLOWED_PARSERS)[number]
+
 /** Input to {@link buildShadowRows}. All required unless marked optional. */
 export interface BuildShadowRowsInput {
   /** Raw Azure DI prebuilt-layout result. */
@@ -158,6 +169,13 @@ export interface BuildShadowRowsInput {
    * no caller can opt out of.
    */
   assertInsurer?: (insurerName: string) => void
+  /**
+   * Provenance stamped on `metadata.parser`. Defaults to
+   * {@link SEMANTIC_CHUNKER_PARSER} so the Azure DI corpus is never rewritten.
+   * The OpenDataLoader path passes `'opendataloader-v1'`.
+   * Must be one of {@link SHADOW_ALLOWED_PARSERS}.
+   */
+  parserStamp?: ShadowParser
 }
 
 /** Per-PDF summary returned alongside the rows. */
@@ -244,9 +262,9 @@ export function assertRowsAreInert(
     if (!meta || meta.shadow !== true) {
       throw new Error(`shadow row[${i}] metadata.shadow !== true`)
     }
-    if (meta.parser !== SEMANTIC_CHUNKER_PARSER) {
+    if (!SHADOW_ALLOWED_PARSERS.includes(meta.parser as ShadowParser)) {
       throw new Error(
-        `shadow row[${i}] metadata.parser is "${String(meta.parser)}" (expected "${SEMANTIC_CHUNKER_PARSER}")`
+        `shadow row[${i}] metadata.parser is "${String(meta.parser)}" (expected one of ${SHADOW_ALLOWED_PARSERS.join(', ')})`
       )
     }
     if (meta.hash_scheme !== SHADOW_HASH_SCHEME) {
@@ -339,7 +357,7 @@ function toShadowRow(
   const metadata: Record<string, unknown> = {
     ...chunk.metadata,
     shadow: true,
-    parser: SEMANTIC_CHUNKER_PARSER,
+    parser: input.parserStamp ?? SEMANTIC_CHUNKER_PARSER,
     hash_scheme: SHADOW_HASH_SCHEME,
     page_span: input.pageSpan ?? null,
     insurer_id: input.insurerId,

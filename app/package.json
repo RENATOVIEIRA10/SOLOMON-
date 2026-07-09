@@ -41,7 +41,8 @@
     "e2e:operational": "playwright test --config=playwright.operational.config.ts",
     "phase2:odl:adapter:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-adapter.test.ts",
     "phase2:odl:runner:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-runner.test.ts",
-    "phase2:odl:guard:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-guard.test.ts"
+    "phase2:odl:guard:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-guard.test.ts",
+    "phase2:odl:provenance:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-provenance.test.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
