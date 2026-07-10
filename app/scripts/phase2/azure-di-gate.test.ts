@@ -291,6 +291,37 @@ function main(): void {
     }
   )
 
+  // Tables vs the prose window (regression lock for tablesAreAtomic).
+  // The DEFAULT must keep applying the prose char-window to has_table chunks —
+  // the OpenDataLoader path opts out explicitly; Azure DI must not drift.
+  {
+    const small = makeChunk({ content: '| a | b | c com conteudo |' })
+    const smallTable: SemanticChunk = { ...small, metadata: { ...small.metadata, has_table: true } }
+    const big = makeChunk({ content: '| a | b |\n'.repeat(200) })
+    const bigTable: SemanticChunk = { ...big, metadata: { ...big.metadata, has_table: true } }
+
+    const byDefault = runChunkGates([
+      { chunk: smallTable, context: FULL_CONTEXT },
+      { chunk: bigTable, context: FULL_CONTEXT },
+    ])
+    ok('default: under/oversized tables still fail G-boundary', byDefault.totals.quarantined === 2)
+
+    const atomic = runChunkGates(
+      [
+        { chunk: smallTable, context: FULL_CONTEXT },
+        { chunk: bigTable, context: FULL_CONTEXT },
+      ],
+      { tablesAreAtomic: true }
+    )
+    ok('tablesAreAtomic: both tables accepted', atomic.totals.accepted === 2)
+
+    const capped = runChunkGates(
+      [{ chunk: bigTable, context: FULL_CONTEXT }],
+      { tablesAreAtomic: true, maxTableChars: 100 }
+    )
+    ok('tablesAreAtomic: sanity ceiling still quarantines absurd tables', capped.totals.quarantined === 1)
+  }
+
   console.log(`\n${passed} passed, ${failed} failed`)
   if (failed > 0) process.exit(1)
 }

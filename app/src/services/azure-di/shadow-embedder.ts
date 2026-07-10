@@ -23,8 +23,13 @@
  * cannot embed a prod row.
  */
 
-import { SEMANTIC_CHUNKER_PARSER } from './chunker'
-import { SHADOW_HASH_PREFIX, SHADOW_HASH_SCHEME, SHADOW_VALID_UNTIL_SENTINEL } from './shadow-indexer'
+import {
+  SHADOW_ALLOWED_PARSERS,
+  SHADOW_HASH_PREFIX,
+  SHADOW_HASH_SCHEME,
+  SHADOW_VALID_UNTIL_SENTINEL,
+  type ShadowParser,
+} from './shadow-indexer'
 
 /** OpenAI embedding model the shared `embedChunks` helper uses. Tracked here for the report. */
 export const EMBEDDING_MODEL = 'text-embedding-3-small' as const
@@ -118,9 +123,9 @@ export function assertEmbeddingTargetIsShadow(row: EmbeddingTargetRow): void {
       `row ${row.id} metadata.hash_scheme=${String(meta.hash_scheme)} (expected ${SHADOW_HASH_SCHEME}) — refusing`
     )
   }
-  if (meta.parser !== SEMANTIC_CHUNKER_PARSER) {
+  if (!SHADOW_ALLOWED_PARSERS.includes(meta.parser as ShadowParser)) {
     throw new Error(
-      `row ${row.id} metadata.parser=${String(meta.parser)} (expected ${SEMANTIC_CHUNKER_PARSER}) — refusing`
+      `row ${row.id} metadata.parser=${String(meta.parser)} (expected one of ${SHADOW_ALLOWED_PARSERS.join(', ')}) — refusing`
     )
   }
   if (typeof row.content !== 'string' || row.content.length === 0) {

@@ -42,7 +42,15 @@
     "sft:bedrock:prepare": "node scripts/prepare-bedrock-sft.js",
     "sft:bedrock:start": "bash scripts/start-bedrock-sft.sh",
     "sft:bedrock:status": "bash scripts/status-bedrock-sft.sh",
-    "e2e:operational": "playwright test --config=playwright.operational.config.ts"
+    "e2e:operational": "playwright test --config=playwright.operational.config.ts",
+    "phase2:odl:adapter:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-adapter.test.ts",
+    "phase2:odl:runner:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-runner.test.ts",
+    "phase2:odl:guard:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-guard.test.ts",
+    "phase2:odl:provenance:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-provenance.test.ts",
+    "phase2:odl:table-gate:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-table-gate.test.ts",
+    "phase2:odl:shadow-indexer": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-shadow-indexer.ts",
+    "phase2:odl:shadow-embedder": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-shadow-embedder.ts",
+    "phase2:odl:shadow-eval": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-shadow-eval.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",

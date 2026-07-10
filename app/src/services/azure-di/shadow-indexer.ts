@@ -117,13 +117,24 @@ const NON_PRUDENTIAL_INSURER_KEYWORDS = ['azos', 'mag'] as const
 /** Source-type written on every shadow row. */
 export const SHADOW_SOURCE_TYPE = 'conditions_pdf' as const
 
+/**
+ * Parsers whose chunks may legitimately land in the shadow corpus.
+ *
+ * Provenance is stamped per row so the two corpora can be compared, audited
+ * and rolled back independently. Widening this list is a deliberate act:
+ * anything outside it is still refused by {@link assertRowsAreInert}.
+ */
+export const SHADOW_ALLOWED_PARSERS = [SEMANTIC_CHUNKER_PARSER, 'opendataloader-v1'] as const
+
+export type ShadowParser = (typeof SHADOW_ALLOWED_PARSERS)[number]
+
 /** Input to {@link buildShadowRows}. All required unless marked optional. */
 export interface BuildShadowRowsInput {
   /** Raw Azure DI prebuilt-layout result. */
   layout: LayoutAnalyzeResult
   /** Resolved insurer id (uuid) for this PDF. */
   insurerId: string
-  /** Canonical insurer name — checked against the Prudential-only guard. */
+  /** Canonical insurer name — checked against {@link BuildShadowRowsInput.assertInsurer}. */
   insurerName: string
   /** PDF source URL. Forwarded to every row. */
   sourceUrl: string
@@ -148,6 +159,23 @@ export interface BuildShadowRowsInput {
    * the run that produced them. Optional and never affects inertness.
    */
   pageSpan?: string
+  /**
+   * Insurer-scope guard. Defaults to {@link assertPrudentialOnly}, so the
+   * Azure DI path stays Prudential-only exactly as before. The OpenDataLoader
+   * path injects its own allowlist (see `services/opendataloader/guard`).
+   *
+   * This governs SCOPE only — which insurer may be indexed. Inertness is still
+   * enforced by {@link assertRowsAreInert} and the read-path leak probes, which
+   * no caller can opt out of.
+   */
+  assertInsurer?: (insurerName: string) => void
+  /**
+   * Provenance stamped on `metadata.parser`. Defaults to
+   * {@link SEMANTIC_CHUNKER_PARSER} so the Azure DI corpus is never rewritten.
+   * The OpenDataLoader path passes `'opendataloader-v1'`.
+   * Must be one of {@link SHADOW_ALLOWED_PARSERS}.
+   */
+  parserStamp?: ShadowParser
 }
 
 /** Per-PDF summary returned alongside the rows. */
@@ -234,9 +262,9 @@ export function assertRowsAreInert(
     if (!meta || meta.shadow !== true) {
       throw new Error(`shadow row[${i}] metadata.shadow !== true`)
     }
-    if (meta.parser !== SEMANTIC_CHUNKER_PARSER) {
+    if (!SHADOW_ALLOWED_PARSERS.includes(meta.parser as ShadowParser)) {
       throw new Error(
-        `shadow row[${i}] metadata.parser is "${String(meta.parser)}" (expected "${SEMANTIC_CHUNKER_PARSER}")`
+        `shadow row[${i}] metadata.parser is "${String(meta.parser)}" (expected one of ${SHADOW_ALLOWED_PARSERS.join(', ')})`
       )
     }
     if (meta.hash_scheme !== SHADOW_HASH_SCHEME) {
@@ -254,10 +282,12 @@ export function assertRowsAreInert(
 
 /**
  * Main entry point. Pure: no I/O, no side effects, never throws unless
- * `input.insurerName` violates the Prudential-only guard.
+ * `input.insurerName` violates the insurer-scope guard — Prudential-only by
+ * default; see {@link BuildShadowRowsInput.assertInsurer}.
  */
 export function buildShadowRows(input: BuildShadowRowsInput): BuildShadowRowsResult {
-  assertPrudentialOnly(input.insurerName)
+  const assertInsurer = input.assertInsurer ?? assertPrudentialOnly
+  assertInsurer(input.insurerName)
 
   const resolution = resolveProduct(
     {
@@ -327,7 +357,7 @@ function toShadowRow(
   const metadata: Record<string, unknown> = {
     ...chunk.metadata,
     shadow: true,
-    parser: SEMANTIC_CHUNKER_PARSER,
+    parser: input.parserStamp ?? SEMANTIC_CHUNKER_PARSER,
     hash_scheme: SHADOW_HASH_SCHEME,
     page_span: input.pageSpan ?? null,
     insurer_id: input.insurerId,

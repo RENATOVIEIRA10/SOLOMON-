@@ -92,6 +92,23 @@ export interface GateOptions {
   minConfidence?: number
   /** Allowed `source_type` values. Default `['conditions_pdf']`. */
   allowedSourceTypes?: readonly string[]
+  /**
+   * Treat `has_table` chunks as atomic units.
+   *
+   * The chunker never merges a table with a neighbour, and never splits one —
+   * both would destroy the grid. So the prose char-window (`minChunkChars` /
+   * `maxChunkChars`) does not describe a legitimate table: a 234-char carência
+   * table and a 1733-char age-reajuste table are both correct, and both would
+   * otherwise be quarantined.
+   *
+   * When true, G-boundary skips the prose window for tables and applies
+   * {@link GateOptions.maxTableChars} instead. Text chunks are unaffected.
+   *
+   * Default false, so the Azure DI path keeps its current behaviour.
+   */
+  tablesAreAtomic?: boolean
+  /** Sanity ceiling for atomic table chunks. Default 8000. */
+  maxTableChars?: number
 }
 
 const DEFAULTS = {
@@ -100,6 +117,8 @@ const DEFAULTS = {
   contentTrivialChars: 5,
   minConfidence: 0.85,
   allowedSourceTypes: ['conditions_pdf'] as readonly string[],
+  tablesAreAtomic: false,
+  maxTableChars: 8000,
 }
 
 /** Why a chunk failed a specific gate. */
@@ -136,6 +155,8 @@ interface ResolvedOptions {
   contentTrivialChars: number
   minConfidence: number
   allowedSourceTypes: readonly string[]
+  tablesAreAtomic: boolean
+  maxTableChars: number
 }
 
 function resolveOptions(options: GateOptions = {}): ResolvedOptions {
@@ -145,6 +166,8 @@ function resolveOptions(options: GateOptions = {}): ResolvedOptions {
     contentTrivialChars: options.contentTrivialChars ?? DEFAULTS.contentTrivialChars,
     minConfidence: options.minConfidence ?? DEFAULTS.minConfidence,
     allowedSourceTypes: options.allowedSourceTypes ?? DEFAULTS.allowedSourceTypes,
+    tablesAreAtomic: options.tablesAreAtomic ?? DEFAULTS.tablesAreAtomic,
+    maxTableChars: options.maxTableChars ?? DEFAULTS.maxTableChars,
   }
 }
 
@@ -167,6 +190,14 @@ export function checkContent(chunk: SemanticChunk, opts: ResolvedOptions): strin
 
 export function checkBoundary(chunk: SemanticChunk, opts: ResolvedOptions): string | null {
   const len = chunk.content.length
+  if (opts.tablesAreAtomic && chunk.metadata.has_table) {
+    // A table is one semantic unit. The chunker neither merges nor splits it,
+    // so the prose window says nothing useful here — only guard absurd sizes.
+    if (len > opts.maxTableChars) {
+      return `table chunk ${len} chars > maxTableChars ${opts.maxTableChars}`
+    }
+    return null
+  }
   if (len < opts.minChunkChars) {
     return `chunk ${len} chars < minChunkChars ${opts.minChunkChars} (quarantine; merge already attempted upstream)`
   }
