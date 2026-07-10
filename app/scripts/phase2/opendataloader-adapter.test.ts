@@ -73,6 +73,24 @@ function runAdapterUnitTests(): void {
   })
   ok('heading maps to role sectionHeading', heading.paragraphs?.[0].role === 'sectionHeading')
 
+  // a heading may nest children (footnote refs, spans) — they must not vanish
+  const headingKids = openDataLoaderToLayout({
+    kids: [
+      {
+        type: 'heading',
+        level: '2',
+        'page number': 1,
+        content: '6) CARENCIAS',
+        kids: [{ type: 'paragraph', content: 'nota aninhada sob o titulo', 'page number': 1 }],
+      },
+    ],
+  })
+  ok(
+    'heading children are not silently dropped',
+    headingKids.content.includes('nota aninhada sob o titulo'),
+    headingKids.content.slice(0, 80),
+  )
+
   // list items must not be dropped (they carry exclusions / incisos)
   const list = openDataLoaderToLayout({
     kids: [

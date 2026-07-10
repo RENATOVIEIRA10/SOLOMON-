@@ -73,6 +73,8 @@ function processNode(state: BuildState, node: OdlNode, inheritedPage: number): v
   switch (node.type) {
     case 'heading':
       if (text) pushParagraph(state, text, page, 'sectionHeading')
+      // a heading may nest children (footnote refs, spans) — never drop them
+      for (const kid of node.kids ?? []) processNode(state, kid, page)
       break
     case 'paragraph':
     case 'caption':
