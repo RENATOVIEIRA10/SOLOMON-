@@ -309,7 +309,13 @@ interface RunResult {
   build: BuildShadowRowsResult
   tableChunks: number
   biggestTable?: string
-  written?: { upserted: number; leakBefore: number; leakAfter: number; activeBaseline: number }
+  written?: {
+    upserted: number
+    leakBefore: number
+    leakAfter: number
+    activeBaseline: number
+    insurerId: string
+  }
 }
 
 async function processOne(
@@ -371,18 +377,11 @@ async function processOne(
   }
   const upserted = await countUpsertedShadow(client, insurer.id, entry.sourceUrl)
 
-  const readPath = await probeReadPath(client, insurer.id)
-  if (readPath.shadowReturned > 0) {
-    throw new Error(
-      `CONTRACT VIOLATION: match_documents returned ${readPath.shadowReturned} shadow rows.`,
-    )
-  }
-  console.log(
-    `    read-path probe: match_documents returned ${readPath.returned} rows, ${readPath.shadowReturned} shadow` +
-      (readPath.skipped ? ` (skipped: ${readPath.skipped})` : ''),
-  )
+  // The heavy read-path probe (match_documents) runs ONCE per insurer after
+  // all its docs are written — see main(). Running it per-doc would hammer the
+  // production RPC 42x. The cheap leak probe above already gates every write.
 
-  result.written = { upserted, leakBefore, leakAfter, activeBaseline }
+  result.written = { upserted, leakBefore, leakAfter, activeBaseline, insurerId: insurer.id }
   return result
 }
 
@@ -473,6 +472,26 @@ async function main(): Promise<void> {
     } catch (err) {
       failures++
       console.error(`    FAILED: ${(err as Error).message}`)
+    }
+  }
+
+  // Final read-path probe: ONCE per insurer that was written. This is the
+  // check that would catch a broken sentinel/filter — match_documents (the
+  // real prod RPC) must not return any shadow row.
+  if (opts.write) {
+    const insurerIds = [...new Set(results.map((r) => r.written?.insurerId).filter(Boolean) as string[])]
+    console.log('\n--- final read-path probe (match_documents must return 0 shadow) ---')
+    for (const insurerId of insurerIds) {
+      const probe = await probeReadPath(client, insurerId)
+      if (probe.shadowReturned > 0) {
+        console.error(`  CONTRACT VIOLATION: insurer ${insurerId} — ${probe.shadowReturned} shadow rows returned`)
+        failures++
+      } else {
+        console.log(
+          `  ok  insurer ${insurerId}: ${probe.returned} rows, 0 shadow` +
+            (probe.skipped ? ` (probe skipped: ${probe.skipped})` : ''),
+        )
+      }
     }
   }
 
