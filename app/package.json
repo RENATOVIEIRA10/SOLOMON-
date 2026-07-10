@@ -50,7 +50,8 @@
     "phase2:odl:table-gate:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-table-gate.test.ts",
     "phase2:odl:shadow-indexer": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-shadow-indexer.ts",
     "phase2:odl:shadow-embedder": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-shadow-embedder.ts",
-    "phase2:odl:shadow-eval": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-shadow-eval.ts"
+    "phase2:odl:shadow-eval": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/opendataloader-shadow-eval.ts",
+    "phase2:mag-noise-exclude": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/mag-noise-exclude.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",
