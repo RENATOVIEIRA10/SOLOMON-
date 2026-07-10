@@ -16,6 +16,7 @@ import { RAG } from '@/config/constants'
 import { expandQueryWithJargon } from '@/config/jargon'
 import { expandQueryWithLLM } from './query-expansion'
 import { detectRateIntent, queryRateTable, formatRateAnswer } from './rate-lookup'
+import { loadCorpusRoutingMap } from './corpus-routing-loader'
 import { detectOutOfDomainQuery, refusalMessageForDomain } from './domain-guard'
 import { detectClaimVerdictIntent, claimGuidanceMessage } from './claim-guard'
 import {
@@ -206,8 +207,12 @@ export async function ask(
   // (fires when insurer is in SHADOW_PREVIEW_INSURERS and query is
   // single-insurer), (c) per-request telemetry rows in retrieval_traces.
   const corpusRequestId = randomUUID()
+  // Slice 3C-d: load the corpus_routing table (cached 60s, fail-open to
+  // legacy) so the DB half of the AND-gate can actually fire.
+  const corpusDbRouting = await loadCorpusRoutingMap()
   const corpusCtx = {
     insurerNames: mentionedInsurers,
+    corpusDbRouting,
     requestId: corpusRequestId,
     question,
     source: 'ask' as const,
