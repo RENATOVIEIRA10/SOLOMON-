@@ -352,7 +352,11 @@ export async function ask(
     const perInsurer = compareIntent ? Math.max(1, RAG.topK - 5) : Math.ceil(RAG.topK / mentionedInsurers.length)
     const perInsurerFetch = Math.min(RAG.fetchK, perInsurer * 3)
     const queryTokens = tokenizeForProductMatch(expandedQuery)
-    const queryEmbedding = await embedQuery(expandedQuery)
+    // Embedding only: drop the insurer name (retrieval is already filtered by
+    // insurer_id). In the shadow corpus the name pushes company-boilerplate over
+    // the answer chunk (MetLife suicide clause: rank #23 -> #1 without the name).
+    const embedText = stripInsurerMentions(expandedQuery, mentionedInsurers)
+    const queryEmbedding = await embedQuery(embedText)
 
     for (const [name, ids] of insurerIds) {
       const nameResults: SearchResult[] = []
@@ -1361,6 +1365,30 @@ export function detectInsurers(question: string): string[] {
 function patternMatchesInsurer(questionLower: string, pattern: string): boolean {
   const escaped = pattern.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   return new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'i').test(questionLower)
+}
+
+/**
+ * Remove as menções às seguradoras informadas do texto que vai para o EMBEDDING.
+ * O retrieval já é filtrado por insurer_id, então o nome no texto é ruído: no
+ * corpus shadow ele empurra a similaridade para chunks de boilerplate da empresa
+ * — a cláusula de exclusão de suicídio da MetLife caía do rank #1 (legacy) para
+ * o #23 (shadow) só por conter "MetLife" na query; sem o nome, volta ao #1.
+ * Só afeta o vetor: busca por keyword e o filtro por id seguem com o texto original.
+ * Word-boundary via o mesmo padrão de patternMatchesInsurer (não come "imagem").
+ */
+export function stripInsurerMentions(text: string, canonicalNames: readonly string[]): string {
+  if (canonicalNames.length === 0) return text
+  const wanted = new Set(canonicalNames)
+  let out = text
+  for (const { patterns, canonical } of INSURER_PATTERNS) {
+    if (!wanted.has(canonical)) continue
+    // Longest pattern first so "mag seguros" is removed before "mag".
+    for (const p of [...patterns].sort((a, b) => b.length - a.length)) {
+      const escaped = p.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      out = out.replace(new RegExp(`(^|[^a-z0-9])${escaped}([^a-z0-9]|$)`, 'gi'), '$1$2')
+    }
+  }
+  return out.replace(/\s+/g, ' ').trim()
 }
 
 /**
