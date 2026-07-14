@@ -22,7 +22,7 @@
 import { randomUUID } from "node:crypto";
 
 import { semanticSearch, type SearchResult } from "./search";
-import { loadEnrichment } from "./answer";
+import { loadEnrichment, detectInsurers } from "./answer";
 import { loadCorpusRoutingMap } from "./corpus-routing-loader";
 import { createServiceClient } from "@/lib/supabase";
 import { callGeminiJson } from "./llm";
@@ -151,8 +151,16 @@ export async function analyzePreSinistro(
   // Without corpusDbRouting the AND-gate never fires -> always legacy, which
   // is why pre-sinistro never reached the OpenDataLoader tables.
   const corpusDbRouting = await loadCorpusRoutingMap();
+  // Canonicalize for the gate: chooseRetrievalCorpus keys on canonical names
+  // ('Prudential'), but input.insurerName is the raw display name ('Prudential
+  // do Brasil'). Without this the AND-gate never matches and pre-sinistro stays
+  // silently on legacy. Filtering still uses the resolved insurerId, so this
+  // only affects gate routing.
+  const canonicalInsurers = detectInsurers(input.insurerName);
   const corpusCtx = {
-    insurerNames: [input.insurerName] as readonly string[],
+    insurerNames: (canonicalInsurers.length > 0
+      ? canonicalInsurers
+      : [input.insurerName]) as readonly string[],
     corpusDbRouting,
     requestId: randomUUID(),
     question: query,
