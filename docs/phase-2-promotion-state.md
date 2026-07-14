@@ -55,13 +55,23 @@ alias `solomonn.vercel.app` / `app-atalaia.vercel.app`.
 Eval offline: perguntas de tabela subiram de legacy 3/4 → shadow 4/4 (decisivo:
 `mag-reajuste-44` legacy 0/2 → shadow 2/2 HIT). Zero regressão. Promovidas primeiro.
 
-### MetLife — "regressão de suicídio" era falso alarme
-O eval marcou a pergunta de suicídio shadow 0/2 vs legacy 1/2, o que segurou a MetLife
-em legacy por precaução. Investigação (2026-07-13) mostrou que a **cláusula está
-presente** no shadow (44 chunks `ILIKE '%suic%'`; legacy 59). O 0/2 era artefato da
-métrica de keyword-overlap: o token exato "dois primeiros anos" não bate em **nenhum**
-dos dois corpus (`suic_2anos=0` nos dois) — a CG escreve de outra forma. Como o shadow
-ainda traz 31 tabelas que o legacy não tem, o ganho é líquido. Promovida.
+### MetLife — regressão de retrieval de exclusão (REAL) e o fix
+O eval marcou a pergunta de suicídio shadow 0/2 vs legacy 1/2. A conclusão inicial de
+"falso alarme / artefato de métrica" estava **errada** — presença de conteúdo não é
+recuperação. A probe no topK de produção (15) mostrou: a cláusula de suicídio recupera
+no **rank #1 no legacy** e no **rank #23 no shadow** (fora do top-15).
+
+Causa-raiz (isolada por par mínimo): **o nome da seguradora no texto embedado**. A query
+do fluxo ask inclui o nome ("A MetLife cobre..."); no corpus shadow isso empurra a
+similaridade para chunks de boilerplate da empresa e derruba a cláusula específica. O
+legacy é robusto a esse ruído (#1 com e sem o nome). Removendo só o nome, o shadow volta
+ao #1. Como o retrieval já filtra por `insurer_id`, o nome no texto é ruído puro.
+
+Fix: `stripInsurerMentions()` em `answer.ts` remove o nome **apenas** do texto que vai
+para `embedQuery` (keyword search e o filtro por id seguem com o texto original). Vale
+para as 4 servidas por shadow; neutro para legacy. **PR #86**, teste
+`strip-insurer-mentions.test.ts` (7/7, retrieval #23→#1). MetLife segue em shadow (ganho
+líquido: +31 tabelas), agora sem a regressão de exclusão depois que #86 mergear+deployar.
 
 ### Prudential — dedup de corpus misto
 Os mesmos 22 documentos estavam parseados **duas vezes** no shadow: `opendataloader-v1`
