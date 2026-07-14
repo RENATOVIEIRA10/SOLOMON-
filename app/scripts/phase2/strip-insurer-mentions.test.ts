@@ -41,7 +41,7 @@ async function suicRankShadow(vec: string): Promise<number> {
   const rows: any[] = resp.data ?? []
   const ids = rows.map((r) => String(r.id))
   const { data: docs } = await client.from('documents').select('id, content').in('id', ids)
-  const byId = new Map((docs ?? []).map((d: any) => [d.id, String(d.content ?? '')]))
+  const byId = new Map<string, string>((docs ?? []).map((d: any) => [String(d.id), String(d.content ?? '')]))
   return rows.findIndex((r) => /suic/i.test(byId.get(String(r.id)) ?? '')) + 1
 }
 
