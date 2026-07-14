@@ -23,6 +23,7 @@ import { randomUUID } from "node:crypto";
 
 import { semanticSearch, type SearchResult } from "./search";
 import { loadEnrichment } from "./answer";
+import { loadCorpusRoutingMap } from "./corpus-routing-loader";
 import { createServiceClient } from "@/lib/supabase";
 import { callGeminiJson } from "./llm";
 
@@ -144,8 +145,15 @@ export async function analyzePreSinistro(
   // Slice 3C-c: corpus-routing context. pre-sinistro is single-insurer
   // per analysis -> eligible for shadow preview when input.insurerName
   // is in SHADOW_PREVIEW_INSURERS.
+  // corpus-routing: pre-sinistro is single-insurer per analysis, so it is
+  // eligible for the shadow corpus when input.insurerName is BOTH in
+  // SHADOW_CORPUS_ALLOWLIST (env) AND corpus_routing.mode='shadow' (DB).
+  // Without corpusDbRouting the AND-gate never fires -> always legacy, which
+  // is why pre-sinistro never reached the OpenDataLoader tables.
+  const corpusDbRouting = await loadCorpusRoutingMap();
   const corpusCtx = {
     insurerNames: [input.insurerName] as readonly string[],
+    corpusDbRouting,
     requestId: randomUUID(),
     question: query,
     source: "pre-sinistro" as const,
