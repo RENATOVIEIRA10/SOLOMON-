@@ -1,13 +1,17 @@
 /**
  * LLM Client
  *
- * Priority chain (2026-04-22 reorg):
- *   1. Anthropic Claude Haiku 4.5 (direct SDK — primary, best for legal docs)
- *   2. Gemini 2.5 Flash (cheap fallback, free tier cobre volume atual)
- *   3. OpenAI GPT-4o-mini (last resort)
+ * Priority chain (2026-07-14 reorg — OpenRouter-first, CEO directive):
+ *   1. OpenRouter (gateway) — anthropic/claude-haiku-4.5 (chat/stream),
+ *      google/gemini-2.5-flash (JSON via callGeminiJson). PRIMARY.
+ *   2. Anthropic Claude Haiku 4.5 (direct SDK) — fallback, survives OpenRouter outage
+ *   3. Gemini 2.5 Flash (direct REST) — fallback
+ *   4. OpenAI GPT-4o-mini — last resort
  *
- * OpenRouter removido da chain em 2026-04-22: conta $20 esgotou
- * (total_usage $20.32 vs total_credits $20), reintroduzir apos recarregar.
+ * Same models as before — only the transport moved to the gateway. OpenRouter
+ * was primary historically, dropped 2026-04-22 when the $20 account emptied;
+ * reinstated 2026-07-14 with a [CREDIT-ALERT] guard because the account has
+ * balance but NO auto-recharge — a silent 402 must be loud, then fall back.
  *
  * Instrumented with Langfuse: each callLLM/callLLMStream creates a trace;
  * each provider attempt is a nested generation span. Fail-silent — if
@@ -17,6 +21,7 @@
 import OpenAI from 'openai'
 import Anthropic from '@anthropic-ai/sdk'
 import { Langfuse } from 'langfuse'
+import { parseOpenRouterSSELine, extractSSELines } from './openrouter-sse'
 
 export interface LLMResponse {
   text: string
@@ -26,6 +31,8 @@ export interface LLMResponse {
 }
 
 const ANTHROPIC_MODEL = 'claude-haiku-4-5'
+// Same Haiku 4.5, routed through the OpenRouter gateway (primary transport).
+const OPENROUTER_CHAT_MODEL = 'anthropic/claude-haiku-4.5'
 
 const GEMINI_BASE_URL = 'https://generativelanguage.googleapis.com/v1beta/models'
 const GEMINI_MODEL = 'gemini-2.5-flash'
@@ -89,6 +96,31 @@ function getGeminiKeys(): string[] {
 }
 
 /**
+ * OpenRouter has account balance but NO auto-recharge (CEO 2026-07-14). A
+ * 402 / "insufficient credits" must be logged loudly — not swallowed by the
+ * normal fallback — so the account can be topped up before it starves every
+ * SOLOMON trilho. Availability still wins (caller falls back), but the alert
+ * makes a config/billing failure visible instead of silent.
+ */
+function isOpenRouterCreditError(status: number, body: string): boolean {
+  if (status === 402) return true
+  const b = body.toLowerCase()
+  return (
+    b.includes('insufficient') &&
+    (b.includes('credit') || b.includes('balance') || b.includes('token') || b.includes('quota'))
+  )
+}
+
+function warnIfCreditError(status: number, body: string, where: string): void {
+  if (isOpenRouterCreditError(status, body)) {
+    console.error(
+      `[CREDIT-ALERT] OpenRouter saldo insuficiente (${status}) em ${where} — ` +
+        `recarregar a conta (sem auto-recharge). Fazendo fallback pro proximo provider.`
+    )
+  }
+}
+
+/**
  * Calls the LLM with a system prompt and user message.
  * Tries Anthropic → Gemini → OpenAI in order.
  */
@@ -105,7 +137,33 @@ export async function callLLM(
     tags: ['solomon', 'rag'],
   })
 
-  // 1. Try Anthropic (Claude Haiku) — primary
+  // 1. OpenRouter (gateway) — anthropic/claude-haiku-4.5. PRIMARY per directive.
+  const openrouterKey = process.env.OPENROUTER_API_KEY
+  if (openrouterKey) {
+    const gen = trace?.generation({
+      name: 'openrouter.haiku',
+      model: OPENROUTER_CHAT_MODEL,
+      input: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+    })
+    try {
+      const result = await callOpenRouter(systemPrompt, userMessage, OPENROUTER_CHAT_MODEL, {
+        temperature: 0.3,
+        maxOutputTokens: 2048,
+        timeoutMs: ANTHROPIC_TIMEOUT_MS,
+      })
+      const latencyMs = Date.now() - start
+      gen?.end({ output: result.text, usage: { totalTokens: result.tokensUsed } })
+      trace?.update({ output: result.text })
+      await safeFlush()
+      return { ...result, latencyMs }
+    } catch (error) {
+      const msg = (error as Error).message
+      gen?.end({ level: 'ERROR', statusMessage: msg })
+      console.warn('[rag/llm] OpenRouter failed, trying Anthropic direct:', msg)
+    }
+  }
+
+  // 2. Try Anthropic (Claude Haiku) — direct SDK fallback (survives OpenRouter outage)
   const anthropicKey = process.env.ANTHROPIC_API_KEY
   if (anthropicKey) {
     const gen = trace?.generation({
@@ -442,6 +500,7 @@ async function callOpenRouter(
 
   if (!response.ok) {
     const errorBody = await response.text()
+    warnIfCreditError(response.status, errorBody, 'callOpenRouter')
     throw new Error(`OpenRouter API error ${response.status}: ${errorBody}`)
   }
 
@@ -552,26 +611,29 @@ export async function callGeminiJson(
 
   const model = options.model ?? GEMINI_MODEL
 
-  if (apiKey) {
+  // 1. OpenRouter (gateway) — PRIMARY per directive. Same Gemini Flash model,
+  //    routed through the gateway. compare.ts + pre-sinistro.ts inherit this.
+  if (openrouterKey) {
+    const openrouterModel = model === 'gemini-2.5-flash' ? 'google/gemini-2.5-flash' : model
     try {
-      return await callGeminiJsonDirect(systemPrompt, userMessage, apiKey, model, options)
+      console.log(`[rag/llm] Gemini JSON via OpenRouter (${openrouterModel})`)
+      return await callOpenRouter(systemPrompt, userMessage, openrouterModel, {
+        responseMimeType: 'application/json',
+        temperature: options.temperature,
+        maxOutputTokens: options.maxOutputTokens,
+        timeoutMs: options.timeoutMs,
+      })
     } catch (error) {
-      console.warn('[rag/llm] Gemini JSON direto falhou, tentando OpenRouter:', (error as Error).message)
-      if (!openrouterKey) {
+      console.warn('[rag/llm] OpenRouter JSON falhou, tentando Gemini direto:', (error as Error).message)
+      if (!apiKey) {
         throw error
       }
     }
   }
 
-  if (openrouterKey) {
-    const openrouterModel = model === 'gemini-2.5-flash' ? 'google/gemini-2.5-flash' : model
-    console.log(`[rag/llm] Chamando Gemini JSON via OpenRouter (${openrouterModel})`)
-    return callOpenRouter(systemPrompt, userMessage, openrouterModel, {
-      responseMimeType: 'application/json',
-      temperature: options.temperature,
-      maxOutputTokens: options.maxOutputTokens,
-      timeoutMs: options.timeoutMs,
-    })
+  // 2. Gemini direct REST — fallback
+  if (apiKey) {
+    return await callGeminiJsonDirect(systemPrompt, userMessage, apiKey, model, options)
   }
 
   throw new Error('Falha inexplicavel no fluxo de chaves do Gemini JSON')
@@ -644,6 +706,100 @@ export interface LLMStreamEnd {
 export type LLMStreamChunk = LLMStreamStart | LLMStreamDelta | LLMStreamEnd
 
 /**
+ * Streams tokens from OpenRouter (OpenAI-compatible SSE). PRIMARY streaming
+ * path. Yields the same LLMStreamChunk sequence (start -> delta* -> end) that
+ * the Anthropic path yields, so callLLMStream and stream.ts consume it without
+ * changes. SSE frame parsing + cross-chunk buffering are unit-tested in
+ * openrouter-sse.test.ts (parseOpenRouterSSELine / extractSSELines).
+ */
+async function* callOpenRouterStream(
+  systemPrompt: string,
+  userMessage: string,
+  model: string,
+  start: number
+): AsyncGenerator<LLMStreamChunk> {
+  const apiKey = process.env.OPENROUTER_API_KEY
+  if (!apiKey) {
+    throw new Error('OPENROUTER_API_KEY nao configurada')
+  }
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), ANTHROPIC_TIMEOUT_MS)
+
+  let response: Response
+  try {
+    response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey.trim()}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        model,
+        stream: true,
+        // OpenAI-compatible: makes the final chunk carry token usage.
+        stream_options: { include_usage: true },
+        temperature: 0.3,
+        max_tokens: 2048,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage },
+        ],
+      }),
+      signal: controller.signal,
+    })
+  } catch (err) {
+    clearTimeout(timeoutId)
+    throw err
+  }
+
+  if (!response.ok || !response.body) {
+    clearTimeout(timeoutId)
+    const errorBody = await response.text().catch(() => '')
+    warnIfCreditError(response.status, errorBody, 'callOpenRouterStream')
+    throw new Error(`OpenRouter stream error ${response.status}: ${errorBody.slice(0, 300)}`)
+  }
+
+  yield { type: 'start', model }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let fullText = ''
+  let tokensUsed = 0
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const { lines, rest } = extractSSELines(buffer)
+      buffer = rest
+      for (const line of lines) {
+        const evt = parseOpenRouterSSELine(line)
+        if (evt.type === 'done') {
+          buffer = ''
+          break
+        }
+        if (evt.type === 'delta') {
+          if (evt.usage) tokensUsed = evt.usage.totalTokens
+          if (evt.text) {
+            fullText += evt.text
+            yield { type: 'delta', text: evt.text }
+          }
+        }
+      }
+    }
+  } finally {
+    clearTimeout(timeoutId)
+    reader.releaseLock()
+  }
+
+  const latencyMs = Date.now() - start
+  yield { type: 'end', model, tokensUsed, latencyMs, fullText }
+}
+
+/**
  * Streams tokens as they arrive from Anthropic. If Anthropic fails or is not
  * configured, falls back to non-streaming (Gemini or OpenAI) and emits a
  * single 'delta' with the full text — keeps the consumer interface uniform.
@@ -661,6 +817,41 @@ export async function* callLLMStream(
     tags: ['solomon', 'rag', 'stream'],
   })
 
+  // 1. OpenRouter streaming (gateway) — PRIMARY. Real token-by-token SSE.
+  const openrouterStreamKey = process.env.OPENROUTER_API_KEY
+  if (openrouterStreamKey) {
+    const gen = trace?.generation({
+      name: 'openrouter.haiku.stream',
+      model: OPENROUTER_CHAT_MODEL,
+      input: [{ role: 'system', content: systemPrompt }, { role: 'user', content: userMessage }],
+    })
+    let orEmittedDelta = false
+    try {
+      for await (const chunk of callOpenRouterStream(systemPrompt, userMessage, OPENROUTER_CHAT_MODEL, start)) {
+        if (chunk.type === 'delta') orEmittedDelta = true
+        if (chunk.type === 'end') {
+          gen?.end({ output: chunk.fullText, usage: { totalTokens: chunk.tokensUsed } })
+          trace?.update({ output: chunk.fullText })
+          await safeFlush()
+        }
+        yield chunk
+      }
+      return
+    } catch (error) {
+      const msg = (error as Error).message
+      gen?.end({ level: 'ERROR', statusMessage: msg })
+      // Se ja emitiu >=1 delta, NAO fallback (evita resposta duplicada) —
+      // mesma regra do path Anthropic. So cai pro fallback se OpenRouter
+      // falhou antes de qualquer token.
+      if (orEmittedDelta) {
+        await safeFlush()
+        throw error
+      }
+      console.warn('[rag/llm-stream] OpenRouter stream failed (pre-delta), trying Anthropic:', msg)
+    }
+  }
+
+  // 2. Anthropic streaming (fallback) — direct SDK
   const anthropicKey = process.env.ANTHROPIC_API_KEY
   let emittedDelta = false
   if (anthropicKey) {

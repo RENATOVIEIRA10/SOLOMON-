@@ -95,9 +95,10 @@ Na primeira resposta de TODA sessao nesta pasta, ANTES de qualquer outra coisa:
 ## Regras de codigo deste repo
 
 - Branch principal e `master`. NAO criar `main`.
-- LLM default (chat/oraculo/stream): **Claude Haiku 4.5** via OpenRouter (`anthropic/claude-haiku-4.5`). Motivo: custo ~3x menor que Sonnet e latencia em respostas conversacionais. Config em `app/src/services/rag/llm.ts`. Fallback chain: Gemini 2.0 Flash -> OpenAI GPT-4o-mini.
-- LLM para pre-sinistro: **Claude Sonnet 4.6** (`anthropic/claude-sonnet-4.6`). Motivo: veredicto COBERTO/NAO_COBERTO/RISCO e decisao juridica de alta consequencia — custo extra (~R$0,02/analise) negligivel perto de erro em sinistro. Config em `app/src/services/rag/pre-sinistro.ts`.
-- Chave OpenRouter em `app/.env.local` (gitignored). Nao trocar por OpenAI direto sem combinar com o user.
+- **Provider: OpenRouter-first (diretriz CEO 2026-07-14).** OpenRouter e a chave PRIMARIA em toda chamada de LLM; providers diretos entram so como fallback (resiliencia de transporte). Config em `app/src/services/rag/llm.ts`. Guardrail: 402/insufficient credits do OpenRouter loga `[CREDIT-ALERT]` distinto — a conta tem saldo mas NAO tem auto-recharge, entao um 402 silencioso vira alerta e cai pro fallback (nunca engole).
+- LLM chat/oraculo/stream: **Claude Haiku 4.5 via OpenRouter** (`anthropic/claude-haiku-4.5`). Streaming SSE token-a-token via `callOpenRouterStream` (parsing testado em `openrouter-sse.test.ts`). Fallback chain: Anthropic SDK direto (Haiku) -> Gemini 2.5 Flash direto -> OpenAI GPT-4o-mini.
+- LLM compare + pre-sinistro (via `callGeminiJson`): **`gemini-2.5-flash` via OpenRouter** (`google/gemini-2.5-flash`), fallback Gemini direto. **DRIFT conhecido:** o codigo usa `PRE_SINISTRO_MODEL`/`COMPARE_MODEL` = `gemini-2.5-flash` (env-overridable), NAO Claude Sonnet 4.6. Trocar pra Sonnet, se desejado, e decisao separada acoplada ao hardening de faithfulness do pre-sinistro — nao foi feita aqui (esta migracao so mudou o transporte pro gateway, preservando modelos).
+- Chave OpenRouter (`OPENROUTER_API_KEY`) em `app/.env.local` (gitignored). Nao trocar provider/modelo sem combinar com o user.
 - pgvector + pdf-parse + react-pdf: atualizacoes de deps sao sensiveis (quebrou build no passado). Sempre testar `next build` local antes de push.
 - Webhook Vercel (nao VPS): latencia aceitavel, cold start OK, escala sozinho. NAO migrar para VPS.
 - Cliente Julio e stakeholder ancora — pendencias criticas em `shared/facts.md` do aurios-agents-workspace precisam ser fechadas antes de declarar SOLOMON "pronto".
