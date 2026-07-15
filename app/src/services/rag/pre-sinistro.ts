@@ -182,29 +182,51 @@ export async function analyzePreSinistro(
     // Phase 3A G2: pre-sinistro queries are always verbal â†’ restrict to
     // conditions_pdf. rate_table_pdf chunks would inject numeric noise that
     // poisons the verdict and the citation validation downstream.
-    const queryEmbedding = await embedQuery(query);
+    //
+    // F1 (multi-query fan-out): uma unica query embutida ("cliente 52 anos
+    // com cancer") nao casa bem com o texto literal da clausula ("periodo
+    // de sobrevivencia de 30 dias") â€” mismatch semantico entre a descricao
+    // livre do corretor e a linguagem juridica das condicoes gerais. Em vez
+    // de embedar so `query`, decompomos o caso em sub-queries por dimensao
+    // (buildSubQueries) e buscamos para cada uma, por insurerId, unindo e
+    // dedupando os candidatos antes de um UNICO rerank na query primaria.
+    // topK por chamada e dividido pelo nº de sub-queries pra manter o total
+    // de candidatos no mesmo teto (~24-40) em vez de sub-queries x 32.
+    const subQueries = buildSubQueries({
+      ...input,
+      claimType: normalizedClaimType,
+    });
+    const perQueryTopK = Math.ceil(PRE_SINISTRO_FETCH_K / subQueries.length);
+
     const settled = await Promise.all(
-      insurerIds.map((id) =>
-        hybridSearchWithEmbedding(query, queryEmbedding, {
-          ...corpusCtx,
-          insurerId: id,
-          topK: PRE_SINISTRO_FETCH_K,
-          sourceType: "conditions_pdf",
-        })
-      )
+      subQueries.map(async (sq) => {
+        const sqEmbedding = await embedQuery(sq);
+        return Promise.all(
+          insurerIds.map((id) =>
+            hybridSearchWithEmbedding(sq, sqEmbedding, {
+              ...corpusCtx,
+              insurerId: id,
+              topK: perQueryTopK,
+              sourceType: "conditions_pdf",
+            })
+          )
+        );
+      })
     );
 
-    // Deduplicate por id (fan-out entre insurerIds pode repetir chunk).
+    // Deduplicate por id (fan-out entre sub-queries x insurerIds pode
+    // repetir o mesmo chunk varias vezes).
     const seen = new Set<string>();
-    const candidates = settled.flat().filter((r) => {
+    const candidates = settled.flat(2).filter((r) => {
       if (seen.has(r.id)) return false;
       seen.add(r.id);
       return true;
     });
 
-    // Rerank cross-encoder (Cohere) traz a clausula certa pro topo do
-    // contexto final; fallback = ordem por similarity se COHERE_API_KEY
-    // ausente ou a chamada falhar (ver rerankWithCohere em search.ts).
+    // Rerank cross-encoder (Cohere) usa a query PRIMARIA (nao as sub-queries)
+    // pra trazer a clausula certa pro topo do contexto final; fallback =
+    // ordem por similarity se COHERE_API_KEY ausente ou a chamada falhar
+    // (ver rerankWithCohere em search.ts).
     results = await rerankWithCohere(query, candidates, PRE_SINISTRO_RERANK_K);
   }
 
@@ -427,6 +449,26 @@ async function resolveInsurerIdsExact(name: string): Promise<string[]> {
   }
 
   return matches.map((m) => m.id);
+}
+
+/**
+ * F1 (multi-query fan-out): decompoe o caso em sub-queries por dimensao
+ * de cobertura â€” cobertura / exclusao / carencia / faixa etaria / base+produto.
+ * Corrige o mismatch semantico entre a descricao livre do evento (ex:
+ * "cliente 52 anos com cancer") e o texto literal da clausula (ex: "periodo
+ * de sobrevivencia de 30 dias"): uma unica query embutida nao recupera bem
+ * todas as dimensoes de uma vez, mas 5 queries dimensionadas sim.
+ */
+export function buildSubQueries(input: PreSinistroInput): string[] {
+  const base = `${input.claimType} ${input.description}`.trim();
+  const prod = input.productHint ? ` ${input.productHint}` : "";
+  return [
+    `cobertura ${base}${prod}`,
+    `exclusoes e o que nao cobre para ${input.claimType}${prod}`,
+    `carencia e prazos minimos ${input.claimType}${prod}`,
+    `limites de idade e faixa etaria de cobertura${prod}`,
+    base + prod,
+  ];
 }
 
 function buildSearchQuery(input: PreSinistroInput): string {
