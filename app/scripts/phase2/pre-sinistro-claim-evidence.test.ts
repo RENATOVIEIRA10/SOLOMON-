@@ -58,6 +58,47 @@ check("juridico claim is always non-validated until F2 corpus", () => {
   assert.equal(out[0].validated, false);
 });
 
+check("juridico claim with VALID in-range chunkIds is still non-validated (proves type guard is load-bearing)", () => {
+  const out = validateClaimEvidence(
+    [{ claim: "Art. 766 CC", type: "juridico", chunkIds: [1] }],
+    8
+  );
+  assert.equal(out[0].validated, false);
+});
+
+check("apolice claim with non-integer chunkId (1.5) is not validated", () => {
+  const out = validateClaimEvidence(
+    [{ claim: "carencia fracionada", type: "apolice", chunkIds: [1.5] }],
+    8
+  );
+  assert.equal(out[0].validated, false);
+});
+
+check("malformed claim (chunkIds missing) does not throw and is not validated", () => {
+  const out = validateClaimEvidence(
+    [{ claim: "sem chunkIds no campo", type: "apolice" }],
+    8
+  );
+  assert.equal(out[0].validated, false);
+  assert.deepEqual(out[0].chunkIds, []);
+});
+
+check("malformed claim (chunkIds as string, not array) does not throw and is not validated", () => {
+  const out = validateClaimEvidence(
+    [{ claim: "chunkIds string", type: "apolice", chunkIds: "1,3" }],
+    8
+  );
+  assert.equal(out[0].validated, false);
+  assert.deepEqual(out[0].chunkIds, []);
+});
+
+check("malformed claim item (null in array) does not throw and is not validated", () => {
+  const out = validateClaimEvidence([null], 8);
+  assert.equal(out[0].validated, false);
+  assert.equal(out[0].claim, "");
+  assert.equal(out[0].type, "apolice");
+});
+
 check("preserves claim/type/chunkIds fields on output", () => {
   const out = validateClaimEvidence(
     [{ claim: "carencia 2 anos", type: "apolice", chunkIds: [2] }],

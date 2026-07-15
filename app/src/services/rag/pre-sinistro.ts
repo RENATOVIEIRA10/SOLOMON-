@@ -92,18 +92,36 @@ export interface ClaimEvidence {
  *   contexto (1..chunkCount, mesmo indice 1-based usado nos [chunk_N]
  *   do prompt).
  * - claim juridico: sempre nao-validado ate o corpus juridico da F2.
+ *
+ * `raw` vem de JSON.parse() do completion do LLM — nao ha garantia de
+ * shape (item pode faltar `chunkIds`, `chunkIds` pode ser string/nao-array,
+ * ids podem ser nao-inteiros). Cada item e coagido individualmente pra que
+ * um objeto malformado nunca derrube o veredicto/citation/checklist inteiro
+ * (trilho de alta consequencia juridica — ver findings da review Task 7).
  */
 export function validateClaimEvidence(
-  raw: Array<{ claim: string; type: "apolice" | "juridico"; chunkIds: number[] }>,
+  raw: unknown[],
   chunkCount: number
 ): ClaimEvidence[] {
-  return raw.map((c) => ({
-    ...c,
-    validated:
-      c.type === "apolice" &&
-      c.chunkIds.length > 0 &&
-      c.chunkIds.every((i) => i >= 1 && i <= chunkCount),
-  }));
+  return raw.map((item) => {
+    const c = (item && typeof item === "object" ? item : {}) as {
+      claim?: unknown;
+      type?: unknown;
+      chunkIds?: unknown;
+    };
+    const ids = (Array.isArray(c.chunkIds) ? c.chunkIds : []).filter(
+      (i): i is number => Number.isInteger(i)
+    );
+    const type: ClaimEvidence["type"] = c.type === "juridico" ? "juridico" : "apolice";
+    const claim = typeof c.claim === "string" ? c.claim : "";
+    return {
+      claim,
+      type,
+      chunkIds: ids,
+      validated:
+        type === "apolice" && ids.length > 0 && ids.every((i) => i >= 1 && i <= chunkCount),
+    };
+  });
 }
 
 /**
