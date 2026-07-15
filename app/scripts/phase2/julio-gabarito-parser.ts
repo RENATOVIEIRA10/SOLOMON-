@@ -27,11 +27,20 @@ export function parseGabarito(md: string): GabaritoEntry[] {
     const header = lines[0];
     const idm = header.match(/^(Q\d+)\s*—\s*(.+?)\s*·\s*(.+)$/);
     if (!idm) continue;
-    // Join the ENTIRE RESPOSTA block (not just its first physical line): Julio's
+    // Join the RESPOSTA block (not just its first physical line): Julio's
     // justification often wraps onto a second line, and fields after the wrap
-    // would otherwise parse as null even when filled in.
+    // would otherwise parse as null even when filled in. Bounded to the first
+    // blank line after the marker — Julio's RESPOSTA paragraph is always
+    // followed by a blank line before `---`/next `###` — so we don't absorb
+    // the rest of the block (separator, next heading, file footer) when the
+    // last field on the line lacks a trailing `|`.
     const respIdx = lines.findIndex((l) => l.includes("RESPOSTA"));
-    const respBlock = respIdx === -1 ? "" : lines.slice(respIdx).join(" ");
+    let respBlock = "";
+    if (respIdx !== -1) {
+      let end = respIdx;
+      while (end < lines.length && lines[end].trim() !== "") end++;
+      respBlock = lines.slice(respIdx, end).join(" ");
+    }
     const rawVerdict = FIELD(respBlock, "Veredicto");
     const verdict = rawVerdict && (VALID_VERDICTS as readonly string[]).includes(rawVerdict)
       ? (rawVerdict as GabaritoEntry["verdict"]) : null;

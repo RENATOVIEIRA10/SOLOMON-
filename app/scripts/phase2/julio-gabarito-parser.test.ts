@@ -55,5 +55,21 @@ check("RESPOSTA block wrapped across two physical lines is fully captured (findi
   assert.equal(rows[0].justification, "dentro da carencia, sem duvida");
 });
 
+check("RESPOSTA block does not absorb past the blank line into next Bloco heading (regression #3)", () => {
+  const overrun = [
+    "### Q99 — X · Y",
+    "**Fatos:** z.",
+    "`RESPOSTA` — Veredicto: COBERTO | Justificativa: sim aplica",
+    "",
+    "---",
+    "",
+    "## Bloco 2 — outra coisa",
+  ].join("\n");
+  const rows = parseGabarito(overrun);
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].verdict, "COBERTO");
+  assert.equal(rows[0].justification, "sim aplica");
+});
+
 console.log(`\n${passed}/${total} passed`);
 process.exit(passed === total ? 0 : 1);
