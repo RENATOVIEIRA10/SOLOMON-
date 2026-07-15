@@ -118,8 +118,15 @@ export function validateClaimEvidence(
       claim,
       type,
       chunkIds: ids,
+      // Fail-closed (Codex review, trilho juridico): validated so pode ser
+      // true quando o `type` bruto do LLM e EXPLICITAMENTE "apolice". O
+      // campo `type` de saida acima continua coagindo unknown/garbled pra
+      // "apolice" (mantido fiel pra exibicao), mas usar esse valor coagido
+      // aqui reabriria o buraco - um claim malformado (type ausente/garbled)
+      // com chunkIds validos em range virava validated:true por acidente
+      // (overclaiming em trilho de alta consequencia juridica).
       validated:
-        type === "apolice" && ids.length > 0 && ids.every((i) => i >= 1 && i <= chunkCount),
+        c.type === "apolice" && ids.length > 0 && ids.every((i) => i >= 1 && i <= chunkCount),
     };
   });
 }

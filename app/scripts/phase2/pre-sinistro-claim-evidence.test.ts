@@ -99,6 +99,14 @@ check("malformed claim item (null in array) does not throw and is not validated"
   assert.equal(out[0].type, "apolice");
 });
 
+check("claim with NO type field but valid in-range chunkIds is not validated (fail-closed default)", () => {
+  const out = validateClaimEvidence(
+    [{ claim: "x", chunkIds: [1] }],
+    8
+  );
+  assert.equal(out[0].validated, false);
+});
+
 check("preserves claim/type/chunkIds fields on output", () => {
   const out = validateClaimEvidence(
     [{ claim: "carencia 2 anos", type: "apolice", chunkIds: [2] }],

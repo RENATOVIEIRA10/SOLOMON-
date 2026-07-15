@@ -23,22 +23,29 @@ export async function callStructuredJson(
   opts: StructuredJsonOptions,
 ): Promise<Omit<LLMResponse, "latencyMs">> {
   const chain = resolveProviderChain(opts.model);
+  // Shared deadline across hops, nao timeout por hop: opts.timeoutMs e o
+  // orcamento TOTAL da chamada (ex: 40000ms), nao um valor repetido em cada
+  // provider. Sem isso, um chain de 2 hops (openrouter + anthropic-direct)
+  // podia empilhar ate ~2x o timeout configurado e estourar o
+  // maxDuration de 60s da Vercel.
+  const deadline = Date.now() + (opts.timeoutMs ?? 40000);
   let lastErr: Error | null = null;
   for (const step of chain) {
+    const timeoutMs = Math.max(1000, deadline - Date.now());
     try {
       if (step === "openrouter") {
         return await callOpenRouter(systemPrompt, userMessage, opts.model, {
           responseMimeType: "application/json",
           temperature: opts.temperature,
           maxOutputTokens: opts.maxOutputTokens,
-          timeoutMs: opts.timeoutMs,
+          timeoutMs,
         });
       }
       if (step === "anthropic-direct") {
-        return await callAnthropicJsonDirect(systemPrompt, userMessage, opts.model, opts);
+        return await callAnthropicJsonDirect(systemPrompt, userMessage, opts.model, { ...opts, timeoutMs });
       }
       if (step === "gemini-direct") {
-        return await callGeminiJsonDirectPublic(systemPrompt, userMessage, opts.model, opts);
+        return await callGeminiJsonDirectPublic(systemPrompt, userMessage, opts.model, { ...opts, timeoutMs });
       }
     } catch (e) {
       lastErr = e as Error;
