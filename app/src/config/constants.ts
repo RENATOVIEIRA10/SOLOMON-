@@ -26,6 +26,15 @@ export const PLANS = {
   corretora: { name: 'Corretora', queriesPerDay: -1, price: 34900, maxUsers: 5 },
 } as const satisfies Record<BrokerPlan, { name: string; queriesPerDay: number; price: number; maxUsers?: number }>
 
+/**
+ * Feature flag: trilho pre-sinistro (legalmente fora do piloto por decisao do
+ * CEO — ver Task 8). Default OFF; so liga com PRE_SINISTRO_ENABLED="true"
+ * explicito. Qualquer outro valor (unset, "false", "1", lixo) = OFF.
+ */
+export function isPreSinistroEnabled(): boolean {
+  return process.env.PRE_SINISTRO_ENABLED === 'true'
+}
+
 export const RAG = {
   chunkSize: 500,
   chunkOverlap: 50,

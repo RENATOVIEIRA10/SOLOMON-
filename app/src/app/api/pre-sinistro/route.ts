@@ -8,6 +8,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { analyzePreSinistro } from "@/services/rag/pre-sinistro";
 import { createServiceClient } from "@/lib/supabase";
+import { isPreSinistroEnabled } from "@/config/constants";
 import {
   aiQuotaHeaders,
   enforceAiQuota,
@@ -27,6 +28,15 @@ export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
+    // Task 8: trilho pre-sinistro legalmente fora do piloto — gated OFF ate
+    // promocao formal. Checa ANTES de qualquer trabalho pesado (auth/quota/LLM).
+    if (!isPreSinistroEnabled()) {
+      return NextResponse.json(
+        { error: "Análise de pré-sinistro temporariamente indisponível." },
+        { status: 503 }
+      );
+    }
+
     // Broker-facing, high-consequence route: verified session + pilot
     // allowlist + daily quota. Never trusts brokerId from the client.
     const aiAccess = await requireAiAccess(request);

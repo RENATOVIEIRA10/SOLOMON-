@@ -9,7 +9,7 @@ import { createServiceClient } from '@/lib/supabase'
 import { ask } from '@/services/rag/answer'
 import { compareInsurers } from '@/services/rag/compare'
 import { analyzePreSinistro } from '@/services/rag/pre-sinistro'
-import { BRAND, PLANS, type BrokerPlan } from '@/config/constants'
+import { BRAND, PLANS, isPreSinistroEnabled, type BrokerPlan } from '@/config/constants'
 import { effectivePlanId, needsDowngradeNotice } from '@/services/billing/plan'
 import { getSession, addMessage, setBrokerId } from './session'
 import type { IncomingMessage } from './types'
@@ -409,6 +409,15 @@ async function handleSinistroCommand(
   args: string,
   broker: BrokerRow
 ): Promise<string[]> {
+  // Task 8: trilho pre-sinistro legalmente fora do piloto — gated OFF ate
+  // promocao formal. Short-circuita ANTES de qualquer parsing/analise;
+  // quota/comando plumbing acima (PAID_COMMANDS, limite diario) preservados.
+  if (!isPreSinistroEnabled()) {
+    return [
+      `A análise de pré-sinistro ainda não está disponível na sua conta.${SIGNATURE}`,
+    ]
+  }
+
   if (!args.trim()) {
     return [
       `*Análise pré-sinistro*\n\n` +
