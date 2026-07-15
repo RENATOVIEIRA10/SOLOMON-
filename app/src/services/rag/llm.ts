@@ -645,6 +645,25 @@ export async function callGeminiJson(
 // sem cair no fallback invalido (Sonnet id no endpoint REST do Gemini).
 // ---------------------------------------------------------------------------
 
+// OpenRouter-style Anthropic ids use dots for point releases
+// (`anthropic/claude-sonnet-4.6`); the direct Anthropic SDK uses dashes
+// (`claude-sonnet-4-6`, see ANTHROPIC_MODEL above). A blind
+// `.replace(/^anthropic\//, '')` preserves the dot and sends an invalid
+// model id straight to the direct SDK. This map is the source of truth
+// for the models we actually route through callAnthropicJsonDirect today;
+// unmapped ids fall back to a plain prefix strip (matches historical
+// behaviour, but callers should add a mapping before relying on it).
+const ANTHROPIC_DIRECT_MODEL_MAP: Record<string, string> = {
+  'anthropic/claude-sonnet-4.6': 'claude-sonnet-4-6',
+  'anthropic/claude-haiku-4.5': ANTHROPIC_MODEL,
+}
+
+export function toAnthropicDirectModel(model: string): string {
+  return ANTHROPIC_DIRECT_MODEL_MAP[model] ?? model.replace(/^anthropic\//, '')
+}
+
+const ANTHROPIC_JSON_DIRECT_TIMEOUT_MS = 40000
+
 export async function callAnthropicJsonDirect(
   systemPrompt: string,
   userMessage: string,
@@ -653,16 +672,34 @@ export async function callAnthropicJsonDirect(
 ): Promise<Omit<LLMResponse, 'latencyMs'>> {
   const apiKey = process.env.ANTHROPIC_API_KEY
   if (!apiKey) throw new Error('ANTHROPIC_API_KEY nao configurada')
-  const directModel = model.replace(/^anthropic\//, '') // claude-sonnet-4.6
+  const directModel = toAnthropicDirectModel(model)
   const client = new Anthropic({ apiKey })
-  const msg = await client.messages.create({
-    model: directModel,
-    max_tokens: options.maxOutputTokens ?? 4096,
-    temperature: options.temperature ?? 0.2,
-    system: systemPrompt + '\nResponda APENAS com JSON valido, sem markdown.',
-    messages: [{ role: 'user', content: userMessage }],
-  })
+
+  const controller = new AbortController()
+  const timeoutId = setTimeout(
+    () => controller.abort(),
+    options.timeoutMs ?? ANTHROPIC_JSON_DIRECT_TIMEOUT_MS
+  )
+  let msg
+  try {
+    msg = await client.messages.create(
+      {
+        model: directModel,
+        max_tokens: options.maxOutputTokens ?? 4096,
+        temperature: options.temperature ?? 0.2,
+        system: systemPrompt + '\nResponda APENAS com JSON valido, sem markdown.',
+        messages: [{ role: 'user', content: userMessage }],
+      },
+      { signal: controller.signal }
+    )
+  } finally {
+    clearTimeout(timeoutId)
+  }
+
   const text = msg.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('')
+  if (!text.trim()) {
+    throw new Error('Anthropic JSON returned empty response')
+  }
   const tokensUsed = (msg.usage?.input_tokens ?? 0) + (msg.usage?.output_tokens ?? 0)
   return { text, model: directModel, tokensUsed }
 }

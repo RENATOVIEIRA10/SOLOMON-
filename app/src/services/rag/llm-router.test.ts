@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import { resolveProviderChain } from "./llm-router";
+import { toAnthropicDirectModel } from "./llm";
 
 let passed = 0, total = 0;
 function check(name: string, fn: () => void) { total++; fn(); passed++; console.log("ok -", name); }
@@ -20,6 +21,12 @@ check("no cross-provider leak", () => {
 // Modelo desconhecido: só OpenRouter, depois falha fechado.
 check("unknown model is openrouter-only", () => {
   assert.deepEqual(resolveProviderChain("mistralai/mixtral"), ["openrouter"]);
+});
+// Anthropic direct SDK usa dash (claude-sonnet-4-6), nao dot (OpenRouter).
+// Regressao: strip ingenuo do prefixo preservava o dot e mandava id invalido
+// pro SDK direto.
+check("anthropic direct model id translates dot to dash (sonnet 4.6)", () => {
+  assert.equal(toAnthropicDirectModel("anthropic/claude-sonnet-4.6"), "claude-sonnet-4-6");
 });
 
 console.log(`\n${passed}/${total} passed`);
