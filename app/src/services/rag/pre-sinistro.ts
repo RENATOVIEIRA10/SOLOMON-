@@ -63,7 +63,58 @@ export interface PreSinistroResult {
     source_url: string | null;
     insurer_id: string | null;
   }>;
+  // F1: evidencia por claim — uma unica citation nao sustenta um rationale
+  // com varias afirmacoes distintas. Claims de apolice citam os chunkIds
+  // que os sustentam; claims juridicos (Art. 766 CC, SUSEP, etc) ficam
+  // sempre validated=false ate o corpus juridico da F2.
+  claimEvidence: ClaimEvidence[];
 }
+
+/**
+ * F1: evidencia por claim atomico. `type: "apolice"` cobre afirmacoes
+ * tiradas das condicoes gerais indexadas (validaveis contra os chunks do
+ * contexto); `type: "juridico"` cobre afirmacoes de lei/CC/SUSEP, que nao
+ * tem corpus indexado ainda (F2) e por isso ficam sempre nao-validadas.
+ */
+export interface ClaimEvidence {
+  claim: string;
+  type: "apolice" | "juridico";
+  chunkIds: number[];
+  validated: boolean;
+}
+
+/**
+ * Valida claims atomicos retornados pelo LLM contra o contexto de chunks
+ * enviado (results.length). Pura, sem I/O — testada isoladamente em
+ * scripts/phase2/pre-sinistro-claim-evidence.test.ts.
+ *
+ * - claim de apolice: valido so se citou >=1 chunkId E todos existem no
+ *   contexto (1..chunkCount, mesmo indice 1-based usado nos [chunk_N]
+ *   do prompt).
+ * - claim juridico: sempre nao-validado ate o corpus juridico da F2.
+ */
+export function validateClaimEvidence(
+  raw: Array<{ claim: string; type: "apolice" | "juridico"; chunkIds: number[] }>,
+  chunkCount: number
+): ClaimEvidence[] {
+  return raw.map((c) => ({
+    ...c,
+    validated:
+      c.type === "apolice" &&
+      c.chunkIds.length > 0 &&
+      c.chunkIds.every((i) => i >= 1 && i <= chunkCount),
+  }));
+}
+
+/**
+ * Shape bruto retornado pelo LLM (JSON.parse do completion.text). `claims`
+ * nao existe em `PreSinistroResult` (que expoe `claimEvidence` ja validado)
+ * â€” e o campo cru do schema do SYSTEM_PROMPT, consumido so por
+ * validateClaimEvidence() logo apos o parse.
+ */
+type PreSinistroLlmOutput = Partial<PreSinistroResult> & {
+  claims?: Array<{ claim: string; type: "apolice" | "juridico"; chunkIds: number[] }>;
+};
 
 export interface PreSinistroInput {
   insurerName: string;
@@ -113,6 +164,13 @@ VOCE DEVE RETORNAR APENAS UM JSON VALIDO com este schema exato (sem markdown, se
   "riskFlags": [
     "Avisos de risco para o corretor",
     "Ex: Carencia de 2 anos para doencas pre-existentes"
+  ],
+  "claims": [
+    {
+      "claim": "Afirmacao atomica (uma unica ideia verificavel) usada no rationale",
+      "type": "apolice" | "juridico",
+      "chunkIds": [1, 3]
+    }
   ]
 }
 
@@ -123,6 +181,7 @@ REGRAS CRITICAS:
 - Se nao houver evidencia textual clara, use verdict "RISCO" com confidence baixa.
 - excerpt da citation DEVE ser trecho LITERAL dos chunks [chunk_N] fornecidos â€” sem parafrase. O sistema valida substring contra os chunks reais e descarta a citacao se nao bater.
 - SEMPRE preencher documentsChecklist, laudoTerms, riskFlags com ao menos 1 item cada.
+- claims: quebre o rationale em afirmacoes atomicas (uma ideia verificavel por item). Toda afirmacao de apolice (cobertura, exclusao, carencia, contestabilidade, definicao de clausula) DEVE citar em chunkIds os numeros dos [chunk_N] que a sustentam (type="apolice", chunkIds nunca vazio). Afirmacao juridica de lei/norma (ex: Art. 766 CC, SUSEP, Codigo de Defesa do Consumidor) que NAO vem de um chunk indexado usa type="juridico" com chunkIds=[] â€” nao invente numero de chunk pra afirmacao juridica.
 - Retornar APENAS o JSON, sem texto adicional, sem fence.
 `;
 
@@ -312,7 +371,7 @@ Cite trecho LITERAL de um dos chunks no campo citation.excerpt â€” o sistem
     timeoutMs: 40000, // Sonnet e mais lento que Flash
   });
 
-  const parsed = extractJson<Partial<PreSinistroResult>>(completion.text);
+  const parsed = extractJson<PreSinistroLlmOutput>(completion.text);
   if (!parsed) {
     console.error(
       "[pre-sinistro] JSON parse failed. Raw:",
@@ -397,6 +456,10 @@ Cite trecho LITERAL de um dos chunks no campo citation.excerpt â€” o sistem
     model: completion.model,
     latencyMs: Date.now() - start,
     chunks: toResultChunks(results),
+    claimEvidence: validateClaimEvidence(
+      Array.isArray(parsed.claims) ? parsed.claims : [],
+      results.length
+    ),
   };
 }
 
@@ -703,6 +766,8 @@ function buildRiskResult(params: {
     model: params.model,
     latencyMs: Date.now() - params.start,
     chunks: toResultChunks(params.chunks),
+    // Fast-path RISCO (sem chamada ao LLM) nunca teve claims pra validar.
+    claimEvidence: [],
   };
 }
 
