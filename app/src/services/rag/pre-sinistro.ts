@@ -24,7 +24,7 @@ import { randomUUID } from "node:crypto";
 import { semanticSearch, type SearchResult } from "./search";
 import { loadEnrichment } from "./answer";
 import { createServiceClient } from "@/lib/supabase";
-import { callGeminiJson } from "./llm";
+import { callStructuredJson } from "./llm-router";
 
 export type Verdict = "COBERTO" | "NAO_COBERTO" | "RISCO";
 
@@ -119,11 +119,13 @@ REGRAS CRITICAS:
  * Analyzes a pre-claim scenario against the insurer's conditions.
  */
 /**
- * Modelo configuravel via env var. Default `gemini-2.5-flash` apos Wave A.2.
- * Permite swap pra `gemini-2.5-pro` (raciocinio juridico mais forte) ou volta
- * pra Sonnet via fallback no futuro sem mudar codigo.
+ * Modelo configuravel via env var. F0: trocado de `gemini-2.5-flash` (Wave A.2)
+ * pra `anthropic/claude-sonnet-4.6` via llm-router (OpenRouter-first, fallback
+ * anthropic-direct) - trilho de alta consequencia juridica exige o raciocinio
+ * mais forte disponivel, nao o mais barato.
  */
-const PRE_SINISTRO_MODEL = process.env.PRE_SINISTRO_MODEL ?? "gemini-2.5-flash";
+const PRE_SINISTRO_MODEL =
+  process.env.PRE_SINISTRO_MODEL ?? "anthropic/claude-sonnet-4.6";
 const LEGAL_DISCLAIMER =
   "Analise preliminar para apoio do corretor. Nao substitui regulacao formal do sinistro pela seguradora nem parecer juridico.";
 
@@ -238,11 +240,12 @@ Descricao do evento: ${input.description}
 
 Cite trecho LITERAL de um dos chunks no campo citation.excerpt â€” o sistema valida substring contra os chunks reais. Retorne APENAS o JSON estruturado.`;
 
-  // 7. Call Gemini JSON â€” Wave A.2.
-  const completion = await callGeminiJson(SYSTEM_PROMPT, userMessage, {
+  // 7. Call LLM via llm-router (OpenRouter-first, fail-closed) - F0: Sonnet 4.6.
+  const completion = await callStructuredJson(SYSTEM_PROMPT, userMessage, {
     model: PRE_SINISTRO_MODEL,
     temperature: 0.2,
-    maxOutputTokens: 2048,
+    maxOutputTokens: 4096,
+    timeoutMs: 40000, // Sonnet e mais lento que Flash
   });
 
   const parsed = extractJson<Partial<PreSinistroResult>>(completion.text);
@@ -310,11 +313,9 @@ Cite trecho LITERAL de um dos chunks no campo citation.excerpt â€” o sistem
     avgSimilarity: avgSim,
     hasValidatedCitation: validatedCitation !== null,
   };
-  const humanReviewRequired =
-    verdict === "RISCO" ||
-    validatedCitation === null ||
-    riskFlags.length > 0 ||
-    finalConfidence < 0.75;
+  // Trilho fora do piloto (veredito PR #57): toda analise exige revisao humana,
+  // independentemente da confianca. Reavaliar quando o trilho entrar no piloto.
+  const humanReviewRequired = true;
 
   return {
     verdict,
