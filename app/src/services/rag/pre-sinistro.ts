@@ -208,6 +208,18 @@ export async function analyzePreSinistro(
               insurerId: id,
               topK: perQueryTopK,
               sourceType: "conditions_pdf",
+              // As sub-queries de "exclusoes" e "carencia" (buildSubQueries)
+              // colidem com detectExhaustiveIntent (search.ts) e disparariam
+              // o atalho TOC-por-secao (fetchChunksByToc), que corta as
+              // primeiras `topK` clausulas em ORDEM DOCUMENTAL, nao por
+              // relevancia semantica -- com similarity=1.0 hardcoded que
+              // mascara o guardrail avgSim<0.5 downstream. O pre-sinistro
+              // quer relevancia semantica consistente nas 5 dimensoes do
+              // fan-out; uma clausula enterrada (ex: "periodo de
+              // sobrevivencia de 30 dias") past position 7 seria descartada
+              // silenciosamente. TOC-vs-vector pra exclusao/carencia fica
+              // em aberto pro A/B do Task 4 na VPS.
+              disableExhaustiveIntent: true,
             })
           )
         );

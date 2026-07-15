@@ -81,6 +81,17 @@ export interface SearchOptions {
    * Merged into the lexical search process for high-fidelity exact matches.
    */
   expandedTerms?: string[]
+  /**
+   * Default false (preserves current behavior for all existing callers).
+   * When true, skips the detectExhaustiveIntent -> fetchChunksByToc TOC
+   * shortcut in hybridSearch/hybridSearchWithEmbedding even when insurerId
+   * is set. Needed by callers whose query templates legitimately contain
+   * words like "exclusoes"/"carencia" as semantic signal (not as a request
+   * for the full TOC section) -- e.g. pre-sinistro's multi-query fan-out,
+   * where a positional (document-order) TOC slice would silently truncate
+   * before a buried clause instead of ranking by relevance.
+   */
+  disableExhaustiveIntent?: boolean
 }
 
 type DocumentSearchRow = {
@@ -465,7 +476,7 @@ export async function hybridSearch(
   query: string,
   options?: SearchOptions
 ): Promise<SearchResult[]> {
-  if (options?.insurerId) {
+  if (options?.insurerId && !options?.disableExhaustiveIntent) {
     const { isExhaustive, sectionQuery } = detectExhaustiveIntent(query)
     if (isExhaustive) {
       console.log(`[rag/search] Exhaustive intent detected for query "${query}". Fetching via TOC.`)
@@ -499,7 +510,7 @@ export async function hybridSearchWithEmbedding(
   queryEmbedding: number[],
   options?: SearchOptions
 ): Promise<SearchResult[]> {
-  if (options?.insurerId) {
+  if (options?.insurerId && !options?.disableExhaustiveIntent) {
     const { isExhaustive, sectionQuery } = detectExhaustiveIntent(query)
     if (isExhaustive) {
       console.log(`[rag/search] Exhaustive intent detected for query "${query}" (with embedding). Fetching via TOC.`)
