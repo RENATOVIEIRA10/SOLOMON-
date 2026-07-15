@@ -21,7 +21,12 @@
 
 import { randomUUID } from "node:crypto";
 
-import { semanticSearch, type SearchResult } from "./search";
+import {
+  embedQuery,
+  hybridSearchWithEmbedding,
+  rerankWithCohere,
+  type SearchResult,
+} from "./search";
 import { loadEnrichment } from "./answer";
 import { createServiceClient } from "@/lib/supabase";
 import { callStructuredJson } from "./llm-router";
@@ -66,6 +71,12 @@ export interface PreSinistroInput {
   description: string; // descricao livre do evento
   /** Nome ou codigo do produto/apolice (opcional). Filtra chunks por metadata.product_name. */
   productHint?: string;
+  /**
+   * F1: contexto RAG pre-computado (Task 4 A/B harness). Quando setado, pula
+   * o retrieval inteiro e usa estes resultados como estao â€” garante que os
+   * dois modelos comparados no A/B pareado veem exatamente o mesmo contexto.
+   */
+  precomputedResults?: SearchResult[];
 }
 
 const SYSTEM_PROMPT = `Voce e SOLOMON, especialista em analise pre-sinistro de seguros de vida no Brasil.
@@ -129,6 +140,16 @@ const PRE_SINISTRO_MODEL =
 const LEGAL_DISCLAIMER =
   "Analise preliminar para apoio do corretor. Nao substitui regulacao formal do sinistro pela seguradora nem parecer juridico.";
 
+/**
+ * F1 (retrieval hardening): dois-k â€” recall largo, contexto final enxuto.
+ * O oraculo (answer.ts) ja usa hybrid + rerank; pre-sinistro so tinha
+ * semanticSearch topK=8 -> slice(0,12), sem hybrid nem cross-encoder, o que
+ * deixava clausulas relevantes (ex: "sobrevivencia"/"carencia" na Prudential)
+ * fora do top-8 mesmo existindo centenas de chunks no corpus.
+ */
+const PRE_SINISTRO_FETCH_K = 32; // recall: candidatos recuperados (24-40)
+const PRE_SINISTRO_RERANK_K = 10; // contexto: chunks enviados ao modelo (8-12)
+
 export async function analyzePreSinistro(
   input: PreSinistroInput
 ): Promise<PreSinistroResult> {
@@ -139,10 +160,11 @@ export async function analyzePreSinistro(
   // 2 seguradoras (HIGH 6 do Codex review).
   const insurerIds = await resolveInsurerIdsExact(input.insurerName);
 
-  // 2. Search RAG paralelamente por insurerIds + sort global por similarity
-  // (HIGH 3: era sequencial sem reordenar).
+  // 2. Search RAG paralelamente por insurerIds (F1: hybrid + dois-k + rerank
+  // Cohere, reusando os mesmos blocos do oraculo em answer.ts â€” nao um
+  // reranker novo). Precomputed results (Task 4 A/B harness) pulam o
+  // retrieval pra garantir contexto identico entre os dois modelos comparados.
   const query = buildSearchQuery({ ...input, claimType: normalizedClaimType });
-  const perInsurer = 8;
   // Slice 3C-c: corpus-routing context. pre-sinistro is single-insurer
   // per analysis -> eligible for shadow preview when input.insurerName
   // is in SHADOW_PREVIEW_INSURERS.
@@ -152,31 +174,39 @@ export async function analyzePreSinistro(
     question: query,
     source: "pre-sinistro" as const,
   };
-  // Phase 3A G2: pre-sinistro queries are always verbal â†’ restrict to
-  // conditions_pdf. rate_table_pdf chunks would inject numeric noise that
-  // poisons the verdict and the citation validation downstream.
-  const settled = await Promise.all(
-    insurerIds.map((id) =>
-      semanticSearch(query, {
-        ...corpusCtx,
-        insurerId: id,
-        topK: perInsurer,
-        sourceType: 'conditions_pdf',
-      })
-    )
-  );
-  let results: SearchResult[] = settled.flat();
 
-  // Deduplicate por id + sort por similarity DESC
-  const seen = new Set<string>();
-  results = results
-    .filter((r) => {
+  let results: SearchResult[];
+  if (input.precomputedResults) {
+    results = input.precomputedResults;
+  } else {
+    // Phase 3A G2: pre-sinistro queries are always verbal â†’ restrict to
+    // conditions_pdf. rate_table_pdf chunks would inject numeric noise that
+    // poisons the verdict and the citation validation downstream.
+    const queryEmbedding = await embedQuery(query);
+    const settled = await Promise.all(
+      insurerIds.map((id) =>
+        hybridSearchWithEmbedding(query, queryEmbedding, {
+          ...corpusCtx,
+          insurerId: id,
+          topK: PRE_SINISTRO_FETCH_K,
+          sourceType: "conditions_pdf",
+        })
+      )
+    );
+
+    // Deduplicate por id (fan-out entre insurerIds pode repetir chunk).
+    const seen = new Set<string>();
+    const candidates = settled.flat().filter((r) => {
       if (seen.has(r.id)) return false;
       seen.add(r.id);
       return true;
-    })
-    .sort((a, b) => (b.similarity ?? 0) - (a.similarity ?? 0))
-    .slice(0, 12);
+    });
+
+    // Rerank cross-encoder (Cohere) traz a clausula certa pro topo do
+    // contexto final; fallback = ordem por similarity se COHERE_API_KEY
+    // ausente ou a chamada falhar (ver rerankWithCohere em search.ts).
+    results = await rerankWithCohere(query, candidates, PRE_SINISTRO_RERANK_K);
+  }
 
   // 3. productHint filter (HIGH 5): se setado e nenhum chunk casa, devolve RISCO.
   if (input.productHint && input.productHint.trim()) {
