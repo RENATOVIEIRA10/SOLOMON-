@@ -446,7 +446,7 @@ export interface GeminiJsonOptions {
   thinkingBudget?: number
 }
 
-async function callOpenRouter(
+export async function callOpenRouter(
   systemPrompt: string,
   userMessage: string,
   model: string,
@@ -637,6 +637,47 @@ export async function callGeminiJson(
   }
 
   throw new Error('Falha inexplicavel no fluxo de chaves do Gemini JSON')
+}
+
+// ---------------------------------------------------------------------------
+// Provider-agnostic direct callers — usados por llm-router.ts (callStructuredJson)
+// para permitir trilhos (ex: pre-sinistro) escolherem modelo Anthropic OU Gemini
+// sem cair no fallback invalido (Sonnet id no endpoint REST do Gemini).
+// ---------------------------------------------------------------------------
+
+export async function callAnthropicJsonDirect(
+  systemPrompt: string,
+  userMessage: string,
+  model: string,
+  options: { temperature?: number; maxOutputTokens?: number; timeoutMs?: number } = {},
+): Promise<Omit<LLMResponse, 'latencyMs'>> {
+  const apiKey = process.env.ANTHROPIC_API_KEY
+  if (!apiKey) throw new Error('ANTHROPIC_API_KEY nao configurada')
+  const directModel = model.replace(/^anthropic\//, '') // claude-sonnet-4.6
+  const client = new Anthropic({ apiKey })
+  const msg = await client.messages.create({
+    model: directModel,
+    max_tokens: options.maxOutputTokens ?? 4096,
+    temperature: options.temperature ?? 0.2,
+    system: systemPrompt + '\nResponda APENAS com JSON valido, sem markdown.',
+    messages: [{ role: 'user', content: userMessage }],
+  })
+  const text = msg.content.filter((b) => b.type === 'text').map((b) => (b as { text: string }).text).join('')
+  const tokensUsed = (msg.usage?.input_tokens ?? 0) + (msg.usage?.output_tokens ?? 0)
+  return { text, model: directModel, tokensUsed }
+}
+
+// Thin public wrapper so llm-router can reach the existing private direct-Gemini path.
+export async function callGeminiJsonDirectPublic(
+  systemPrompt: string,
+  userMessage: string,
+  model: string,
+  options: GeminiJsonOptions = {},
+): Promise<Omit<LLMResponse, 'latencyMs'>> {
+  const apiKey = process.env.GEMINI_API_KEY
+  if (!apiKey) throw new Error('GEMINI_API_KEY nao configurada')
+  const directModel = model.replace(/^google\//, '')
+  return callGeminiJsonDirect(systemPrompt, userMessage, apiKey, directModel, options)
 }
 
 /**
