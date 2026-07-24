@@ -56,7 +56,9 @@
     "phase2:mag-noise-exclude": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/mag-noise-exclude.ts",
     "phase2:corpus-routing-loader:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/corpus-routing-loader.test.ts",
     "phase2:julio-parser:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/julio-gabarito-parser.test.ts",
-    "phase2:pre-sinistro-flag:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/pre-sinistro-flag.test.ts"
+    "phase2:pre-sinistro-flag:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/pre-sinistro-flag.test.ts",
+    "phase2:confusion-matrix:test": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/confusion-matrix.test.ts",
+    "phase2:pre-sinistro-correctness": "tsx --tsconfig scripts/tsconfig.json scripts/phase2/pre-sinistro-correctness.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.90.0",

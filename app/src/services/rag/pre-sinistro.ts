@@ -153,6 +153,12 @@ export interface PreSinistroInput {
    * dois modelos comparados no A/B pareado veem exatamente o mesmo contexto.
    */
   precomputedResults?: SearchResult[];
+  /**
+   * Task 4 (A/B harness): troca o modelo gerador DESTA chamada sem depender
+   * de env var (PRE_SINISTRO_MODEL e lido no load do modulo, entao override
+   * por process.env nao funciona in-process). Producao nunca seta isto.
+   */
+  modelOverride?: string;
 }
 
 const SYSTEM_PROMPT = `Voce e SOLOMON, especialista em analise pre-sinistro de seguros de vida no Brasil.
@@ -211,6 +217,96 @@ REGRAS CRITICAS:
 `;
 
 /**
+ * Retrieval do pre-sinistro (F1: hybrid + dois-k + rerank Cohere, reusando
+ * os mesmos blocos do oraculo em answer.ts). Exportado pro harness de
+ * correctness A/B (Task 4): recuperar o contexto UMA vez aqui e injeta-lo
+ * nos dois modelos comparados via `precomputedResults` garante que os dois
+ * bracos veem exatamente os mesmos chunks.
+ */
+export async function retrievePreSinistroContext(
+  input: Omit<PreSinistroInput, "precomputedResults" | "modelOverride">
+): Promise<SearchResult[]> {
+  const normalizedClaimType = normalizeClaimType(input.claimType);
+
+  // Resolve insurer id(s) via match EXATO -- substring match podia trazer
+  // 2 seguradoras (HIGH 6 do Codex review).
+  const insurerIds = await resolveInsurerIdsExact(input.insurerName);
+
+  const query = buildSearchQuery({ ...input, claimType: normalizedClaimType });
+  // Slice 3C-c: corpus-routing context. pre-sinistro is single-insurer
+  // per analysis -> eligible for shadow preview when input.insurerName
+  // is in SHADOW_PREVIEW_INSURERS.
+  const corpusCtx = {
+    insurerNames: [input.insurerName] as readonly string[],
+    requestId: randomUUID(),
+    question: query,
+    source: "pre-sinistro" as const,
+  };
+
+  // Phase 3A G2: pre-sinistro queries are always verbal -> restrict to
+  // conditions_pdf. rate_table_pdf chunks would inject numeric noise that
+  // poisons the verdict and the citation validation downstream.
+  //
+  // F1 (multi-query fan-out): uma unica query embutida ("cliente 52 anos
+  // com cancer") nao casa bem com o texto literal da clausula ("periodo
+  // de sobrevivencia de 30 dias") -- mismatch semantico entre a descricao
+  // livre do corretor e a linguagem juridica das condicoes gerais. Em vez
+  // de embedar so `query`, decompomos o caso em sub-queries por dimensao
+  // (buildSubQueries) e buscamos para cada uma, por insurerId, unindo e
+  // dedupando os candidatos antes de um UNICO rerank na query primaria.
+  // topK por chamada e dividido pelo numero de sub-queries pra manter o
+  // total de candidatos no mesmo teto (~24-40) em vez de sub-queries x 32.
+  const subQueries = buildSubQueries({
+    ...input,
+    claimType: normalizedClaimType,
+  });
+  const perQueryTopK = Math.ceil(PRE_SINISTRO_FETCH_K / subQueries.length);
+
+  const settled = await Promise.all(
+    subQueries.map(async (sq) => {
+      const sqEmbedding = await embedQuery(sq);
+      return Promise.all(
+        insurerIds.map((id) =>
+          hybridSearchWithEmbedding(sq, sqEmbedding, {
+            ...corpusCtx,
+            insurerId: id,
+            topK: perQueryTopK,
+            sourceType: "conditions_pdf",
+            // As sub-queries de "exclusoes" e "carencia" (buildSubQueries)
+            // colidem com detectExhaustiveIntent (search.ts) e disparariam
+            // o atalho TOC-por-secao (fetchChunksByToc), que corta as
+            // primeiras `topK` clausulas em ORDEM DOCUMENTAL, nao por
+            // relevancia semantica -- com similarity=1.0 hardcoded que
+            // mascara o guardrail avgSim<0.5 downstream. O pre-sinistro
+            // quer relevancia semantica consistente nas 5 dimensoes do
+            // fan-out; uma clausula enterrada (ex: "periodo de
+            // sobrevivencia de 30 dias") past position 7 seria descartada
+            // silenciosamente. TOC-vs-vector pra exclusao/carencia fica
+            // em aberto pro A/B do Task 4 na VPS.
+            disableExhaustiveIntent: true,
+          })
+        )
+      );
+    })
+  );
+
+  // Deduplicate por id (fan-out entre sub-queries x insurerIds pode
+  // repetir o mesmo chunk varias vezes).
+  const seen = new Set<string>();
+  const candidates = settled.flat(2).filter((r) => {
+    if (seen.has(r.id)) return false;
+    seen.add(r.id);
+    return true;
+  });
+
+  // Rerank cross-encoder (Cohere) usa a query PRIMARIA (nao as sub-queries)
+  // pra trazer a clausula certa pro topo do contexto final; fallback =
+  // ordem por similarity se COHERE_API_KEY ausente ou a chamada falhar
+  // (ver rerankWithCohere em search.ts).
+  return rerankWithCohere(query, candidates, PRE_SINISTRO_RERANK_K);
+}
+
+/**
  * Analyzes a pre-claim scenario against the insurer's conditions.
  */
 /**
@@ -239,91 +335,17 @@ export async function analyzePreSinistro(
 ): Promise<PreSinistroResult> {
   const start = Date.now();
   const normalizedClaimType = normalizeClaimType(input.claimType);
+  const model = input.modelOverride ?? PRE_SINISTRO_MODEL;
 
-  // 1. Resolve insurer id(s) via match EXATO â€” substring match podia trazer
-  // 2 seguradoras (HIGH 6 do Codex review).
-  const insurerIds = await resolveInsurerIdsExact(input.insurerName);
-
-  // 2. Search RAG paralelamente por insurerIds (F1: hybrid + dois-k + rerank
-  // Cohere, reusando os mesmos blocos do oraculo em answer.ts â€” nao um
-  // reranker novo). Precomputed results (Task 4 A/B harness) pulam o
-  // retrieval pra garantir contexto identico entre os dois modelos comparados.
-  const query = buildSearchQuery({ ...input, claimType: normalizedClaimType });
-  // Slice 3C-c: corpus-routing context. pre-sinistro is single-insurer
-  // per analysis -> eligible for shadow preview when input.insurerName
-  // is in SHADOW_PREVIEW_INSURERS.
-  const corpusCtx = {
-    insurerNames: [input.insurerName] as readonly string[],
-    requestId: randomUUID(),
-    question: query,
-    source: "pre-sinistro" as const,
-  };
-
+  // 1+2. Retrieval (resolucao de seguradora + fan-out + rerank) vive em
+  // retrievePreSinistroContext(). precomputedResults (Task 4 A/B harness)
+  // pula o retrieval INTEIRO -- inclusive a resolucao de seguradora -- pra
+  // garantir contexto identico entre os dois modelos comparados.
   let results: SearchResult[];
   if (input.precomputedResults) {
     results = input.precomputedResults;
   } else {
-    // Phase 3A G2: pre-sinistro queries are always verbal â†’ restrict to
-    // conditions_pdf. rate_table_pdf chunks would inject numeric noise that
-    // poisons the verdict and the citation validation downstream.
-    //
-    // F1 (multi-query fan-out): uma unica query embutida ("cliente 52 anos
-    // com cancer") nao casa bem com o texto literal da clausula ("periodo
-    // de sobrevivencia de 30 dias") â€” mismatch semantico entre a descricao
-    // livre do corretor e a linguagem juridica das condicoes gerais. Em vez
-    // de embedar so `query`, decompomos o caso em sub-queries por dimensao
-    // (buildSubQueries) e buscamos para cada uma, por insurerId, unindo e
-    // dedupando os candidatos antes de um UNICO rerank na query primaria.
-    // topK por chamada e dividido pelo nº de sub-queries pra manter o total
-    // de candidatos no mesmo teto (~24-40) em vez de sub-queries x 32.
-    const subQueries = buildSubQueries({
-      ...input,
-      claimType: normalizedClaimType,
-    });
-    const perQueryTopK = Math.ceil(PRE_SINISTRO_FETCH_K / subQueries.length);
-
-    const settled = await Promise.all(
-      subQueries.map(async (sq) => {
-        const sqEmbedding = await embedQuery(sq);
-        return Promise.all(
-          insurerIds.map((id) =>
-            hybridSearchWithEmbedding(sq, sqEmbedding, {
-              ...corpusCtx,
-              insurerId: id,
-              topK: perQueryTopK,
-              sourceType: "conditions_pdf",
-              // As sub-queries de "exclusoes" e "carencia" (buildSubQueries)
-              // colidem com detectExhaustiveIntent (search.ts) e disparariam
-              // o atalho TOC-por-secao (fetchChunksByToc), que corta as
-              // primeiras `topK` clausulas em ORDEM DOCUMENTAL, nao por
-              // relevancia semantica -- com similarity=1.0 hardcoded que
-              // mascara o guardrail avgSim<0.5 downstream. O pre-sinistro
-              // quer relevancia semantica consistente nas 5 dimensoes do
-              // fan-out; uma clausula enterrada (ex: "periodo de
-              // sobrevivencia de 30 dias") past position 7 seria descartada
-              // silenciosamente. TOC-vs-vector pra exclusao/carencia fica
-              // em aberto pro A/B do Task 4 na VPS.
-              disableExhaustiveIntent: true,
-            })
-          )
-        );
-      })
-    );
-
-    // Deduplicate por id (fan-out entre sub-queries x insurerIds pode
-    // repetir o mesmo chunk varias vezes).
-    const seen = new Set<string>();
-    const candidates = settled.flat(2).filter((r) => {
-      if (seen.has(r.id)) return false;
-      seen.add(r.id);
-      return true;
-    });
-
-    // Rerank cross-encoder (Cohere) usa a query PRIMARIA (nao as sub-queries)
-    // pra trazer a clausula certa pro topo do contexto final; fallback =
-    // ordem por similarity se COHERE_API_KEY ausente ou a chamada falhar
-    // (ver rerankWithCohere em search.ts).
-    results = await rerankWithCohere(query, candidates, PRE_SINISTRO_RERANK_K);
+    results = await retrievePreSinistroContext(input);
   }
 
   // 3. productHint filter (HIGH 5): se setado e nenhum chunk casa, devolve RISCO.
@@ -336,7 +358,7 @@ export async function analyzePreSinistro(
     if (filtered.length === 0) {
       return buildRiskResult({
         start,
-        model: PRE_SINISTRO_MODEL,
+        model,
         rationale: `Produto/apolice "${input.productHint}" nao encontrado em chunks indexados da ${input.insurerName}. Verifique o nome do produto ou solicite condicoes gerais especificas.`,
         riskFlags: [`productHint=${input.productHint} nao indexado`],
         chunks: results,
@@ -358,7 +380,7 @@ export async function analyzePreSinistro(
   if (results.length < 3 || avgSim < 0.5) {
     return buildRiskResult({
       start,
-      model: PRE_SINISTRO_MODEL,
+      model,
       rationale: `Documentacao insuficiente da ${input.insurerName} para laudo conclusivo (apenas ${results.length} chunks com similaridade media ${avgSim.toFixed(2)}). Recomendado consultar a seguradora diretamente.`,
       riskFlags: ["Evidencia insuficiente para laudo automatico"],
       chunks: results,
@@ -390,7 +412,7 @@ Cite trecho LITERAL de um dos chunks no campo citation.excerpt â€” o sistem
 
   // 7. Call LLM via llm-router (OpenRouter-first, fail-closed) - F0: Sonnet 4.6.
   const completion = await callStructuredJson(SYSTEM_PROMPT, userMessage, {
-    model: PRE_SINISTRO_MODEL,
+    model,
     temperature: 0.2,
     maxOutputTokens: 4096,
     timeoutMs: 40000, // Sonnet e mais lento que Flash

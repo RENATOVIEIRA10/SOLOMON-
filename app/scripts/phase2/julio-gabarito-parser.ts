@@ -1,5 +1,7 @@
 export interface GabaritoEntry {
   id: string; insurer: string; product: string;
+  /** Descricao do caso (linha `**Fatos:**`) — input do harness de correctness (T4). */
+  facts: string | null;
   verdict: "COBERTO" | "NAO_COBERTO" | "RISCO" | null;
   decisiveClause: string | null; missingFacts: string | null;
   confidence: "alta" | "media" | "baixa" | null; justification: string | null;
@@ -41,6 +43,20 @@ export function parseGabarito(md: string): GabaritoEntry[] {
       while (end < lines.length && lines[end].trim() !== "") end++;
       respBlock = lines.slice(respIdx, end).join(" ");
     }
+    // Fatos: mesmo tratamento de wrap do RESPOSTA — junta a partir da linha
+    // `**Fatos:**` ate a linha RESPOSTA ou linha em branco, o que vier antes.
+    const factsIdx = lines.findIndex((l) => /^\*\*Fatos:\*\*/.test(l.trim()));
+    let facts: string | null = null;
+    if (factsIdx !== -1) {
+      let end = factsIdx;
+      while (
+        end < lines.length &&
+        lines[end].trim() !== "" &&
+        !(end > factsIdx && lines[end].includes("RESPOSTA"))
+      ) end++;
+      facts = lines.slice(factsIdx, end).join(" ")
+        .replace(/^\*\*Fatos:\*\*\s*/, "").trim() || null;
+    }
     const rawVerdict = FIELD(respBlock, "Veredicto");
     const verdict = rawVerdict && (VALID_VERDICTS as readonly string[]).includes(rawVerdict)
       ? (rawVerdict as GabaritoEntry["verdict"]) : null;
@@ -49,7 +65,7 @@ export function parseGabarito(md: string): GabaritoEntry[] {
       ? (rawConf as GabaritoEntry["confidence"]) : null;
     out.push({
       id: idm[1], insurer: idm[2].trim(), product: idm[3].trim(),
-      verdict, confidence,
+      facts, verdict, confidence,
       decisiveClause: FIELD(respBlock, "Cl[aá]usula decisiva"),
       missingFacts: FIELD(respBlock, "Fatos ausentes"),
       justification: FIELD(respBlock, "Justificativa"),

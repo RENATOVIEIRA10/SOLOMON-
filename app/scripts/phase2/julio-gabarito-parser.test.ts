@@ -71,5 +71,26 @@ check("RESPOSTA block does not absorb past the blank line into next Bloco headin
   assert.equal(rows[0].justification, "sim aplica");
 });
 
+check("captures the Fatos line as facts (T4 harness input)", () => {
+  const rows = parseGabarito(sample);
+  assert.equal(rows[0].facts, "Suicidio 18 meses apos contratacao.");
+});
+
+check("facts wrapped across two physical lines is fully captured", () => {
+  const wrapped = [
+    "### Q47 — Prudential do Brasil · Vida Inteira",
+    "**Fatos:** Suicidio 18 meses apos contratacao,",
+    "pagamentos em dia.",
+    "`RESPOSTA` — Veredicto: ___ | Confianca: ___",
+  ].join("\n");
+  const rows = parseGabarito(wrapped);
+  assert.equal(rows[0].facts, "Suicidio 18 meses apos contratacao, pagamentos em dia.");
+});
+
+check("missing Fatos line parses as null facts", () => {
+  const rows = parseGabarito("### Q99 — X · Y\n`RESPOSTA` — Veredicto: ___");
+  assert.equal(rows[0].facts, null);
+});
+
 console.log(`\n${passed}/${total} passed`);
 process.exit(passed === total ? 0 : 1);
