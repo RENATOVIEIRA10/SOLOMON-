@@ -738,15 +738,26 @@ function validateCitation(
   };
 }
 
-function excerptFoundInChunks(excerpt: string, results: SearchResult[]): boolean {
-  const norm = normalizeText(excerpt).replace(/\s+/g, " ").trim();
+/**
+ * Match literal excerpt-vs-chunk com whitespace colapsado DOS DOIS lados.
+ * Chunks de PDF carregam quebras de linha e espacos duplos no meio das
+ * clausulas; colapsar so o excerpt (bug ate 2026-07-24) fazia ~19/20 das
+ * citacoes validas falharem o substring e serem removidas — cascateando em
+ * downgrade RISCO de quase todo veredicto conclusivo. Exportada pro teste
+ * (pre-sinistro-citation-match.test.ts).
+ */
+export function excerptFoundInChunks(excerpt: string, results: SearchResult[]): boolean {
+  const collapse = (s: string) => normalizeText(s).replace(/\s+/g, " ").trim();
+  const norm = collapse(excerpt);
+  if (!norm) return false;
+  const chunks = results.map((r) => collapse(r.content));
   if (norm.length < 30) {
-    return results.some((r) => normalizeText(r.content).includes(norm));
+    return chunks.some((c) => c.includes(norm));
   }
-  if (results.some((r) => normalizeText(r.content).includes(norm))) return true;
-  // Try substrings >= 30 chars (excerpt podia ter quebras vs chunks)
+  if (chunks.some((c) => c.includes(norm))) return true;
+  // Try substrings >= 30 chars (excerpt pode misturar trechos de 2 clausulas)
   for (const piece of substringsAtLeast30(norm)) {
-    if (results.some((r) => normalizeText(r.content).includes(piece))) return true;
+    if (chunks.some((c) => c.includes(piece))) return true;
   }
   return false;
 }
