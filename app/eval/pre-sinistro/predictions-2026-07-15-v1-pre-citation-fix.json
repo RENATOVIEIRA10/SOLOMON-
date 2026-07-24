@@ -1,0 +1,898 @@
+[
+  {
+    "id": "Q46",
+    "insurer": "Prudential do Brasil",
+    "product": "Doenças Graves Plus",
+    "claimType": "doenca_grave",
+    "facts": "Cliente, 52 anos, diagnosticada com câncer de mama há 4 meses. Apólice de Doenças Graves Plus vigente há 5 anos, pagamentos em dia. Quer acionar sinistro.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.7563783418961256
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "O câncer de mama é uma doença maligna caracterizada por tumor maligno com crescimento descontrolado de células, enquadrando-se na definição de câncer coberta pela cobertura de Doenças Graves Plus. A apólice está vigente há 5 anos com pagamentos em dia, e o diagnóstico ocorreu durante a vigência. A segurada tem 52 anos, dentro da faixa etária permitida (14 a 75 anos). O único requisito pendente de verificação é a sobrevivência de 30 dias após o diagnóstico, que já foi cumprido (diagnóstico há 4 meses).",
+      "riskFlags": [
+        "Verificar se o câncer de mama é invasivo: cânceres não invasivos (in situ) estão expressamente excluídos pela apólice",
+        "Confirmar que o diagnóstico foi emitido pela primeira vez após a data de início de vigência da cobertura — diagnósticos anteriores à contratação podem ser negados",
+        "Verificar período de carência aplicável à cobertura de Doenças Graves: se houve reabilitação da apólice, o prazo de carência de 90 dias pode ter sido reiniciado",
+        "Confirmar que o diagnóstico não foi emitido por parente, dependente ou pessoa com laços de dependência econômica com a segurada, ainda que médico habilitado",
+        "A segurada deve ter sobrevivido 30 dias após o diagnóstico — condição já cumprida (diagnóstico há 4 meses), mas deve ser documentada",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 8,
+      "totalClaims": 9,
+      "latencyMs": 30493,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A cliente foi diagnosticada com câncer de mama, que é uma doença grave coberta pela apólice de Doenças Graves Plus. A apólice está vigente há 5 anos e os pagamentos estão em dia, superando qualquer período de carência. Além disso, o diagnóstico de câncer, conforme as condições, inclui tumores malignos caracterizados por crescimento e multiplicação descontrolados de células malignas e invasão de tecidos, o que se aplica ao câncer de mama.",
+      "riskFlags": [
+        "Verificar se o câncer de mama se enquadra em alguma das exclusões específicas para câncer (ex: não invasivo, estágio I de próstata, etc.), embora o câncer de mama geralmente não se enquadre nessas exclusões listadas.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 3,
+      "totalClaims": 3,
+      "latencyMs": 4623,
+      "error": null
+    }
+  },
+  {
+    "id": "Q47",
+    "insurer": "Prudential do Brasil",
+    "product": "Vida Inteira",
+    "claimType": "morte_natural",
+    "facts": "Segurado cometeu suicídio 18 meses após a contratação (produto Vida Inteira). Beneficiários querem saber se há cobertura do capital segurado.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.7142411321760719
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "O suicídio ocorreu 18 meses após a contratação, dentro do período de carência de 2 anos previsto nas condições gerais para morte resultante de tentativa de suicídio ou suicídio praticado. Como a carência não foi cumprida integralmente, a seguradora não pagará o capital segurado aos beneficiários. Nesse caso, a seguradora devolverá a reserva matemática constituída, ocasionando o cancelamento automático da cobertura. Os beneficiários devem ser orientados a solicitar formalmente a devolução da reserva matemática no prazo de 30 dias após a negativa.",
+      "riskFlags": [
+        "Carência de 2 anos para suicídio não cumprida: evento ocorreu com 18 meses de vigência, faltando 6 meses para completar a carência",
+        "A seguradora devolverá apenas a reserva matemática constituída, não o capital segurado contratado",
+        "Cancelamento automático da cobertura após devolução da reserva matemática",
+        "Beneficiários têm prazo de 30 dias após a negativa para solicitar o cancelamento e devolução da reserva matemática",
+        "Se não houver reserva matemática constituída, será devolvido o valor do prêmio de risco",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 5,
+      "totalClaims": 6,
+      "latencyMs": 21872,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A cobertura de Morte por suicídio possui carência de 2 anos. Como o evento ocorreu 18 meses após a contratação, o sinistro não está coberto. Nesses casos, a seguradora devolverá a reserva matemática, ocasionando o cancelamento automático da cobertura.",
+      "riskFlags": [
+        "Carencia para suicídio: 2 anos",
+        "Devolução da reserva matemática em caso de negativa por carência",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 2,
+      "totalClaims": 3,
+      "latencyMs": 3681,
+      "error": null
+    }
+  },
+  {
+    "id": "Q48",
+    "insurer": "Prudential do Brasil",
+    "product": "Seguro Temporário",
+    "claimType": "morte_natural",
+    "facts": "Segurado faleceu de infarto agudo do miocárdio. Produto Seguro Temporário, vigente há 3 anos, pagamentos em dia. Beneficiário quer saber sobre o capital segurado.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.714289567899916
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "O Seguro Temporário cobre morte por quaisquer causas, naturais ou acidentais, conforme previsto nas condições gerais. O infarto agudo do miocárdio é causa natural de morte e não se enquadra em nenhuma das exclusões identificadas nos chunks disponíveis. Com 3 anos de vigência e pagamentos em dia, o contrato está ativo e fora do período de contestabilidade típico de 2 anos. O beneficiário tem direito ao capital individual segurado, a ser pago em até 30 dias após entrega de toda a documentação.",
+      "riskFlags": [
+        "Verificar se a apólice está dentro do período de contestabilidade: se o contrato tiver menos de 2 anos, a seguradora pode investigar omissões na DPS (Declaração Pessoal de Saúde) – no caso em tela, 3 anos de vigência reduz significativamente esse risco",
+        "Confirmar que não há histórico de doença cardíaca pré-existente declarada ou omitida na DPS, pois omissão dolosa pode ensejar negativa com base no Art. 766 do Código Civil",
+        "Verificar se o capital segurado não sofreu redução por ajuste de faixa etária ou inadimplência parcial nos últimos meses",
+        "Confirmar que o produto contratado é efetivamente o Seguro Temporário com cobertura principal de Morte por qualquer causa, e não apenas cobertura de Morte Acidental",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 6,
+      "latencyMs": 25348,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "O segurado faleceu de infarto agudo do miocárdio, que é uma morte natural. A cobertura de Morte por Qualquer Causa abrange eventos naturais ou acidentais, e o Seguro Temporário estava vigente há 3 anos com pagamentos em dia, não havendo indícios de exclusão ou carência aplicável. O beneficiário tem direito ao capital segurado.",
+      "riskFlags": [
+        "Verificar se há alguma exclusão específica para doenças cardíacas nas condições gerais não fornecidas",
+        "Confirmar se a Declaração Pessoal de Saúde (DPS) foi preenchida corretamente e se não houve omissão de informações sobre doenças preexistentes",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 4,
+      "latencyMs": 5021,
+      "error": null
+    }
+  },
+  {
+    "id": "Q49",
+    "insurer": "Azos",
+    "product": "Azos Vida",
+    "claimType": "morte_natural",
+    "facts": "Segurado contratou Azos Vida há 1 ano e faleceu. A família descobriu diabetes há 3 anos, não declarada na DPS. Risco de recusa por má-fé (Art. 766 CC)?",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.6590494610047127
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.35,
+      "rationale": "A cobertura de Morte por causa natural está prevista nas condições especiais do produto Azos Vida, desde que respeitado o período de carência e as demais condições contratuais. Contudo, o não preenchimento correto da DPS (Declaração Pessoal de Saúde) — omitindo diagnóstico de diabetes conhecida há 3 anos — configura potencial agravamento do risco não declarado, expondo o sinistro à recusa com base no Art. 766 do Código Civil. O contrato está dentro do prazo de contestabilidade (menos de 2 anos), o que aumenta significativamente o risco de investigação aprofundada pela seguradora. A indenização estará sujeita à análise da documentação e das circunstâncias do sinistro, conforme previsto nas condições gerais.",
+      "riskFlags": [
+        "CONTESTABILIDADE ATIVA: contrato com menos de 2 anos — seguradora pode investigar a DPS e contestar o sinistro com base em omissão de informações de saúde",
+        "MÁ-FÉ POTENCIAL (Art. 766 CC): diabetes diagnosticada há 3 anos e não declarada na DPS configura omissão de risco preexistente, podendo ensejar recusa total da indenização",
+        "NEXO CAUSAL: se a causa mortis tiver relação direta com o diabetes não declarado, a seguradora tem fundamento técnico e jurídico para negar o sinistro",
+        "CARÊNCIA: verificar se o óbito ocorreu dentro do período de carência previsto na apólice para morte por causa natural",
+        "A indenização está sujeita à análise da documentação e das circunstâncias do sinistro, conforme condições contratuais — não há pagamento automático",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 3,
+      "totalClaims": 6,
+      "latencyMs": 26760,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.9,
+      "rationale": "A cobertura de Morte por causa natural está prevista, porém, o falecimento do segurado por doença preexistente não declarada na DPS, como o diabetes, pode configurar má-fé. Isso pode levar à recusa do sinistro pela seguradora, conforme o Art. 766 do Código Civil, que trata da perda do direito à indenização em caso de declarações inexatas ou omissões.",
+      "riskFlags": [
+        "Doença preexistente não declarada na DPS (diabetes)",
+        "Possibilidade de alegação de má-fé por parte da seguradora (Art. 766 CC)",
+        "Análise de contestabilidade da DPS",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 1,
+      "totalClaims": 3,
+      "latencyMs": 3549,
+      "error": null
+    }
+  },
+  {
+    "id": "Q50",
+    "insurer": "MetLife",
+    "product": "Acidentes Pessoais (AP)",
+    "claimType": "morte_acidental",
+    "facts": "Empregado atropelado em horário de trabalho, dirigindo veículo da empresa. A empresa tem cobertura MetLife de Acidentes Pessoais (AP). A cobertura AP aplica?",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.6840629157061773
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.72,
+      "rationale": "A cobertura de Morte Acidental (MA) da MetLife cobre morte em consequência exclusiva de Acidente Pessoal, definido como evento externo, súbito, involuntário e violento. O atropelamento enquanto o segurado conduzia veículo da empresa em princípio se enquadra nessa definição. Contudo, há risco de negativa caso o segurado não possuísse CNH válida (exclusão expressa por ausência de habilitação) ou se houver resultado positivo em exame de dosagem alcoólica/toxicológica. A seguradora solicitará cópia da CNH e laudo de dosagem alcoólica, e qualquer irregularidade pode fundamentar recusa.",
+      "riskFlags": [
+        "EXCLUSÃO CRÍTICA: ausência de CNH válida do segurado ao conduzir o veículo pode ensejar negativa expressa (exclusão por 'ausência de habilitação do Segurado para condução de veículo automotor')",
+        "EXCLUSÃO CRÍTICA: resultado positivo em exame de dosagem alcoólica ou toxicológica pode fundamentar recusa com base nos riscos excluídos das Condições Gerais",
+        "ATENÇÃO: a cobertura MA exige que a morte decorra 'exclusivamente' de Acidente Pessoal — qualquer causa concorrente de natureza clínica pode ser usada para contestar o sinistro",
+        "VERIFICAR: se a apólice contratada é especificamente de Acidentes Pessoais (AP) ou inclui cobertura de Morte Acidental (MA) — a cobertura MA deve estar expressamente contratada no certificado individual",
+        "CONTESTABILIDADE: declarações de saúde (DPS) podem ser revisadas nos primeiros 2 anos de vigência do contrato (Art. 766 CC)",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 5,
+      "totalClaims": 6,
+      "latencyMs": 29013,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A cobertura de Morte Acidental (MA) garante o pagamento de indenização em caso de morte do segurado em consequência exclusiva de Acidente Pessoal. O atropelamento por veículo de tração automotora, mesmo que o segurado estivesse dirigindo veículo da empresa, se enquadra na definição de Acidente Pessoal e não está listado como risco excluído. A cobertura de Morte Acidental por Acidente Automobilístico (MAAUT) também se aplicaria, pois o evento ocorreu com veículo de tração automotora.",
+      "riskFlags": [
+        "Verificar se a cobertura de Morte Acidental (MA) ou Morte Acidental por Acidente Automobilístico (MAAUT) foi efetivamente contratada na apólice.",
+        "Confirmar se o evento não se enquadra em nenhuma das exclusões gerais ou específicas da cobertura de Morte Acidental.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 4,
+      "latencyMs": 5704,
+      "error": null
+    }
+  },
+  {
+    "id": "Q51",
+    "insurer": "Prudential do Brasil",
+    "product": "Seguro de Vida (morte)",
+    "claimType": "morte_natural",
+    "facts": "Segurado faleceu de AVC (morte natural). Apólice vigente há 6 meses, pagamentos em dia, sem doença preexistente declarada ou conhecida.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.6974118585636131
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.72,
+      "rationale": "O produto Prudential Vida Inteira (chunk_4) prevê cobertura de MORTE por qualquer causa, o que inclui morte natural por AVC. Contudo, a apólice está vigente há apenas 6 meses, o que a coloca dentro do período de contestabilidade de 2 anos previsto no Art. 798 do Código Civil Brasileiro, permitindo à seguradora investigar eventuais omissões na Declaração Pessoal de Saúde. Não há exclusão explícita para AVC nos chunks disponíveis, mas a ausência de chunks detalhando carências específicas para morte natural impede confirmação plena. O sinistro tem boa chance de ser pago, mas o corretor deve estar atento ao risco de contestação por DPS.",
+      "riskFlags": [
+        "Apólice vigente há apenas 6 meses: dentro do período de contestabilidade de 2 anos (Art. 798 do Código Civil), a seguradora pode investigar omissões na DPS",
+        "Verificar se houve declaração de saúde (DPS) no momento da contratação e se AVC ou doenças relacionadas (hipertensão, diabetes, fibrilação atrial) foram omitidas",
+        "Ausência de chunks com carência específica para morte natural: não é possível confirmar se há carência aplicável a este evento",
+        "Caso a seguradora identifique omissão dolosa na DPS, pode haver negativa com base no Art. 766 do Código Civil",
+        "Os chunks disponíveis não detalham as condições gerais completas de exclusão para morte natural, o que limita a análise"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 6,
+      "latencyMs": 25042,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A apólice cobre morte por qualquer causa, e o falecimento por AVC se enquadra nesta cobertura. Não há indicação de exclusão para morte natural ou AVC, e a apólice está vigente com pagamentos em dia. O prazo de carência para morte natural geralmente é de 24 meses, mas como não há menção de doença preexistente, a cobertura é válida após 6 meses.",
+      "riskFlags": [
+        "Verificar se há carência específica para morte natural na apólice, embora 6 meses seja geralmente suficiente para morte natural sem preexistência.",
+        "Confirmar que não houve omissão de informações na Declaração Pessoal de Saúde (DPS).",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 2,
+      "totalClaims": 5,
+      "latencyMs": 4756,
+      "error": null
+    }
+  },
+  {
+    "id": "Q52",
+    "insurer": "MAG Seguros",
+    "product": "Vida Individual",
+    "claimType": "morte_natural",
+    "facts": "Segurado cometeu suicídio 30 meses após a contratação. Beneficiários pedem o capital segurado.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.669745608495484
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "O suicídio ocorreu 30 meses após a contratação, superando a carência de 24 meses prevista nas condições gerais. As condições gerais excluem o pagamento do capital segurado apenas nos primeiros 24 meses de vigência; após esse prazo, o suicídio é tratado como causa de morte coberta. Os beneficiários têm direito ao capital segurado integral, desde que apresentem a documentação exigida para morte natural.",
+      "riskFlags": [
+        "Atenção: a exclusão de suicídio se aplica apenas nos primeiros 24 meses; como o evento ocorreu com 30 meses de vigência, a exclusão NÃO se aplica",
+        "Verificar se o contrato foi suspenso e reconduzido em algum momento — nesse caso, a carência de 24 meses reinicia a partir da recondução",
+        "Caso a seguradora questione a causa da morte, pode haver tentativa de enquadramento em 'ato ilícito doloso' — porém, suicídio após carência é pacificamente coberto pela jurisprudência brasileira (STJ)",
+        "Confirmar que os prêmios estavam em dia na data do evento para não haver risco de cancelamento por inadimplência",
+        "Verificar se houve Declaração Pessoal de Saúde (DPS) na contratação — se não houve, a carência de 24 meses se aplica integralmente, mas já foi cumprida neste caso",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 5,
+      "latencyMs": 25045,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A cobertura de morte natural é aplicável, e o suicídio ocorreu após o período de carência de 24 meses estabelecido nas condições gerais. Portanto, os beneficiários têm direito ao capital segurado.",
+      "riskFlags": [
+        "Verificar a data exata de início de vigência da apólice para confirmar o cumprimento do período de carência de 24 meses para suicídio.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 3,
+      "totalClaims": 3,
+      "latencyMs": 4251,
+      "error": null
+    }
+  },
+  {
+    "id": "Q53",
+    "insurer": "Prudential do Brasil",
+    "product": "Doenças Graves",
+    "claimType": "doenca_grave",
+    "facts": "Segurado sofreu infarto agudo do miocárdio (sobreviveu). Cobertura de Doenças Graves vigente há 3 anos, em dia. Quer acionar.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.7826473146505112
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "O infarto agudo do miocárdio (IAM) está expressamente listado como doença grave coberta nas condições especiais, exigindo diagnóstico baseado em dor típica no peito, mudanças eletrocardiográficas compatíveis com IAM, elevação de enzimas específicas e comprovação de morte do músculo cardíaco por ecocardiografia. O segurado sobreviveu, e a cobertura exige sobrevivência de 30 dias após o diagnóstico para que o benefício seja devido. Com 3 anos de vigência e pagamentos em dia, não há carência pendente nem contestabilidade aplicável. O evento é coberto desde que os laudos médicos atendam rigorosamente aos critérios técnicos definidos na cláusula.",
+      "riskFlags": [
+        "O laudo DEVE conter todos os três critérios cumulativos: dor típica + ECG compatível + elevação enzimática + ecocardiograma — a ausência de qualquer um pode ensejar questionamento pela seguradora",
+        "A cobertura exige sobrevivência de 30 dias após o diagnóstico; o sinistro só deve ser aberto após esse prazo ser cumprido",
+        "O diagnóstico não pode ter sido emitido por parente, dependente ou pessoa com laços de dependência econômica com o segurado, ainda que médico habilitado (risco de exclusão formal)",
+        "Verificar se há declaração de saúde (DPS) com omissão de doença cardíaca pré-existente — se a seguradora identificar pré-existência não declarada dentro do período de contestabilidade (geralmente 2 anos), pode haver negativa; como a cobertura tem 3 anos, esse risco é reduzido mas não nulo se houver indício de má-fé",
+        "Confirmar que a data do diagnóstico ocorreu após o início de vigência da cobertura de Doenças Graves",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 6,
+      "totalClaims": 7,
+      "latencyMs": 29604,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "O segurado sofreu um infarto agudo do miocárdio, que é uma das doenças graves cobertas pela apólice. A cobertura de Doenças Graves está vigente há 3 anos e os pagamentos estão em dia, atendendo aos requisitos de carência e vigência. Além disso, o segurado sobreviveu ao evento, o que é uma condição para o pagamento da indenização.",
+      "riskFlags": [
+        "Verificar se o diagnóstico foi emitido e constatado pela primeira vez após a data de início de vigência da cobertura.",
+        "Confirmar a sobrevivência do segurado por 30 dias após o diagnóstico.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 3,
+      "totalClaims": 3,
+      "latencyMs": 3933,
+      "error": null
+    }
+  },
+  {
+    "id": "Q54",
+    "insurer": "Azos",
+    "product": "Doenças Graves",
+    "claimType": "doenca_grave",
+    "facts": "Segurada diagnosticada com doença de Crohn. Cobertura de Doenças Graves da Azos vigente há 2 anos. Quer saber se aciona.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.7471805578439741
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A cobertura de Doenças Graves da Excelsior Azos (DG10, DG13 e DG30) cobre exclusivamente as doenças graves expressamente listadas nas Condições Especiais de cada cobertura. A Doença de Crohn não consta em nenhuma das listas de doenças graves cobertas identificadas nos chunks disponíveis — as coberturas mencionam câncer, leucemias e doenças do sistema linfático como exemplos, sem incluir doenças inflamatórias intestinais. Como a apólice exige diagnóstico de doença expressamente prevista, o sinistro não encontra amparo contratual.",
+      "riskFlags": [
+        "Doença de Crohn NÃO está listada como doença grave coberta nas condições especiais DG10, DG13 ou DG30 — cobertura não se aplica",
+        "As coberturas de Doenças Graves da Azos cobrem exclusivamente os eventos expressamente listados; doenças inflamatórias intestinais não constam da lista",
+        "Mesmo com 2 anos de vigência (carência de 60 dias já cumprida), a ausência da doença na lista de coberturas é impeditivo absoluto",
+        "Verificar se a segurada possui cobertura adicional de Diária de Internação Hospitalar (DIH) ou Renda de Incapacidade Temporária (RIT), que poderiam ser acionadas em caso de internação ou afastamento decorrente da doença",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 5,
+      "latencyMs": 20489,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A cobertura de Doenças Graves da Azos especifica exaustivamente as doenças consideradas graves. A doença de Crohn não está listada como uma das doenças graves cobertas nas condições gerais fornecidas, o que a exclui da indenização.",
+      "riskFlags": [
+        "A doença de Crohn não está explicitamente listada nas condições de cobertura de Doenças Graves.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 2,
+      "totalClaims": 2,
+      "latencyMs": 3206,
+      "error": null
+    }
+  },
+  {
+    "id": "Q55",
+    "insurer": "Azos",
+    "product": "Azos Vida (morte acidental)",
+    "claimType": "morte_acidental",
+    "facts": "Segurado morreu em acidente de trânsito (colisão, motorista sóbrio). Apólice Azos Vida com cobertura de Morte Acidental vigente há 1 ano, em dia.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.6844424822198393
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A cobertura de Morte Acidental (MAC) da Excelsior/Azos cobre expressamente a morte do segurado decorrente de acidente pessoal ocorrido durante a vigência do risco individual. Acidente de trânsito com motorista sóbrio configura acidente pessoal típico, sem enquadramento nas exclusões identificadas nos chunks. Não há carência para eventos decorrentes de acidentes pessoais, exceto suicídio. O único risco residual é a necessidade de causa determinada e conhecida na certidão/laudo, pois morte por causa indeterminada é expressamente excluída.",
+      "riskFlags": [
+        "Morte por causa indeterminada ou desconhecida é expressamente excluída — garantir que certidão de óbito e laudo médico/IML contenham causa mortis clara e determinada",
+        "Apólice tem apenas 1 ano de vigência: verificar se o sinistro não envolve qualquer hipótese de suicídio (carência de 2 anos aplicável apenas a suicídio — não se aplica ao caso, mas deve ser descartado formalmente)",
+        "Verificar se as Condições Gerais (Cláusula 6 – Riscos Excluídos, não transcrita integralmente nos chunks) não contém exclusão específica para acidente de trânsito em determinadas circunstâncias (ex: participação em corrida, veículo irregular)",
+        "Confirmar que a apólice está em dia (prêmio pago) na data do sinistro — inadimplência pode gerar cancelamento retroativo",
+        "Se houver cobertura de Morte (natural/acidental) contratada simultaneamente, as indenizações se acumulam — orientar beneficiários a acionar ambas as coberturas",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 5,
+      "totalClaims": 6,
+      "latencyMs": 29057,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A morte do segurado decorrente de acidente pessoal, como uma colisão de trânsito, está coberta pela apólice de Morte Acidental, conforme a Cláusula 1.1. Não há carência para eventos decorrentes de Acidentes Pessoais, e a apólice está vigente há 1 ano, o que atende aos requisitos.",
+      "riskFlags": [
+        "Verificar se a cobertura de Morte Acidental foi efetivamente contratada na apólice.",
+        "Confirmar se não há outras exclusões aplicáveis nas Condições Gerais não fornecidas.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 3,
+      "totalClaims": 3,
+      "latencyMs": 4267,
+      "error": null
+    }
+  },
+  {
+    "id": "Q56",
+    "insurer": "MetLife",
+    "product": "Acidentes Pessoais (IPA)",
+    "claimType": "invalidez",
+    "facts": "Segurado perdeu dois membros (amputação de perna e braço) em acidente de trabalho. Cobertura de Invalidez Permanente por Acidente (IPA). Vigente há 4 anos.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.6920020685977634
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "O evento de amputação de perna e braço em acidente de trabalho se enquadra diretamente na definição de Invalidez Permanente por Acidente (IPA), que cobre perda funcional definitiva de membros decorrente exclusivamente de Acidente Pessoal coberto. A cobertura está vigente há 4 anos, afastando riscos de carência e contestabilidade. A indenização será calculada aplicando-se os percentuais da Tabela para Cálculo de Percentuais de Indenização sobre o Capital Segurado vigente na data do acidente. Atenção: como são dois membros distintos, cada um terá seu percentual apurado separadamente conforme a tabela.",
+      "riskFlags": [
+        "Verificar se o acidente de trabalho não se enquadra em algum Risco Excluído das Condições Gerais (ex: ato doloso, guerra, etc.) — os chunks não detalham todos os riscos excluídos da cobertura IPA especificamente",
+        "A indenização de dois membros será calculada separadamente pela Tabela de Percentuais; confirmar se a soma dos percentuais pode atingir 100% do Capital Segurado (invalidez total)",
+        "Caso haja pagamento prévio por Doenças Graves e Procedimentos Cirúrgicos decorrente do mesmo acidente, o valor já pago será deduzido do Capital Segurado de IPA (chunk_4, item 12.4)",
+        "Confirmar que o Capital Segurado considerado é o vigente na data do acidente, não havendo reajuste posterior ao evento (chunk_3, item 2.3)",
+        "Verificar se a apólice coletiva exige vínculo empregatício ativo na data do acidente para manutenção da cobertura",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 7,
+      "totalClaims": 8,
+      "latencyMs": 36958,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A cobertura de Invalidez Permanente por Acidente (IPA) garante o pagamento de indenização em caso de perda ou impotência definitiva de membros ou órgãos, desde que decorrente de Acidente Pessoal coberto e não se enquadre nos riscos excluídos. A perda de dois membros em acidente de trabalho se enquadra na definição de invalidez permanente por acidente, e a apólice está vigente há 4 anos, superando qualquer período de carência.",
+      "riskFlags": [
+        "Verificar se o acidente de trabalho não se enquadra em nenhuma das exclusões gerais ou específicas da cobertura IPA.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 3,
+      "totalClaims": 4,
+      "latencyMs": 5018,
+      "error": null
+    }
+  },
+  {
+    "id": "Q57",
+    "insurer": "Prudential do Brasil",
+    "product": "Invalidez por Doença (LPD)",
+    "claimType": "invalidez",
+    "facts": "Segurado com esclerose múltipla progressiva, afastado definitivamente do trabalho. Cobertura de Invalidez Funcional Permanente Total por Doença vigente há 4 anos.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.7101655789227104
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.72,
+      "rationale": "A esclerose múltipla progressiva pode se enquadrar como risco coberto pela IFPD caso seja comprovada a perda da existência independente do segurado, especialmente sob os critérios de 'doenças manifestas no sistema nervoso com sequelas encefálicas e/ou medulares que acarretem repercussões deficitárias na totalidade de algum órgão vital e/ou sentido de orientação e/ou das funções de dois membros, em grau máximo' (chunk_3/chunk_5). O principal risco é que a seguradora pode exigir comprovação de que o quadro atingiu o grau máximo exigido ou, alternativamente, que o segurado atinja 60 pontos no instrumento de avaliação de invalidez funcional (IAIF). O afastamento do trabalho e a aposentadoria por invalidez concedida pelo INSS não caracterizam por si só a invalidez funcional permanente e total por doença para fins desta cobertura. A cobertura está vigente há 4 anos, o que em princípio supera carências usuais, mas a regulação do sinistro dependerá da avaliação médica da seguradora.",
+      "riskFlags": [
+        "A aposentadoria por invalidez concedida pelo INSS NÃO caracteriza por si só a invalidez funcional permanente e total por doença para fins desta cobertura – a seguradora fará avaliação médica própria",
+        "A seguradora pode não reconhecer o quadro se as sequelas não atingirem o 'grau máximo' exigido para doenças do sistema nervoso, mesmo com afastamento definitivo do trabalho",
+        "Caso o enquadramento direto nos critérios listados não seja reconhecido, o segurado precisará atingir 60 pontos no IAIF (máximo 80 pontos) para ter direito à indenização",
+        "A seguradora pode solicitar que o segurado se submeta a exame clínico próprio; recusa acarreta perda do direito à indenização",
+        "Verificar se a apólice contém carência específica para IFPD – embora a cobertura esteja vigente há 4 anos, é necessário confirmar o prazo de carência contratado",
+        "O pagamento do capital somente é devido a partir da data de comprovação e reconhecimento da invalidez pela seguradora, não da data do afastamento",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 7,
+      "totalClaims": 8,
+      "latencyMs": 34976,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.8,
+      "rationale": "A esclerose múltipla progressiva pode ser enquadrada como doença do sistema nervoso com sequelas que acarretam repercussões deficitárias, conforme as condições da cobertura de Invalidez Funcional Permanente Total por Doença (IFPD). No entanto, a seguradora reserva-se o direito de não considerar quadros clínicos certificados por perícias que se baseiem apenas na incapacidade de natureza profissional, sendo necessária a comprovação da perda da existência independente do segurado.",
+      "riskFlags": [
+        "A seguradora pode não considerar a aposentadoria por invalidez do INSS como prova suficiente da invalidez funcional permanente e total por doença.",
+        "A comprovação da invalidez funcional permanente e total por doença deve ir além da incapacidade profissional, focando na perda da existência independente.",
+        "A seguradora pode solicitar exames adicionais e/ou avaliação por junta médica.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 5,
+      "totalClaims": 5,
+      "latencyMs": 6614,
+      "error": null
+    }
+  },
+  {
+    "id": "Q58",
+    "insurer": "MAG Seguros",
+    "product": "Vida (morte acidental)",
+    "claimType": "morte_acidental",
+    "facts": "Segurado morreu praticando paraquedismo (salto recreativo). Apólice de vida com cobertura de morte acidental, vigente há 2 anos.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.6801368875353125
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.62,
+      "rationale": "A cobertura de morte acidental está vigente e o evento (morte em paraquedismo recreativo) é, em princípio, um acidente pessoal conforme definição das condições gerais. Contudo, as condições gerais não listam explicitamente esportes de risco/paraquedismo como exclusão, mas também não os incluem expressamente como cobertos. O risco reside na possibilidade de a seguradora enquadrar a atividade como risco agravado não declarado na DPS ou invocar exclusão por ato ilícito doloso, além de verificar se houve declaração da prática esportiva na proposta. A apólice está vigente há 2 anos, o que afasta a contestabilidade por suicídio, mas não elimina a análise de agravamento de risco.",
+      "riskFlags": [
+        "Paraquedismo é atividade de risco elevado: a seguradora pode argumentar agravamento de risco não declarado na DPS (Art. 766 CC), caso o segurado praticasse a atividade regularmente e não tenha informado na proposta",
+        "As condições gerais não listam paraquedismo como exclusão expressa, mas também não o incluem como cobertura garantida – zona cinzenta contratual",
+        "Verificar se a apólice contratada é 'Vida Inteira' ou 'Vida Inteira Resgatável': os chunks indicam dois produtos distintos com condições gerais similares, mas é necessário confirmar qual produto está vigente",
+        "Risco de enquadramento como 'ato ilícito doloso' é baixo para salto recreativo, mas deve ser descartado com documentação da empresa de paraquedismo",
+        "Exclusão de suicídio não se aplica (apólice vigente há 2 anos, prazo de 2 anos já cumprido conforme chunk_10)",
+        "Confirmar se houve adiantamento por Doença Terminal (ADT) anteriormente, pois o valor seria abatido do capital segurado",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 6,
+      "totalClaims": 7,
+      "latencyMs": 34489,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A apólice cobre morte por causas acidentais, e o paraquedismo recreativo não está listado como risco excluído nas condições gerais. A vigência da apólice por 2 anos também atende aos requisitos de carência para suicídio, embora não seja o caso aqui, reforçando a cobertura para eventos acidentais.",
+      "riskFlags": [
+        "Verificar se há alguma cláusula específica sobre esportes de risco não declarados na proposta.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 4,
+      "latencyMs": 9052,
+      "error": null
+    }
+  },
+  {
+    "id": "Q59",
+    "insurer": "MetLife",
+    "product": "Acidentes Pessoais",
+    "claimType": "morte_acidental",
+    "facts": "Segurado morreu em acidente de carro dirigindo com concentração de álcool acima do limite legal (laudo confirma embriaguez). Cobertura AP MetLife vigente há 3 anos.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.6787532151438468
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "O sinistro envolve morte em acidente automobilístico com embriaguez comprovada por laudo. Embora a cobertura de Morte Acidental esteja vigente há 3 anos (sem carência), as Condições Gerais excluem eventos causados exclusivamente pela ausência de habilitação ou por atos reconhecidamente perigosos sem necessidade justificada. Mais diretamente, a cobertura de Morte Acidental por Acidente Automobilístico (MAAUT) cobre apenas acidentes causados por veículos automotores, mas remete aos riscos excluídos das Condições Gerais, que incluem a condução sob efeito de álcool acima do limite legal como ato reconhecidamente perigoso. A seguradora tende a negar com base na exclusão de ato perigoso injustificado, especialmente com laudo toxicológico confirmando embriaguez.",
+      "riskFlags": [
+        "EXCLUSÃO CRÍTICA: Laudo toxicológico confirmando embriaguez acima do limite legal caracteriza 'ato reconhecidamente perigoso sem necessidade justificada', fundamento para negativa nas Condições Gerais (item 5)",
+        "A cobertura MAAUT cobre morte por acidente automobilístico, mas remete integralmente aos Riscos Excluídos das Condições Gerais, que abrangem condução sob efeito de álcool",
+        "Mesmo com apólice vigente há 3 anos (sem questão de carência ou contestabilidade), a exclusão por ato perigoso é permanente e não é afastada pelo tempo de vigência",
+        "O Art. 768 do Código Civil brasileiro prevê perda do direito à indenização se o segurado agravar intencionalmente o risco — condução alcoolizada pode ser enquadrada neste dispositivo pela seguradora",
+        "Recomenda-se ao corretor não criar expectativa de pagamento junto aos beneficiários antes de análise formal da seguradora",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 5,
+      "totalClaims": 6,
+      "latencyMs": 31933,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A morte do segurado em acidente automobilístico, com comprovação de embriaguez, se enquadra em uma exclusão de risco específica para a cobertura de Morte Acidental. A apólice exclui eventos causados pela ausência de habilitação do segurado para condução de veículo automotor, o que pode ser interpretado como dirigir sob efeito de álcool acima do limite legal, e também atos reconhecidamente perigosos. Além disso, a cobertura de Morte Acidental por Acidente Automobilístico também possui exclusões que se aplicam.",
+      "riskFlags": [
+        "Exclusão por embriaguez ao volante",
+        "Exclusão por prática de atos reconhecidamente perigosos",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 5,
+      "latencyMs": 4545,
+      "error": null
+    }
+  },
+  {
+    "id": "Q60",
+    "insurer": "Prudential do Brasil",
+    "product": "Seguro de Vida",
+    "claimType": "morte_natural",
+    "facts": "Segurado faleceu de complicações de pneumonia 45 dias após a contratação. Sem doença preexistente conhecida. Quer saber sobre carência de morte por doença.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.720319740159716
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.55,
+      "rationale": "O evento é morte por doença (pneumonia), que em tese está coberto pela cobertura de morte por qualquer causa. Contudo, o sinistro ocorreu apenas 45 dias após a contratação, e os chunks disponíveis não trazem o prazo exato de carência para morte por doença natural, o que impede confirmar cobertura plena. A ausência de doença preexistente declarada favorece o segurado, mas a contestabilidade nos primeiros 2 anos de vigência (Art. 798 CC) permite à seguradora investigar eventuais omissões na DPS. O pagamento do benefício ocorre em até 30 dias após entrega de toda a documentação.",
+      "riskFlags": [
+        "Sinistro ocorreu apenas 45 dias após a contratação: prazo extremamente curto que pode acionar período de contestabilidade e investigação de carência para morte por doença",
+        "Os chunks fornecidos não especificam o prazo exato de carência para morte por doença natural neste produto – verificar condições gerais completas da apólice emitida",
+        "Período de contestabilidade de 2 anos (Art. 798 do Código Civil): a seguradora pode investigar se houve omissão de informações de saúde na DPS, mesmo sem doença preexistente declarada",
+        "Se houver carência contratual para morte por doença (comum em seguros de vida individuais), o sinistro aos 45 dias pode resultar em negativa ou devolução apenas da reserva matemática constituída",
+        "Solicitar cópia integral das condições gerais e da apólice para verificar cláusula de carência específica para morte natural",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 6,
+      "latencyMs": 25794,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": null,
+      "confidence": null,
+      "rationale": null,
+      "riskFlags": [],
+      "validatedClaims": 0,
+      "totalClaims": 0,
+      "latencyMs": null,
+      "error": "LLM retornou resposta invalida. Tente novamente ou reformule o evento."
+    }
+  },
+  {
+    "id": "Q61",
+    "insurer": "MetLife",
+    "product": "Seguro de Vida",
+    "claimType": "morte_natural",
+    "facts": "Segurado faleceu de AVC. Tinha hipertensão diagnosticada há 5 anos, não declarada na DPS. Apólice vigente há 2 anos.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.6410966763224537
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.35,
+      "rationale": "A cobertura de morte natural está prevista nas condições gerais da MetLife, abrangendo causas naturais ou acidentais. Contudo, a hipertensão não declarada na DPS configura omissão de doença preexistente, o que pode ensejar negativa com base no art. 766 do Código Civil (má-fé na declaração do risco). A apólice está vigente há 2 anos, período que ainda pode estar sujeito à contestabilidade por omissão dolosa. O risco de negativa é elevado dado que o AVC tem relação causal direta com a hipertensão preexistente não declarada.",
+      "riskFlags": [
+        "ALTO RISCO: Hipertensão diagnosticada há 5 anos não declarada na DPS — configura possível omissão de doença preexistente, podendo ensejar negativa por má-fé (art. 766 do Código Civil Brasileiro)",
+        "ALTO RISCO: AVC tem relação causal direta e documentada com hipertensão arterial, facilitando à seguradora demonstrar nexo causal entre a omissão e o sinistro",
+        "ATENÇÃO: Apólice vigente há apenas 2 anos — período de contestabilidade ainda pode ser invocado pela seguradora para investigar declarações prestadas na contratação",
+        "ATENÇÃO: A seguradora poderá solicitar prontuários médicos anteriores à contratação para comprovar o conhecimento prévio da doença pelo segurado",
+        "ATENÇÃO: Mesmo que a seguradora não prove dolo, pode arguir agravamento do risco não comunicado (art. 769 CC)",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 3,
+      "totalClaims": 6,
+      "latencyMs": 28584,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.8,
+      "rationale": "A morte por AVC pode ser coberta como morte natural, porém a não declaração de hipertensão pré-existente na Declaração Pessoal de Saúde (DPS) pode configurar omissão de informação relevante, sujeitando o sinistro à contestação pela seguradora, conforme o Código Civil.",
+      "riskFlags": [
+        "Omissão de doença pré-existente (hipertensão) na DPS",
+        "Possibilidade de contestação da seguradora devido à má-fé ou erro na declaração de saúde",
+        "Verificar se o AVC está listado como risco excluído em alguma condição específica, embora seja geralmente considerado morte natural.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 1,
+      "totalClaims": 4,
+      "latencyMs": 4325,
+      "error": null
+    }
+  },
+  {
+    "id": "Q62",
+    "insurer": "MAG Seguros",
+    "product": "DIT (Diária de Incapacidade Temporária)",
+    "claimType": "diaria",
+    "facts": "Segurado fraturou a perna e ficou 20 dias afastado do trabalho. Cobertura DIT vigente há 1 ano. Quer saber se recebe diárias.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.5903400235412501
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "As condições gerais fornecidas nos chunks indexados referem-se exclusivamente ao produto Vida Inteira Resgatável, que contempla coberturas de Morte, Adiantamento por Doença Terminal (ADT) e Dispensa de Prêmio por Invalidez (DPI). Não há qualquer cláusula, definição ou cobertura de Diária por Incapacidade Temporária (DIT) nos documentos analisados. O evento descrito — fratura com afastamento temporário de 20 dias — não encontra amparo em nenhum dos chunks fornecidos. A análise fica prejudicada pela ausência das condições gerais específicas do produto DIT nos documentos enviados.",
+      "riskFlags": [
+        "ATENÇÃO: As condições gerais enviadas NÃO contemplam o produto DIT — é impossível confirmar cobertura sem o documento correto",
+        "Verificar se a apólice DIT possui carência para acidentes (algumas seguradoras isentam carência para acidente, mas é necessário confirmar nas condições específicas)",
+        "Verificar franquia mínima de dias: muitos produtos DIT só pagam a partir do 4º, 8º ou 15º dia de afastamento — impacta diretamente os 20 dias declarados",
+        "Confirmar se fratura decorrente de acidente está coberta ou se há exclusão para esportes/atividades de risco",
+        "Cobertura DIT vigente há apenas 1 ano: verificar se há período de contestabilidade (primeiros 2 anos) que permita à seguradora questionar declarações de saúde pré-existentes",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 2,
+      "totalClaims": 4,
+      "latencyMs": 21960,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A apólice não oferece cobertura para Diária de Incapacidade Temporária (DIT). As coberturas vigentes são Morte (M), Adiantamento por Doença Terminal (ADT) e Dispensa de Prêmio por Invalidez (DPI).",
+      "riskFlags": [
+        "O produto contratado não inclui Diária de Incapacidade Temporária (DIT).",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 2,
+      "totalClaims": 2,
+      "latencyMs": 2945,
+      "error": null
+    }
+  },
+  {
+    "id": "Q63",
+    "insurer": "Prudential do Brasil",
+    "product": "Doenças Graves",
+    "claimType": "doenca_grave",
+    "facts": "Segurada diagnosticada com câncer 70 dias após contratar a cobertura de Doenças Graves. Quer acionar.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.7849234592165721
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.72,
+      "rationale": "A cobertura de Doenças Graves prevê pagamento ao segurado que sobreviver 30 dias após o diagnóstico de câncer confirmado por médico especialista e exame histológico conclusivo. O diagnóstico ocorreu 70 dias após a contratação, o que em princípio atende ao requisito de que o diagnóstico seja emitido após o início de vigência. Contudo, há risco relevante relacionado ao período de carência de 90 dias previsto nas condições especiais: se a carência for de 90 dias, o diagnóstico aos 70 dias estaria dentro do período de carência, podendo gerar negativa. Adicionalmente, a seguradora pode investigar se os sintomas já eram reconhecidos pela segurada antes da contratação (doença pré-existente), o que também excluiria a cobertura.",
+      "riskFlags": [
+        "RISCO CRÍTICO – Carência de 90 dias: o diagnóstico ocorreu aos 70 dias de vigência, possivelmente dentro do período de carência de 90 dias previsto nas condições especiais. Verificar na apólice o prazo exato de carência aplicável a este produto.",
+        "RISCO – Doença pré-existente: a seguradora pode investigar se os sintomas já eram conhecidos pela segurada antes da contratação. Caso confirmado, o sinistro pode ser negado com base na cláusula de que o diagnóstico deve ser emitido e constatado pela primeira vez após o início de vigência.",
+        "RISCO – Contestabilidade: nos primeiros 2 anos de vigência, a seguradora pode revisar as declarações de saúde prestadas na DPS. Qualquer omissão pode ensejar negativa com base no Art. 766 do Código Civil.",
+        "ATENÇÃO – Exclusões de câncer: verificar se o tipo específico de câncer diagnosticado não se enquadra nas exclusões previstas (ex: carcinoma basocelular de pele, câncer de próstata estágio T1, melanoma Clark I/II, carcinoma papilífero de tireoide < 1cm, neoplasia intraepitelial, tumor in situ, tumor na presença de HIV).",
+        "ATENÇÃO – Sobrevivência de 30 dias: o evento coberto é a sobrevivência 30 dias após o diagnóstico. Confirmar que a segurada está viva e que já transcorreram 30 dias da data do diagnóstico antes de acionar o sinistro.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 6,
+      "totalClaims": 7,
+      "latencyMs": 30371,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.8,
+      "rationale": "A segurada foi diagnosticada com câncer 70 dias após a contratação da cobertura de Doenças Graves. Embora o câncer seja uma doença coberta, é crucial verificar o período de carência da apólice, que geralmente é de 90 dias para doenças graves, para determinar a elegibilidade da indenização. Além disso, o diagnóstico deve ser confirmado por exame histológico conclusivo e ter sido emitido pela primeira vez após o início da vigência da cobertura.",
+      "riskFlags": [
+        "Verificar o período de carência para Doenças Graves, que pode ser de 90 dias, pois o diagnóstico ocorreu 70 dias após a contratação.",
+        "Confirmar se o câncer diagnosticado não se enquadra nas exclusões específicas para câncer (ex: neoplasia intraepitelial cervical, tumores não invasivos, câncer de próstata estágio I, etc.).",
+        "Atenção à data do primeiro diagnóstico para garantir que ocorreu após o início da vigência e após a carência.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 5,
+      "latencyMs": 6125,
+      "error": null
+    }
+  },
+  {
+    "id": "Q64",
+    "insurer": "MAG Seguros",
+    "product": "Vida em Grupo (empresarial)",
+    "claimType": "morte_natural",
+    "facts": "Funcionário faleceu de morte natural (câncer). A empresa mantém apólice de Vida em Grupo da MAG vigente e em dia; o funcionário estava incluído na apólice há 2 anos.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.5793944315306121
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.72,
+      "rationale": "A cobertura de morte natural está prevista nas condições gerais da MAG Seguros para o produto Vida Inteira, garantindo indenização ao(s) beneficiário(s) em caso de falecimento por causas naturais durante a vigência. Contudo, os chunks disponíveis descrevem produtos 'Vida Inteira' e 'Vida Inteira Resgatável', enquanto o evento envolve um produto 'Vida em Grupo (empresarial)', cujas condições específicas não estão presentes nos documentos fornecidos. Adicionalmente, há risco de exclusão caso o câncer seja caracterizado como doença preexistente não declarada na proposta. Com 2 anos de vigência, o período de contestabilidade pode ainda ser relevante dependendo da data de diagnóstico.",
+      "riskFlags": [
+        "Os chunks disponíveis referem-se aos produtos 'Vida Inteira' e 'Vida Inteira Resgatável' — as condições específicas do produto 'Vida em Grupo (empresarial)' NÃO estão nos documentos analisados; pode haver cláusulas distintas de carência e exclusão",
+        "Risco de exclusão por doença preexistente: se o câncer foi diagnosticado antes da adesão do funcionário à apólice e não foi declarado na DPS, a seguradora pode negar o sinistro com base no Art. 4º, alínea c",
+        "Período de contestabilidade: com apenas 2 anos de vigência, a seguradora pode investigar a DPS (Declaração Pessoal de Saúde) preenchida na adesão — omissões podem ensejar negativa com base no Art. 766 do Código Civil",
+        "Verificar se há carência específica para morte por doença no produto Vida em Grupo contratado — carências de 6 a 24 meses são comuns neste tipo de produto",
+        "Confirmar se o funcionário estava efetivamente incluído na apólice coletiva com adesão formalizada e prêmio quitado na data do óbito",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 3,
+      "totalClaims": 5,
+      "latencyMs": 26839,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "COBERTO",
+      "confidence": 0.9,
+      "rationale": "A cobertura de Morte Natural garante o pagamento de indenização aos beneficiários em caso de falecimento do segurado por causas naturais durante a vigência do seguro. O funcionário estava incluído na apólice há 2 anos, o que geralmente excede o período de carência para morte natural. A apólice está vigente e em dia, confirmando a elegibilidade para a cobertura.",
+      "riskFlags": [
+        "Verificar se há carência específica para morte natural na apólice de Vida em Grupo, embora 2 anos geralmente seja suficiente.",
+        "Confirmar se a doença (câncer) não era preexistente e de conhecimento do segurado sem declaração na proposta, conforme Art. 4º, alínea 'c' das Condições Gerais."
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 4,
+      "latencyMs": 4930,
+      "error": null
+    }
+  },
+  {
+    "id": "Q65",
+    "insurer": "Azos",
+    "product": "Azos Vida",
+    "claimType": "morte_natural",
+    "facts": "Segurado faleceu de morte natural, mas a apólice Azos Vida estava com 3 mensalidades em atraso (sem pagamento há 90 dias) na data do óbito.",
+    "retrieval": {
+      "chunkCount": 10,
+      "avgSimilarity": 0.6821897292674002
+    },
+    "sonnet": {
+      "model": "anthropic/claude-sonnet-4.6",
+      "verdict": "RISCO",
+      "confidence": 0.35,
+      "rationale": "A cobertura de Morte por causa natural está prevista nas condições gerais da Azos, cobrindo morte decorrente de causa natural durante a vigência do risco individual. Contudo, o ponto crítico aqui é que a apólice estava com 3 mensalidades em atraso (90 dias sem pagamento) na data do óbito, o que coloca em sério risco a vigência do contrato naquele momento. Os chunks disponíveis não detalham explicitamente a cláusula de suspensão ou cancelamento por inadimplência, mas a cobertura é condicionada à vigência do risco individual — se o seguro estava suspenso ou cancelado por falta de pagamento, a sinistro pode ser negado. É necessário verificar na apólice e nas condições gerais o prazo de carência de inadimplência antes do cancelamento automático.",
+      "riskFlags": [
+        "CRÍTICO: Apólice com 3 mensalidades em atraso (90 dias) na data do óbito — risco elevado de o seguro estar suspenso ou cancelado por inadimplência, o que pode inviabilizar a cobertura por ausência de vigência do risco individual",
+        "Os chunks fornecidos não contêm a cláusula específica de suspensão/cancelamento por inadimplência — é imprescindível consultar as Condições Gerais completas para verificar o prazo exato de tolerância antes do cancelamento automático",
+        "A cobertura é expressamente condicionada à vigência do risco individual: se cancelada antes do óbito, a negativa é provável",
+        "Verificar se houve comunicação formal de cancelamento pela seguradora antes da data do óbito",
+        "Em caso de cancelamento por inadimplência, avaliar se há previsão de reabilitação do contrato ou período de graça (grace period) nas condições gerais",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados"
+      ],
+      "validatedClaims": 4,
+      "totalClaims": 5,
+      "latencyMs": 26925,
+      "error": null
+    },
+    "control": {
+      "model": "google/gemini-2.5-flash",
+      "verdict": "RISCO",
+      "confidence": 0.45,
+      "rationale": "A cobertura de Morte por causa natural exige que o seguro esteja em vigor. O atraso de 90 dias no pagamento das mensalidades implica que o seguro não estava em vigor na data do falecimento, conforme as condições gerais da apólice.",
+      "riskFlags": [
+        "Atraso no pagamento do prêmio pode levar ao cancelamento da apólice e à negativa do sinistro.",
+        "Verificar se há cláusula de suspensão ou cancelamento por inadimplência.",
+        "Citacao removida automaticamente: trecho nao encontrado nos chunks indexados",
+        "Veredicto conclusivo rebaixado: sem citacao literal validada nos chunks"
+      ],
+      "validatedClaims": 1,
+      "totalClaims": 2,
+      "latencyMs": 3245,
+      "error": null
+    }
+  }
+]
