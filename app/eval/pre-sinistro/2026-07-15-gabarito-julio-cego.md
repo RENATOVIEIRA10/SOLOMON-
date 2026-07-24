@@ -2,6 +2,8 @@
 
 **Data:** 2026-07-15 · **Revisor:** Julio (corretor âncora) · **Modo: CEGO** — nenhuma resposta de modelo é mostrada. Você decide do zero, como faria no dia a dia.
 
+**Escopo:** apenas as 4 seguradoras principais — **MAG, MetLife, Azos, Prudential**.
+
 ## Por que isto existe
 Estamos calibrando o trilho de pré-sinistro do SOLOMON. Seu veredicto é o **gabarito** contra o qual medimos o acerto do sistema. Não há resposta "do computador" aqui de propósito — para não enviesar a sua.
 
@@ -34,12 +36,12 @@ Preencha o bloco `RESPOSTA` de cada caso. Se faltar informação para decidir, *
 **Fatos:** Segurado faleceu de infarto agudo do miocárdio. Produto Seguro Temporário, vigente há 3 anos, pagamentos em dia. Beneficiário quer saber sobre o capital segurado.
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
-### Q49 — Zurich · Zurich Vida (individual)
-**Fatos:** Segurado contratou há 1 ano e faleceu. A família descobriu diabetes há 3 anos, não declarada na DPS. Risco de recusa por má-fé (Art. 766 CC)?
+### Q49 — Azos · Azos Vida
+**Fatos:** Segurado contratou Azos Vida há 1 ano e faleceu. A família descobriu diabetes há 3 anos, não declarada na DPS. Risco de recusa por má-fé (Art. 766 CC)?
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
-### Q50 — Zurich · Zurich Vida Empresa (cobertura AP)
-**Fatos:** Empregado atropelado em horário de trabalho, dirigindo veículo da empresa. A empresa tem Zurich Vida Empresa com cobertura de Acidentes Pessoais (AP). A cobertura AP aplica?
+### Q50 — MetLife · Acidentes Pessoais (AP)
+**Fatos:** Empregado atropelado em horário de trabalho, dirigindo veículo da empresa. A empresa tem cobertura MetLife de Acidentes Pessoais (AP). A cobertura AP aplica?
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
 ---
@@ -58,12 +60,12 @@ Preencha o bloco `RESPOSTA` de cada caso. Se faltar informação para decidir, *
 **Fatos:** Segurado sofreu infarto agudo do miocárdio (sobreviveu). Cobertura de Doenças Graves vigente há 3 anos, em dia. Quer acionar.
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
-### Q54 — Zurich · Doenças Graves
-**Fatos:** Segurada diagnosticada com doença de Crohn. Cobertura de Doenças Graves vigente há 2 anos. Quer saber se aciona.
+### Q54 — Azos · Doenças Graves
+**Fatos:** Segurada diagnosticada com doença de Crohn. Cobertura de Doenças Graves da Azos vigente há 2 anos. Quer saber se aciona.
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
-### Q55 — Bradesco · Acidentes Pessoais
-**Fatos:** Segurado morreu em acidente de trânsito (colisão, motorista sóbrio). Apólice de Acidentes Pessoais (Morte Acidental) vigente há 1 ano, em dia.
+### Q55 — Azos · Azos Vida (morte acidental)
+**Fatos:** Segurado morreu em acidente de trânsito (colisão, motorista sóbrio). Apólice Azos Vida com cobertura de Morte Acidental vigente há 1 ano, em dia.
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
 ### Q56 — MetLife · Acidentes Pessoais (IPA)
@@ -78,8 +80,8 @@ Preencha o bloco `RESPOSTA` de cada caso. Se faltar informação para decidir, *
 **Fatos:** Segurado morreu praticando paraquedismo (salto recreativo). Apólice de vida com cobertura de morte acidental, vigente há 2 anos.
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
-### Q59 — Zurich · Acidentes Pessoais
-**Fatos:** Segurado morreu em acidente de carro dirigindo com concentração de álcool acima do limite legal (laudo confirma embriaguez). Cobertura AP vigente há 3 anos.
+### Q59 — MetLife · Acidentes Pessoais
+**Fatos:** Segurado morreu em acidente de carro dirigindo com concentração de álcool acima do limite legal (laudo confirma embriaguez). Cobertura AP MetLife vigente há 3 anos.
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
 ### Q60 — Prudential do Brasil · Seguro de Vida
@@ -98,12 +100,12 @@ Preencha o bloco `RESPOSTA` de cada caso. Se faltar informação para decidir, *
 **Fatos:** Segurada diagnosticada com câncer 70 dias após contratar a cobertura de Doenças Graves. Quer acionar.
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
-### Q64 — Bradesco · Vida em Grupo (empresarial)
-**Fatos:** Funcionário faleceu de morte natural (câncer). A empresa mantém apólice de Vida em Grupo vigente e em dia; o funcionário estava incluído na apólice há 2 anos.
+### Q64 — MAG Seguros · Vida em Grupo (empresarial)
+**Fatos:** Funcionário faleceu de morte natural (câncer). A empresa mantém apólice de Vida em Grupo da MAG vigente e em dia; o funcionário estava incluído na apólice há 2 anos.
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
-### Q65 — Zurich · Seguro de Vida
-**Fatos:** Segurado faleceu de morte natural, mas a apólice estava com 3 mensalidades em atraso (sem pagamento há 90 dias) na data do óbito.
+### Q65 — Azos · Azos Vida
+**Fatos:** Segurado faleceu de morte natural, mas a apólice Azos Vida estava com 3 mensalidades em atraso (sem pagamento há 90 dias) na data do óbito.
 `RESPOSTA` — Veredicto: ___ | Cláusula decisiva: ___ | Fatos ausentes: ___ | Confiança: ___ | Justificativa: ___ | Doc consultado: ___
 
 ---
