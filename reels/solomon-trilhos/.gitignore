@@ -1,0 +1,9 @@
+node_modules/
+out/
+.remotion/
+.tsbuildinfo
+*.tsbuildinfo
+.DS_Store
+public/voiceover/*.mp3
+public/voiceover/*.wav
+!public/voiceover/.gitkeep
