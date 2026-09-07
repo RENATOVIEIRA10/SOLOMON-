@@ -551,31 +551,54 @@ export async function crawlAllInsurersWithPlaywright(
   configs: CrawlerConfig[],
   options: { dryRun?: boolean; outputDir?: string } = {}
 ): Promise<PlaywrightCrawlResult[]> {
-  console.log(`\n[pw-crawler] Launching Chromium (headless)...`)
-
   // Dynamic import — playwright is only installed on VPS, not in Next.js build
   const { chromium } = await import('playwright')
 
-  const browser = await chromium.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-      '--single-process',
-    ],
-  })
+  const CHROMIUM_ARGS = [
+    '--no-sandbox',
+    '--disable-setuid-sandbox',
+    '--disable-dev-shm-usage',
+    '--disable-gpu',
+    '--single-process',
+    '--disable-extensions',
+    '--disable-background-networking',
+    '--js-flags=--max-old-space-size=256',
+  ]
 
   const results: PlaywrightCrawlResult[] = []
 
-  try {
-    for (const config of configs) {
+  // Launch a FRESH browser per insurer to prevent memory leaks on low-RAM VPS
+  for (const config of configs) {
+    let browser: Browser | null = null
+    try {
+      console.log(`\n[pw-crawler] Launching Chromium for ${config.name}...`)
+      browser = await chromium.launch({ headless: true, args: CHROMIUM_ARGS })
       const result = await crawlInsurerWithPlaywright(browser, config, options)
       results.push(result)
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error(`[pw-crawler] FATAL for ${config.name}: ${msg}`)
+      results.push({
+        insurer: config.name,
+        cnpj: config.cnpj,
+        pagesVisited: 0,
+        pdfLinksFound: 0,
+        relevantLinks: 0,
+        downloaded: 0,
+        skipped: 0,
+        failed: 0,
+        pdfs: [],
+        errors: [`Browser crash: ${msg}`],
+        durationMs: 0,
+      })
+    } finally {
+      if (browser) {
+        try { await browser.close() } catch { /* ignore */ }
+      }
+      // Give OS time to reclaim memory
+      if (global.gc) global.gc()
+      await new Promise((r) => setTimeout(r, 2000))
     }
-  } finally {
-    await browser.close()
   }
 
   return results
